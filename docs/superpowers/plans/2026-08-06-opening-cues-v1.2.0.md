@@ -395,9 +395,10 @@ Replace `releaseGhosts` in `js/game.js:262-273`:
     }
 ```
 
-`r` is never null here: Blinky is the only ghost with `release: null`, and
-`g.reset()` puts it straight into `out`, so the `state !== 'house'` guard above
-returns first.
+Every ghost needs a release rule, not just the three that start in the house.
+Blinky passes through `house` too on the way back from being eaten, where
+`PV.updateGhost` sets `releaseTimer = 1.0` for any ghost, so `g.release` is
+read for it as well.
 
 - [ ] **Step 6: Run the test to verify it passes**
 

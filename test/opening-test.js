@@ -103,5 +103,33 @@ function releaseTimes(g) {
 })();
 
 console.log('');
+console.log('respawn through the house');
+
+/* Every ghost passes through the house after being eaten, Blinky included, so
+ * every ghost needs a release rule — not just the three that start there. */
+(function () {
+  var g = newGame();
+  for (var i = 0; i < 60 * 5 && g.state === 'ready'; i++) g.update(STEP);
+
+  var blinky = g.ghosts[0];
+  blinky.state = 'entering';
+  blinky.x = PV.center(PV.SPAWN.outside.col);
+  blinky.y = PV.center(PV.SPAWN.outside.row);
+  for (var j = 0; j < 200 && blinky.state === 'entering'; j++) {
+    PV.updateGhost(blinky, STEP, g.maze, PV.SPAWN.outside);
+  }
+  check('an eaten blinky lands in the house', blinky.state === 'house', blinky.state);
+
+  var threw = null;
+  try {
+    for (var k = 0; k < 60 * 5; k++) g.update(STEP);
+  } catch (e) {
+    threw = e.message;
+  }
+  check('stepping past the dwell does not throw', threw === null, threw);
+  check('blinky leaves the house again', blinky.state !== 'house', blinky.state);
+})();
+
+console.log('');
 console.log(failures === 0 ? 'ALL OPENING CUES OK' : failures + ' CHECK(S) FAILED');
 process.exit(failures === 0 ? 0 : 1);

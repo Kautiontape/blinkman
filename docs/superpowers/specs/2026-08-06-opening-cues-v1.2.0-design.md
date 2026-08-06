@@ -40,10 +40,13 @@ passed).
 
 | Ghost | dots | earliest | latest |
 |---|---|---|---|
-| blinky | — starts on the board — | | |
+| blinky | 0 | 0 | 0 |
 | pinky | 0 | 2.0s | 2.0s |
 | inky | 20 | 5.0s | 9.0s |
 | clyde | 60 | 8.0s | 14.0s |
+
+Blinky opens the round already outside, so the ladder only applies to it on a
+respawn.
 
 `earliest` is the new term and guarantees a ≥2s gap between exits that no dot
 count can undercut. A passive player sees exits at 0 / 2 / 9 / 14; a fast one
