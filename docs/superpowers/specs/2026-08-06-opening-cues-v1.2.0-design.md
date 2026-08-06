@@ -128,6 +128,12 @@ modes.
 - **The dots chip lights during the blink**, then goes dark. `hud.update()`
   reads `visibleAlpha()` and the intro floor lives inside it. Intended: it
   ties the flash to the chip that controls it.
+- **The dots chip also sits lit through the `ready` countdown.** `v.reset()`
+  arms the intro and paints its first frame via `v.update(0)`, and
+  `vision.update()` is unreachable while `ready`, so that frame holds until
+  play starts. The chip is in the side panel rather than behind the overlay,
+  so it is fully visible for up to 1.8s before the blink begins. The walls
+  chip already behaves this way in Normal and Hard.
 - **The ghosts chip does not light for housed ghosts.** `PV.ghostReveal()` is
   per-entity and sits outside `visibleAlpha()`. The ghosts layer genuinely is
   not on, so the chip stays honest.

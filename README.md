@@ -56,6 +56,11 @@ Death is the one exception to all of this. Get caught and the ghosts light up
 for 0.6s before the death animation, with a red ring on whichever one got you,
 so a death always has a visible cause.
 
+A round opens the same way in every mode. The dots blink three times and then
+obey the layer, ghosts leave the house one at a time over the first several
+seconds, and a ghost inside the house is visible whatever the layer says,
+fading out as it crosses the door.
+
 ## Mazes
 
 Every level builds a new maze, so you can't coast on memory. It isn't a random
@@ -81,6 +86,7 @@ rules apply, and the test enforces all three:
    the one it's reached from; the two tunnel mouths are the only exception.
 
     node test/maze-test.js
+    node test/opening-test.js
 
 One more guideline, not test-enforced: when closing a dead-end into a
 corridor, leave at least 2 straight tiles before the next turn.
