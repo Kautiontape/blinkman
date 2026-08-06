@@ -141,5 +141,16 @@ run '' 1.4.0 -y
 expect 'skips the prompt with -y' 0 '1.3.0 -> 1.4.0'
 teardown
 
+setup 0
+out="$(cd "$work/repo" && ./tools/release.sh 1.4.0 </dev/null 2>&1)"
+code=$?
+expect 'declines safely when stdin is closed' 1 'aborted'
+if [ "$(version_in)" = '1.3.0' ]; then
+  ok 'reverts the bump when stdin is closed'
+else
+  no 'reverts the bump when stdin is closed' "version is $(version_in)"
+fi
+teardown
+
 printf '\n%s passed, %s failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

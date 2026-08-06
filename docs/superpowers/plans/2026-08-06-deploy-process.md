@@ -443,6 +443,17 @@ setup 0
 run '' 1.4.0 -y
 expect 'skips the prompt with -y' 0 '1.3.0 -> 1.4.0'
 teardown
+
+setup 0
+out="$(cd "$work/repo" && ./tools/release.sh 1.4.0 </dev/null 2>&1)"
+code=$?
+expect 'declines safely when stdin is closed' 1 'aborted'
+if [ "$(version_in)" = '1.3.0' ]; then
+  ok 'reverts the bump when stdin is closed'
+else
+  no 'reverts the bump when stdin is closed' "version is $(version_in)"
+fi
+teardown
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -485,7 +496,7 @@ fi
 bash test/release-test.sh
 ```
 
-Expected: `16 passed, 0 failed`, exit 0.
+Expected: `18 passed, 0 failed`, exit 0.
 
 - [ ] **Step 5: Commit**
 
@@ -544,7 +555,7 @@ teardown
 bash test/release-test.sh
 ```
 
-Expected: the sixteen earlier cases pass; the six new ones FAIL — `release.sh` exits after the prompt without committing, tagging or pushing.
+Expected: the eighteen earlier cases pass; the six new ones FAIL — `release.sh` exits after the prompt without committing, tagging or pushing.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -568,7 +579,7 @@ printf 'pushed %s\n' "$tag"
 bash test/release-test.sh
 ```
 
-Expected: `22 passed, 0 failed`, exit 0.
+Expected: `24 passed, 0 failed`, exit 0.
 
 - [ ] **Step 5: Commit**
 
