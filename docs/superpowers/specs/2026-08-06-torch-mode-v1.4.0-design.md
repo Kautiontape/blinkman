@@ -162,7 +162,11 @@ if (torchR) { drawPulse(ctx, game); drawTorch(ctx, game, torchR, scale); }
 
 **`drawPulse`** paints one flat scan colour, `#5cffb0`, for all three layers —
 that is the whole point of the effect reading as a sweep rather than as the
-board. Per element, distance from the origin feeds `PV.pulseAlpha()`:
+board. It opens with the **wavefront**: a faint ring stroked at the ring's own
+radius, weakening as it spreads. A walls or dots ping shows where the ring is
+for free, as elements light up; a ghosts ping has nothing to light between
+contacts and without this reads as if the press did nothing. Per element,
+distance from the origin then feeds `PV.pulseAlpha()`:
 
 - **walls** — `maze.edges` is already one segment per tile face, so a per-segment
   midpoint distance gives a clean sweep with no new geometry.

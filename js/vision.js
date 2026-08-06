@@ -19,6 +19,7 @@ window.PV = window.PV || {};
   var PULSE_SPEED = 700;                              // px/s
   var PULSE_SPAN = Math.hypot(PV.WIDTH, PV.HEIGHT);   // worst-case corner origin
   PV.PULSE_SPEED = PULSE_SPEED;
+  PV.PULSE_SPAN = PULSE_SPAN;
 
   PV.pulseAlpha = function (dist, age, rules) {
     var t = age - dist / PULSE_SPEED;   // seconds since the ring passed

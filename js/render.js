@@ -14,6 +14,7 @@ window.PV = window.PV || {};
   var SCAN = '#5cffb0';
   var SCAN_EDGE = '#d8fff0';   // the leading edge, so the ring reads as a ring
   var EDGE_TIME = 0.1;         // how long an element counts as just-reached
+  var FRONT_ALPHA = 0.22;      // the wavefront: present, never competing
 
   var TORCH_R = 46;            // 2.3 tiles
   var TORCH_SOFT = 12;         // px over which a ghost fades in at the rim
@@ -143,10 +144,29 @@ window.PV = window.PV || {};
     if (!p) return;
 
     ctx.save();
+    // Under the layer, so it never sits over a contact.
+    drawPulseFront(ctx, p);
     if (p.layer === 'walls') drawPulseWalls(ctx, game.maze, p, game.rules);
     else if (p.layer === 'dots') drawPulseDots(ctx, game.maze, p, game.rules);
     else if (p.layer === 'ghosts') drawPulseBlips(ctx, p, game.rules);
     ctx.restore();
+  }
+
+  /* The wavefront itself. A walls or dots ping shows where the ring is for
+   * free, as things light up; a ghosts ping has nothing to light between
+   * contacts and reads as if the press did nothing. This gives every layer the
+   * same running commentary, and weakens as it spreads. */
+  function drawPulseFront(ctx, p) {
+    var reach = p.age * PV.PULSE_SPEED;
+    var spent = reach / PV.PULSE_SPAN;
+    if (spent >= 1) return;   // off the board; nothing left to show
+
+    ctx.globalAlpha = FRONT_ALPHA * (1 - spent);
+    ctx.strokeStyle = SCAN;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, reach, 0, Math.PI * 2);
+    ctx.stroke();
   }
 
   /** True while an element is close enough behind the ring to read as its edge. */
