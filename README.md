@@ -50,8 +50,8 @@ blue ring means you can switch. A shrinking red arc means wait.
 | Easy | You and your last two picks | 1s |
 | Normal | You and your last pick | 1s |
 | Hard | One of four, and you can go dark | 3s |
-| Blink | Nothing. A press flashes one layer, which fades over 2s. | 1s |
 | Torch | A lit circle around you. A press pings one layer outward from where you stood, and it fades behind the ring. | 1s |
+| Blink | Nothing. A press flashes one layer, which fades over 2s. | 1s |
 
 Death is the one exception to all of this. Get caught and the ghosts light up
 for 0.6s before the death animation, with a red ring on whichever one got you,
@@ -61,8 +61,10 @@ A round opens the same way in every mode. The dots blink three times and then
 obey the layer, and all four ghosts start in the house and file out one at a
 time over the first several seconds. A ghost inside the house is visible
 whatever the layer says, fading out as it crosses the door, so you can count
-what is still waiting. Pac-Man starts Blinky outside the house; keeping all
-four in makes the count readable, which matters more here than the pedigree.
+what is still waiting. Torch opts out of that: it brings its own light, so the
+house stays dark and who is still in it is something you walk up to or ping
+for. Pac-Man starts Blinky outside the house; keeping all four in makes the
+count readable, which matters more here than the pedigree.
 
 ## Mazes
 

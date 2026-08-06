@@ -152,13 +152,18 @@ console.log('ghost blips');
     near(p.blips[0].x, at.x, 0.001) && near(p.blips[0].y, at.y, 0.001),
     p.blips[0].x + ',' + p.blips[0].y);
 
-  var frozen = { x: p.blips[0].x, y: p.blips[0].y };
+  var frozen = { x: p.blips[0].x, y: p.blips[0].y, wobble: p.blips[0].wobble };
+  check('the blip freezes the waddle too, so the outline holds still',
+    frozen.wobble === ghost.wobble, frozen.wobble);
+
   for (var k = 0; k < 20; k++) g.update(STEP);
   check('the ghost moved on',
     Math.hypot(ghost.x - frozen.x, ghost.y - frozen.y) > 4,
     Math.hypot(ghost.x - frozen.x, ghost.y - frozen.y).toFixed(1));
+  check('the ghost kept waddling', ghost.wobble > frozen.wobble, ghost.wobble);
   check('the blip stayed where the ring found it',
-    p.blips[0].x === frozen.x && p.blips[0].y === frozen.y);
+    p.blips[0].x === frozen.x && p.blips[0].y === frozen.y &&
+    p.blips[0].wobble === frozen.wobble);
 
   // A walls ping must not leave ghost blips behind.
   var h = playing();

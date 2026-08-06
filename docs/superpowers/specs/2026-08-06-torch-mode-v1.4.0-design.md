@@ -193,12 +193,26 @@ Ghosts are **not** clipped. `drawGhosts` already takes a per-entity alpha floor
 pattern:
 
 ```js
-a = Math.max(alpha, PV.ghostReveal(g), torchReveal(g, pacman, torchR));
+var housed = torchR ? 0 : PV.ghostReveal(g);
+a = Math.max(alpha, housed, torchReveal(g, pacman, torchR));
 ```
 
 ramping from 1 to 0 over the outermost 12px of the disc. A ghost straddling the
 rim shows whole rather than sliced, which is both what the existing reveal does
 and what reads correctly. Pac-Man is already drawn by `freeSelf`.
+
+Torch **suppresses the ghost-house reveal**. Every other mode shows a housed
+ghost through a dark layer so the opening file-out can be counted; Torch brings
+its own light and so opts out, and who is left in the house is something you
+walk up to or ping for. Death is unaffected — that forces `alpha.ghosts` to 1
+through `visibleAlpha()`, well above the suppressed floor.
+
+A sonar contact is drawn as the ghost's **own outline**, not a generic marker,
+so there is no doubt what the ring found. `drawGhostBody` splits into a bare
+`ghostBodyPath()` plus a filling wrapper, and the contact strokes that same
+path — the two cannot drift apart. `pulse.blips` therefore records `wobble`
+alongside the position: a frozen contact should be frozen mid-waddle rather
+than still animating.
 
 ### 6. `vision.alpha` stays dark, and the chips still light
 
@@ -234,10 +248,13 @@ press, the way it does in Blink.
 }
 ```
 
-DOM order stays `easy, normal, hard, blink, torch`, which fills the left column
+DOM order is `easy, normal, hard, torch, blink`, which fills the left column
 with the three standard modes and the right with the two dark ones, and keeps
-tab order matching keys `1`–`5`. `index.html` gains one `.diff` button with
-`aria-keyshortcuts="5"`; `MENU_KEYS` in `js/main.js` gains `Digit5: 'torch'`.
+tab order matching keys `1`–`5`. Torch sits above Blink as the gentler of the
+two, so the right column also reads easy-to-hard. That moves Blink from key
+`4` to `5`: the number always matches the position, which matters more than
+preserving one mode's key. Best scores are stored per mode id, not per digit,
+so nothing is lost.
 
 ### 8. Strings
 
@@ -290,6 +307,10 @@ test list gains `node test/torch-test.js`.
   ring governs pulses.
 - **Torch is the only mode where the board is lit without a key press.** The
   layer chips cannot represent that, and do not try to.
+- **The opening file-out is not countable in Torch.** Suppressing the house
+  reveal costs the cue that v1.2.0 added. Accepted: the torch is the mode's
+  answer to "what is near me", and exempting the house from it would undercut
+  that.
 
 ## Enforcement
 

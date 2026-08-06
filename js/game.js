@@ -283,7 +283,11 @@ window.PV = window.PV || {};
       var reach = p.age * PV.PULSE_SPEED;
       game.ghosts.forEach(function (g, i) {
         if (p.blips[i]) return;
-        if (Math.hypot(g.x - p.x, g.y - p.y) <= reach) p.blips[i] = { x: g.x, y: g.y };
+        // wobble too: render.js draws the contact as the ghost's own outline,
+        // and a frozen contact should be frozen mid-waddle, not still moving.
+        if (Math.hypot(g.x - p.x, g.y - p.y) <= reach) {
+          p.blips[i] = { x: g.x, y: g.y, wobble: g.wobble };
+        }
       });
     }
 

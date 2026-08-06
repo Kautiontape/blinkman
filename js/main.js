@@ -184,7 +184,7 @@
   };
 
   var MENU_KEYS = {
-    Digit1: 'easy', Digit2: 'normal', Digit3: 'hard', Digit4: 'blink', Digit5: 'torch'
+    Digit1: 'easy', Digit2: 'normal', Digit3: 'hard', Digit4: 'torch', Digit5: 'blink'
   };
 
   var SCROLL_KEYS = {

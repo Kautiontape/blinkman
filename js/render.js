@@ -189,21 +189,26 @@ window.PV = window.PV || {};
     }
   }
 
-  /* A contact reads differently from a pellet: a point inside a ring. blips is
-   * sparse — indexed by ghost — and forEach skips the holes. */
+  /* A contact is the ghost's own outline, so there is no doubt what the ring
+   * found. The wobble is frozen with the position — a sampled contact should
+   * not keep animating. blips is sparse, indexed by ghost, and forEach skips
+   * the holes. */
   function drawPulseBlips(ctx, p, rules) {
     p.blips.forEach(function (b) {
       var d = Math.hypot(b.x - p.x, b.y - p.y);
       var a = PV.pulseAlpha(d, p.age, rules);
       if (a <= 0.001) return;
+      var edge = justReached(d, p.age);
+
+      ctx.save();
       ctx.globalAlpha = a;
-      ctx.fillStyle = SCAN;
-      fillCircle(ctx, b.x, b.y, 3);
-      ctx.strokeStyle = SCAN;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, TILE * 0.46, 0, Math.PI * 2);
+      ctx.translate(b.x, b.y);
+      ctx.strokeStyle = edge ? SCAN_EDGE : SCAN;
+      ctx.lineWidth = edge ? 2.5 : 1.5;
+      ctx.lineJoin = 'round';
+      ghostBodyPath(ctx, TILE * 0.46, b.wobble);
       ctx.stroke();
+      ctx.restore();
     });
   }
 
@@ -268,9 +273,11 @@ window.PV = window.PV || {};
     var rad = TILE * 0.46;
 
     game.ghosts.forEach(function (g) {
-      // A ghost in the house, or one standing in the torch, shows through even
-      // with the layer dark.
-      var a = Math.max(alpha, PV.ghostReveal(g), torchReveal(g, game.pacman, torchR));
+      // A ghost in the house shows through even with the layer dark — except
+      // in Torch, which brings its own light and so opts out: what is waiting
+      // in the house is something you walk up to or ping for.
+      var housed = torchR ? 0 : PV.ghostReveal(g);
+      var a = Math.max(alpha, housed, torchReveal(g, game.pacman, torchR));
       if (a <= 0.001) return;
 
       var eyesOnly = g.state === 'eaten' || g.state === 'entering';
@@ -296,8 +303,10 @@ window.PV = window.PV || {};
     });
   }
 
-  function drawGhostBody(ctx, color, rad, wobble) {
-    ctx.fillStyle = color;
+  /* The dome-and-skirt silhouette, in the ghost's local space. Left as a bare
+   * path so callers can fill it as a body or stroke it as a sonar contact,
+   * which keeps the two from drifting apart. */
+  function ghostBodyPath(ctx, rad, wobble) {
     ctx.beginPath();
     ctx.arc(0, -rad * 0.15, rad, Math.PI, 0);           // domed head
     ctx.lineTo(rad, rad * 0.7);
@@ -309,6 +318,11 @@ window.PV = window.PV || {};
       ctx.quadraticCurveTo(x0 - w * 0.5, rad * 0.7 + dip, x0 - w, rad * 0.7);
     }
     ctx.closePath();
+  }
+
+  function drawGhostBody(ctx, color, rad, wobble) {
+    ghostBodyPath(ctx, rad, wobble);
+    ctx.fillStyle = color;
     ctx.fill();
   }
 
