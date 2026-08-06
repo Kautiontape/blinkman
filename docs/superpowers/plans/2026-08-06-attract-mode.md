@@ -8,7 +8,7 @@
 
 **Tech Stack:** Plain browser scripts hanging off a `window.PV` global. No modules, no bundler, no build step. Tests are plain node scripts run directly — nothing to install.
 
-**Spec:** `docs/superpowers/specs/2026-08-06-attract-mode-v1.4.0-design.md`
+**Spec:** `docs/superpowers/specs/2026-08-06-attract-mode-design.md`
 
 ---
 
@@ -22,7 +22,6 @@
 | `js/main.js` (modify) | Builds, drops and draws the attract game around the menu. |
 | `index.html` (modify) | One script tag. |
 | `css/style.css` (modify) | Menu scrim opacity. |
-| `js/strings.js` (modify) | Version. |
 | `README.md` (modify) | File list, test list, Modes section, Not done section. |
 
 `attract.js` reads `PV.DIRS`, `PV.COLS` and `PV.ROWS` at load time, so it must load after `entities.js` and `maze.js`. Placing it after `game.js` satisfies both.
@@ -821,7 +820,7 @@ localStorage.getItem('pv-best-normal')
 
 Leave the menu demo running for a minute, re-run that line, and confirm the value has not changed.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add index.html js/main.js css/style.css
@@ -830,27 +829,15 @@ git commit -m "menu: Play the attract demo behind the menu"
 
 ---
 
-### Task 5: Version and documentation
+### Task 5: Documentation
 
 **Files:**
-- Modify: `js/strings.js:16`
 - Modify: `README.md`
 
-- [ ] **Step 1: Bump the version**
+`PV.VERSION` is not touched. A release sets the version; a feature branch does
+not, or two branches in flight both claim the same number.
 
-In `js/strings.js`, change line 16 from:
-
-```js
-  PV.VERSION = '1.3.0';
-```
-
-to:
-
-```js
-  PV.VERSION = '1.4.0';
-```
-
-- [ ] **Step 2: Describe it in the Modes section**
+- [ ] **Step 1: Describe it in the Modes section**
 
 In `README.md`, after the paragraph ending "so a death always has a visible cause." (currently line 57), add a blank line and:
 
@@ -859,7 +846,7 @@ The menu runs a demo behind it: a Normal round on autopilot, with the lit layer
 rotating every four seconds. `prefers-reduced-motion` turns it off.
 ```
 
-- [ ] **Step 3: Add the file to the code list**
+- [ ] **Step 2: Add the file to the code list**
 
 In `README.md`, add one line to the file list, directly below the `js/game.js` line:
 
@@ -867,7 +854,7 @@ In `README.md`, add one line to the file list, directly below the `js/game.js` l
     js/attract.js   the autopilot demo behind the menu
 ```
 
-- [ ] **Step 4: Record the load-order constraint**
+- [ ] **Step 3: Record the load-order constraint**
 
 In `README.md`, change the paragraph currently at lines 115-117 from:
 
@@ -886,7 +873,7 @@ and the grid size, so it comes after `entities.js` too. `main.js` has to load
 last. Everything else in the script order is slack.
 ```
 
-- [ ] **Step 5: Add the test**
+- [ ] **Step 4: Add the test**
 
 In `README.md`, change the paragraph and command block currently at lines 119-124 from:
 
@@ -913,7 +900,7 @@ rotation reaches every layer.
     node test/attract-test.js
 ```
 
-- [ ] **Step 6: Drop the stale line from Not done**
+- [ ] **Step 5: Drop the stale line from Not done**
 
 In `README.md`, change the line currently at line 149 from:
 
@@ -927,11 +914,7 @@ to:
 - No bonus fruit.
 ```
 
-- [ ] **Step 7: Verify the version renders**
-
-Reload `http://localhost:8000/` and confirm the faint stamp in the bottom-right of the menu panel reads `v1.4.0`.
-
-- [ ] **Step 8: Run everything one last time**
+- [ ] **Step 6: Run everything one last time**
 
 ```bash
 node test/maze-test.js && node test/opening-test.js && node test/attract-test.js
@@ -939,11 +922,11 @@ node test/maze-test.js && node test/opening-test.js && node test/attract-test.js
 
 Expected: three all-ok lines, exit 0.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add js/strings.js README.md
-git commit -m "blinkman: Bump version to 1.4.0"
+git add README.md
+git commit -m "docs: Document the menu demo"
 ```
 
 ---

@@ -1,4 +1,4 @@
-# Attract mode (v1.4.0)
+# Attract mode
 
 ## Problem
 
@@ -121,9 +121,9 @@ frame during a resize, and the next frame redraws.
 86% the sim reads as a shimmer; at 78% the motion registers while the menu text
 stays at full contrast against it. No other rule changes.
 
-### 5. Version and documentation
+### 5. Documentation
 
-`PV.VERSION` in `js/strings.js` moves to `1.4.0`.
+`PV.VERSION` is left alone. A release sets it, not a feature branch.
 
 The README gains `js/attract.js` in the file list and `test/attract-test.js` in
 the test list, and drops "no attract mode" from the *Not done* section.
