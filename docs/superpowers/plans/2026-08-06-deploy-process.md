@@ -291,7 +291,7 @@ git commit -m "deploy: Add release.sh version argument handling"
 
 - [ ] **Step 1: Write the failing test**
 
-In `test/release-test.sh`, replace the block between `setup 0` / `teardown` and the trailing summary with this. The three Task 2 cases stay as they are; five new blocks follow them.
+In `test/release-test.sh`, replace the block between `setup 0` / `teardown` and the trailing summary with this. The three Task 2 cases stay as they are; six new blocks follow them.
 
 ```bash
 setup 0
@@ -380,7 +380,7 @@ The `if` form matters for the local-tag check. Under `set -e`, an `a && die ...`
 bash test/release-test.sh
 ```
 
-Expected: `8 passed, 0 failed`, exit 0.
+Expected: `9 passed, 0 failed`, exit 0.
 
 - [ ] **Step 5: Commit**
 
@@ -451,7 +451,7 @@ teardown
 bash test/release-test.sh
 ```
 
-Expected: the eight earlier cases pass; the seven new ones FAIL, because `release.sh` exits after preflight without running the suites, editing `js/strings.js` or prompting.
+Expected: the nine earlier cases pass; the seven new ones FAIL, because `release.sh` exits after preflight without running the suites, editing `js/strings.js` or prompting.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -485,7 +485,7 @@ fi
 bash test/release-test.sh
 ```
 
-Expected: `15 passed, 0 failed`, exit 0.
+Expected: `16 passed, 0 failed`, exit 0.
 
 - [ ] **Step 5: Commit**
 
@@ -544,7 +544,7 @@ teardown
 bash test/release-test.sh
 ```
 
-Expected: the fifteen earlier cases pass; the six new ones FAIL — `release.sh` exits after the prompt without committing, tagging or pushing.
+Expected: the sixteen earlier cases pass; the six new ones FAIL — `release.sh` exits after the prompt without committing, tagging or pushing.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -568,7 +568,7 @@ printf 'pushed %s\n' "$tag"
 bash test/release-test.sh
 ```
 
-Expected: `21 passed, 0 failed`, exit 0.
+Expected: `22 passed, 0 failed`, exit 0.
 
 - [ ] **Step 5: Commit**
 
