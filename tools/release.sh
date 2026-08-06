@@ -26,15 +26,16 @@ tag="v$version"
 branch="$(git rev-parse --abbrev-ref HEAD)"
 [ "$branch" = "$release_branch" ] || die "releases are cut from $release_branch, not $branch"
 
+# Untracked files don't count as dirty: the commit in Task 5 is scoped to
+# js/strings.js, not git add -A.
 git diff-index --quiet HEAD -- || die 'working tree is dirty'
 
-current="$(sed -n "s/^ *PV\.VERSION = '\([^']*\)';/\1/p" "$strings")"
+current="$(sed -n "s/^ *PV\.VERSION = '\([^']*\)';\$/\1/p" "$strings")"
 [ -n "$current" ] || die "no PV.VERSION in $strings"
 [ "$version" != "$current" ] || die "already at $version"
 
 if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
   die "tag $tag already exists"
 fi
-if [ -n "$(git ls-remote --tags origin "$tag")" ]; then
-  die "tag $tag already exists on origin"
-fi
+remote_tag="$(git ls-remote --tags origin "$tag")" || die 'could not check origin for existing tags'
+[ -z "$remote_tag" ] || die "tag $tag already exists on origin"

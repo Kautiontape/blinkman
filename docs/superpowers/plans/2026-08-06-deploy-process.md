@@ -333,6 +333,12 @@ git -C "$work/repo" tag -d v1.4.0 >/dev/null
 run '' 1.4.0
 expect 'refuses a tag that already exists on origin' 1 'tag v1.4.0 already exists on origin'
 teardown
+
+setup 0
+git -C "$work/repo" remote remove origin
+run '' 1.4.0
+expect 'aborts when origin cannot be checked' 1 'could not check origin for existing tags'
+teardown
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -341,7 +347,7 @@ teardown
 bash test/release-test.sh
 ```
 
-Expected: the three Task 2 cases pass; the five new ones FAIL, because `release.sh` currently prints the tag and exits 0 regardless of repository state.
+Expected: the three Task 2 cases pass; the six new ones FAIL, because `release.sh` currently prints the tag and exits 0 regardless of repository state.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -351,21 +357,22 @@ In `tools/release.sh`, replace the final `printf '%s\n' "$tag"` line with:
 branch="$(git rev-parse --abbrev-ref HEAD)"
 [ "$branch" = "$release_branch" ] || die "releases are cut from $release_branch, not $branch"
 
+# Untracked files don't count as dirty: the commit in Task 5 is scoped to
+# js/strings.js, not git add -A.
 git diff-index --quiet HEAD -- || die 'working tree is dirty'
 
-current="$(sed -n "s/^ *PV\.VERSION = '\([^']*\)';/\1/p" "$strings")"
+current="$(sed -n "s/^ *PV\.VERSION = '\([^']*\)';\$/\1/p" "$strings")"
 [ -n "$current" ] || die "no PV.VERSION in $strings"
 [ "$version" != "$current" ] || die "already at $version"
 
 if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
   die "tag $tag already exists"
 fi
-if [ -n "$(git ls-remote --tags origin "$tag")" ]; then
-  die "tag $tag already exists on origin"
-fi
+remote_tag="$(git ls-remote --tags origin "$tag")" || die 'could not check origin for existing tags'
+[ -z "$remote_tag" ] || die "tag $tag already exists on origin"
 ```
 
-The `if` form matters for the two tag checks. Under `set -e`, an `a && die ...` compound whose left side fails returns non-zero and takes the whole script down with it.
+The `if` form matters for the local-tag check. Under `set -e`, an `a && die ...` compound whose left side fails returns non-zero and takes the whole script down with it. The origin check instead assigns `remote_tag` as a plain statement so `||` sees git's real exit status — an `if` there would swallow a `git ls-remote` failure (no origin, no network, expired credentials) and let the script continue as though the tag were absent.
 
 - [ ] **Step 4: Run test to verify it passes**
 

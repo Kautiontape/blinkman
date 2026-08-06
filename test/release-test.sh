@@ -96,5 +96,11 @@ run '' 1.4.0
 expect 'refuses a tag that already exists on origin' 1 'tag v1.4.0 already exists on origin'
 teardown
 
+setup 0
+git -C "$work/repo" remote remove origin
+run '' 1.4.0
+expect 'aborts when origin cannot be checked' 1 'could not check origin for existing tags'
+teardown
+
 printf '\n%s passed, %s failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
