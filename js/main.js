@@ -21,6 +21,7 @@
   var hud = PV.createHud();
 
   var game = null;
+  var attract = null;      // the demo behind the menu; null while a round is live
   var paused = false;
   var prevTs = 0;
   var overlayKey = '';
@@ -117,10 +118,13 @@
     panelMsg.hidden = true;
     hud.showIdle();
     renderer.clear();
+    // Under reduced motion the board stays the black rectangle it was.
+    attract = wantsCalm() ? null : PV.createAttract();
   }
 
   function startGame(difficultyId) {
     PV.Sfx.unlock();
+    attract = null;
     game = PV.createGame(difficultyId);
     game.onEvent = handleEvent;
     PV.game = game;          // debug handle in the console
@@ -305,7 +309,13 @@
     var dt = prevTs ? Math.min((ts - prevTs) / 1000, 1 / 20) : 0;
     prevTs = ts;
 
-    if (!game) return;
+    if (!game) {
+      if (attract) {
+        attract.update(dt);
+        renderer.draw(attract.game, dt);
+      }
+      return;
+    }
 
     if (!paused) {
       game.update(dt);
