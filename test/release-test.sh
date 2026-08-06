@@ -65,5 +65,36 @@ run '' ''
 expect 'rejects a missing argument' 1 'usage: tools/release.sh'
 teardown
 
+setup 0
+git -C "$work/repo" checkout -q -b feature
+run '' 1.4.0
+expect 'refuses to release off main' 1 'releases are cut from main, not feature'
+teardown
+
+setup 0
+printf 'stray\n' >> "$work/repo/js/strings.js"
+run '' 1.4.0
+expect 'refuses a dirty working tree' 1 'working tree is dirty'
+teardown
+
+setup 0
+run '' 1.3.0
+expect 'refuses the version already in strings.js' 1 'already at 1.3.0'
+teardown
+
+setup 0
+git -C "$work/repo" tag v1.4.0
+run '' 1.4.0
+expect 'refuses a tag that already exists' 1 'tag v1.4.0 already exists'
+teardown
+
+setup 0
+git -C "$work/repo" tag v1.4.0
+git -C "$work/repo" push -q origin v1.4.0
+git -C "$work/repo" tag -d v1.4.0 >/dev/null
+run '' 1.4.0
+expect 'refuses a tag that already exists on origin' 1 'tag v1.4.0 already exists on origin'
+teardown
+
 printf '\n%s passed, %s failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
