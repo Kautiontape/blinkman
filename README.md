@@ -56,6 +56,13 @@ Death is the one exception to all of this. Get caught and the ghosts light up
 for 0.6s before the death animation, with a red ring on whichever one got you,
 so a death always has a visible cause.
 
+A round opens the same way in every mode. The dots blink three times and then
+obey the layer, and all four ghosts start in the house and file out one at a
+time over the first several seconds. A ghost inside the house is visible
+whatever the layer says, fading out as it crosses the door, so you can count
+what is still waiting. Pac-Man starts Blinky outside the house; keeping all
+four in makes the count readable, which matters more here than the pedigree.
+
 ## Mazes
 
 Every level builds a new maze, so you can't coast on memory. It isn't a random
@@ -108,6 +115,13 @@ is what lets `file://` work.
 `maze.js` has to load before `entities.js`, `render.js` and `game.js`, which
 read `PV.TILE` and the spawn table at load time. `main.js` has to load last.
 Everything else in the script order is slack.
+
+Two test suites, both plain node scripts with nothing to install. The second
+covers the ghost release ladder, the house reveal and the dots blink, none of
+which are visible to a layout check.
+
+    node test/maze-test.js
+    node test/opening-test.js
 
 The game always draws into a fixed 560x620 space and a canvas transform maps
 that onto whatever size the board actually is. Nothing in the game logic knows

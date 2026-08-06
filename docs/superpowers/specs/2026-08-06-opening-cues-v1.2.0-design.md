@@ -40,10 +40,18 @@ passed).
 
 | Ghost | dots | earliest | latest |
 |---|---|---|---|
-| blinky | — starts on the board — | | |
+| blinky | 0 | 0 | 0 |
 | pinky | 0 | 2.0s | 2.0s |
 | inky | 20 | 5.0s | 9.0s |
 | clyde | 60 | 8.0s | 14.0s |
+
+Blinky opens the round already outside, so the ladder only applies to it on a
+respawn.
+
+> Superseded in v1.3.0: Blinky's spawn moved inside the house, to `(13, 13)`
+> below the door. All four now start housed and the ladder governs every exit,
+> Blinky's included, so the opening reads as a countable file-out. Its release
+> triple is unchanged — all zeroes still means it leads.
 
 `earliest` is the new term and guarantees a ≥2s gap between exits that no dot
 count can undercut. A passive player sees exits at 0 / 2 / 9 / 14; a fast one
@@ -77,8 +85,8 @@ the ladder applies to round openings only.
 
 ### 2. Reveal alpha
 
-Each ghost carries `revealAlpha`, set in `PV.updateGhost()` and in
-`g.reset()`. It is a pure function of position and state, with no timer:
+`PV.ghostReveal(g)` in `js/entities.js` returns a ghost's reveal alpha. It is a
+pure function of position and state, with no timer and nothing stored:
 
 - states `out` and `eaten` → `0`
 - states `house`, `leaving` and `entering` →
@@ -96,7 +104,8 @@ Rising out at 6 tiles/sec that is a 0.17s fade; the descent on `entering` at
 cost.
 
 `js/render.js` stops gating `drawGhosts` on `alpha.ghosts > 0` and draws each
-ghost at `max(layerAlpha, g.revealAlpha)`, skipping any that resolve to zero.
+ghost at `max(layerAlpha, PV.ghostReveal(g))`, skipping any that resolve to
+zero.
 The forced reveal during a death and the culprit dimming are unchanged.
 
 ### 3. Intro blink
@@ -124,12 +133,19 @@ modes.
 - **The dots chip lights during the blink**, then goes dark. `hud.update()`
   reads `visibleAlpha()` and the intro floor lives inside it. Intended: it
   ties the flash to the chip that controls it.
-- **The ghosts chip does not light for housed ghosts.** `revealAlpha` is
+- **The dots chip also sits lit through the `ready` countdown.** `v.reset()`
+  arms the intro and paints its first frame via `v.update(0)`, and
+  `vision.update()` is unreachable while `ready`, so that frame holds until
+  play starts. The chip is in the side panel rather than behind the overlay,
+  so it is fully visible for up to 1.8s before the blink begins. The walls
+  chip already behaves this way in Normal and Hard.
+- **The ghosts chip does not light for housed ghosts.** `PV.ghostReveal()` is
   per-entity and sits outside `visibleAlpha()`. The ghosts layer genuinely is
   not on, so the chip stays honest.
 - **Housed ghosts are faintly visible behind the `ready` overlay**, which is
-  86% opaque rather than opaque. `g.reset()` sets `revealAlpha` so this holds
-  from the first frame of the round.
+  86% opaque rather than opaque. `PV.ghostReveal()` reads position and state
+  directly, so this holds from the first frame of the round with no
+  initialisation.
 - **Hard and Blink lose some blackout.** A housed ghost is visible mid-level,
   including one respawning after being eaten. Accepted: housed ghosts are
   stationary and cannot threaten the player.
@@ -142,22 +158,28 @@ DOM-free and `localStorage` is already wrapped in try/catch, so `maze.js` →
 `entities.js` → `vision.js` → `game.js` load headless under a `global.window`
 stub.
 
-Four checks:
+Five checks:
 
 1. **Release ladder** — step a game with zero dots eaten and assert Pinky,
    Inky and Clyde leave the house at their `latest` times, in that order,
-   with gaps of at least 2s. Blinky is exempt: `g.reset()` puts it straight
-   into `out`, so the ladder never governs it. Step a second game with
-   `dotsEaten` forced past every count and assert the exits move to the
-   `earliest` times rather than all firing at once — the mid-level respawn
-   case that motivates the floors.
-2. **Baseline** — assert `stateTime` is 0 on the first `playing` frame by
+   with gaps of at least 2s. Blinky opens the round in `out`, so the ladder
+   does not govern its first exit. Step a second game with `dotsEaten` forced
+   past every count and assert the exits move to the `earliest` times rather
+   than all firing at once — the mid-level respawn case that motivates the
+   floors.
+2. **Respawn through the house** — drive a ghost through `entering` into
+   `house` and step past the 1.0s dwell, asserting it leaves again without
+   throwing. Every ghost lands in the house on the way back from being eaten,
+   Blinky included, so every ghost needs a release rule. The `newGame()` seam
+   freezes `eatPellet`, which makes fright and the eaten state unreachable, so
+   nothing else in this file covers that path.
+3. **Baseline** — assert `stateTime` is 0 on the first `playing` frame by
    both routes out of `ready`: waiting the 1.8s out, and calling
    `game.steer()` early.
-3. **Reveal alpha** — assert the value at the house row, the door line, a
+4. **Reveal alpha** — assert the value at the house row, the door line, a
    mid-doorway position and the exit row, for each of the five ghost states.
    `out` and `eaten` must read 0 at every one of those positions.
-4. **Intro blink** — sample `vision.update()` on a fine step and assert the
+5. **Intro blink** — sample `vision.update()` on a fine step and assert the
    floor reaches 1 three times, drops to 0 between them, and has released to
    the layer's own alpha by 1.35s. Run it against Normal (dots start dark)
    and Easy (dots start at 0.55) so the floor is shown to settle to each.

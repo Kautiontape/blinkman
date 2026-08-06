@@ -116,9 +116,17 @@ window.PV = window.PV || {};
       game.startRound();
     };
 
+    /* Entering 'playing' restarts the clock. The ghost release ladder measures
+     * from the first frame the player can act, and 'ready' runs for a length
+     * the player controls. */
+    function beginPlay() {
+      game.state = 'playing';
+      game.stateTime = 0;
+    }
+
     game.steer = function (dir) {
       game.pacman.want = dir;
-      if (game.state === 'ready') game.state = 'playing';
+      if (game.state === 'ready') beginPlay();
     };
 
     /**
@@ -155,7 +163,7 @@ window.PV = window.PV || {};
       if (game.state === 'ready') {
         // Returning before vision.update() freezes the cooldown and Blink's
         // opening flash while the board is still behind the curtain.
-        if (game.stateTime > 1.8) game.state = 'playing';
+        if (game.stateTime > 1.8) beginPlay();
         return;
       }
 
@@ -263,12 +271,16 @@ window.PV = window.PV || {};
       game.ghosts.forEach(function (g) {
         if (g.state !== 'house') return;
         if (g.releaseTimer > 0) { g.releaseTimer -= dt; return; }
-        // out on a dot count, or on a timer so a cautious player isn't left alone
-        if (game.dotsEaten >= g.releaseAt || game.stateTime > 4 + g.releaseAt * 0.08) {
-          g.state = 'leaving';
-          // A ghost released mid-fright joins the fright already running.
-          g.frightened = game.frightTimer > 0;
-        }
+
+        // `earliest` staggers the exits so they read one at a time; `latest`
+        // covers a player who isn't eating, so nobody is left alone with Blinky.
+        var r = g.release;
+        if (game.stateTime < r.earliest) return;
+        if (game.dotsEaten < r.dots && game.stateTime < r.latest) return;
+
+        g.state = 'leaving';
+        // A ghost released mid-fright joins the fright already running.
+        g.frightened = game.frightTimer > 0;
       });
     }
 

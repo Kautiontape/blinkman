@@ -350,10 +350,12 @@ Replace `js/entities.js:148-154`:
    * has passed and either the dot count is met or `latest` has passed too.
    * The floors are what keep the exits one at a time — dot counts alone send
    * Inky and Clyde out together on a mid-level respawn, where dotsEaten is
-   * already well past both. Blinky has none; it starts on the board. */
+   * already well past both. Blinky's is all zeroes: it opens the round on the
+   * board and only passes through the house after being eaten, where the 1s
+   * dwell is the gate. */
   var GHOST_DEFS = [
     { name: 'blinky', color: '#ff3c3c', spawn: 'blinky', scatter: { col: 25, row: 0 },
-      release: null },
+      release: { dots: 0, earliest: 0, latest: 0 } },
     { name: 'pinky',  color: '#ff9ede', spawn: 'pinky',  scatter: { col: 2,  row: 0 },
       release: { dots: 0,  earliest: 2, latest: 2 } },
     { name: 'inky',   color: '#42e8ff', spawn: 'inky',   scatter: { col: 27, row: 30 },
@@ -395,9 +397,10 @@ Replace `releaseGhosts` in `js/game.js:262-273`:
     }
 ```
 
-`r` is never null here: Blinky is the only ghost with `release: null`, and
-`g.reset()` puts it straight into `out`, so the `state !== 'house'` guard above
-returns first.
+Every ghost needs a release rule, not just the three that start in the house.
+Blinky passes through `house` too on the way back from being eaten, where
+`PV.updateGhost` sets `releaseTimer = 1.0` for any ghost, so `g.release` is
+read for it as well.
 
 - [ ] **Step 6: Run the test to verify it passes**
 

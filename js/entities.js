@@ -145,17 +145,43 @@ window.PV = window.PV || {};
     return pac;
   };
 
+  /* `release` gates the trip out of the house: a ghost goes once `earliest`
+   * has passed and either the dot count is met or `latest` has passed too.
+   * The floors are what keep the exits one at a time — dot counts alone send
+   * Inky and Clyde out together on a mid-level respawn, where dotsEaten is
+   * already well past both. Blinky's is all zeroes: it leads the file-out and
+   * goes the moment play starts. */
   var GHOST_DEFS = [
-    { name: 'blinky', color: '#ff3c3c', spawn: 'blinky', scatter: { col: 25, row: 0 },  release: 0 },
-    { name: 'pinky',  color: '#ff9ede', spawn: 'pinky',  scatter: { col: 2,  row: 0 },  release: 0 },
-    { name: 'inky',   color: '#42e8ff', spawn: 'inky',   scatter: { col: 27, row: 30 }, release: 20 },
-    { name: 'clyde',  color: '#ffab42', spawn: 'clyde',  scatter: { col: 0,  row: 30 }, release: 60 }
+    { name: 'blinky', color: '#ff3c3c', spawn: 'blinky', scatter: { col: 25, row: 0 },
+      release: { dots: 0, earliest: 0, latest: 0 } },
+    { name: 'pinky',  color: '#ff9ede', spawn: 'pinky',  scatter: { col: 2,  row: 0 },
+      release: { dots: 0,  earliest: 2, latest: 2 } },
+    { name: 'inky',   color: '#42e8ff', spawn: 'inky',   scatter: { col: 27, row: 30 },
+      release: { dots: 20, earliest: 5, latest: 9 } },
+    { name: 'clyde',  color: '#ffab42', spawn: 'clyde',  scatter: { col: 0,  row: 30 },
+      release: { dots: 60, earliest: 8, latest: 14 } }
   ];
   PV.GHOST_DEFS = GHOST_DEFS;
 
   var EXIT_X = PV.center(PV.SPAWN.outside.col);
   var EXIT_Y = PV.center(PV.SPAWN.outside.row);
+  var DOOR_Y = PV.center(PV.SPAWN.door.row);
   var HOUSE_Y = PV.center(PV.SPAWN.pinky.row);
+
+  // The states in which a ghost is inside the house or crossing its door.
+  var IN_HOUSE = { house: 1, leaving: 1, entering: 1 };
+
+  /* How strongly a ghost shows through a dark ghosts layer. Full anywhere at or
+   * below the door line, zero on the tile it emerges onto, linear across the
+   * doorway between them, so leaving the house is what turns a ghost invisible
+   * and re-entering is what brings it back. Position alone drives it — no timer
+   * to keep in step. The state list is load-bearing: a ghost loose on the lower
+   * board is below the door line too, and would otherwise read as fully lit. */
+  PV.ghostReveal = function (g) {
+    if (!IN_HOUSE[g.state]) return 0;
+    var t = (g.y - EXIT_Y) / (DOOR_Y - EXIT_Y);
+    return t < 0 ? 0 : t > 1 ? 1 : t;
+  };
 
   PV.createGhosts = function () {
     return GHOST_DEFS.map(function (def) {
@@ -164,7 +190,7 @@ window.PV = window.PV || {};
         name: def.name,
         color: def.color,
         scatterTile: def.scatter,
-        releaseAt: def.release,     // dots eaten before this one leaves
+        release: def.release,       // when this one may leave the house
 
         x: 0, y: 0,
         dir: DIRS.left,
@@ -181,9 +207,9 @@ window.PV = window.PV || {};
           this.x = PV.center(spawn.col);
           this.y = PV.center(spawn.row);
           this.homeY = this.y;
-          // blinky starts on the board, the rest wait inside
-          this.dir = def.name === 'blinky' ? DIRS.left : DIRS.up;
-          this.state = def.name === 'blinky' ? 'out' : 'house';
+          // all four wait inside, facing the door, and file out on the ladder
+          this.dir = DIRS.up;
+          this.state = 'house';
           this.frightened = false;
           this.releaseTimer = 0;
           this.wobble = Math.random() * Math.PI * 2;

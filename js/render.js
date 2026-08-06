@@ -46,7 +46,7 @@ window.PV = window.PV || {};
         // Only drawWalls needs `scale` — see its shadowBlur.
         if (alpha.walls > 0)  drawWalls(ctx, game.maze, alpha.walls, scale);
         if (alpha.dots > 0)   drawPellets(ctx, game.maze, alpha.dots, game.time);
-        if (alpha.ghosts > 0) drawGhosts(ctx, game, alpha.ghosts);
+        drawGhosts(ctx, game, alpha.ghosts);
         if (alpha.pacman > 0) drawPacman(ctx, game, alpha.pacman);
 
         drawFloatingScores(ctx, game);
@@ -131,6 +131,10 @@ window.PV = window.PV || {};
     var rad = TILE * 0.46;
 
     game.ghosts.forEach(function (g) {
+      // A ghost in the house shows through even with the layer dark.
+      var a = Math.max(alpha, PV.ghostReveal(g));
+      if (a <= 0.001) return;
+
       var eyesOnly = g.state === 'eaten' || g.state === 'entering';
       var isCulprit = dying && game.killer === g;
       var body = g.color;
@@ -143,7 +147,7 @@ window.PV = window.PV || {};
 
       ctx.save();
       // fade the bystanders during a death so the culprit stands out
-      ctx.globalAlpha = dying && !isCulprit ? alpha * 0.35 : alpha;
+      ctx.globalAlpha = dying && !isCulprit ? a * 0.35 : a;
       ctx.translate(g.x, g.y);
 
       if (isCulprit) drawCulpritRing(ctx, game.stateTime, rad);
