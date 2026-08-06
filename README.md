@@ -86,7 +86,6 @@ rules apply, and the test enforces all three:
    the one it's reached from; the two tunnel mouths are the only exception.
 
     node test/maze-test.js
-    node test/opening-test.js
 
 One more guideline, not test-enforced: when closing a dead-end into a
 corridor, leave at least 2 straight tiles before the next turn.
@@ -114,6 +113,13 @@ is what lets `file://` work.
 `maze.js` has to load before `entities.js`, `render.js` and `game.js`, which
 read `PV.TILE` and the spawn table at load time. `main.js` has to load last.
 Everything else in the script order is slack.
+
+Two test suites, both plain node scripts with nothing to install. The second
+covers the ghost release ladder, the house reveal and the dots blink, none of
+which are visible to a layout check.
+
+    node test/maze-test.js
+    node test/opening-test.js
 
 The game always draws into a fixed 560x620 space and a canvas transform maps
 that onto whatever size the board actually is. Nothing in the game logic knows
