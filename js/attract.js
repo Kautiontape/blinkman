@@ -8,6 +8,10 @@ window.PV = window.PV || {};
   var COLS = PV.COLS, ROWS = PV.ROWS;
   var CELLS = COLS * ROWS;
 
+  // The layers the rotation walks, and how long each one holds.
+  var ROTATION = ['walls', 'dots', 'ghosts'];
+  var HOLD = 4;
+
   // Tiles this close to a loose ghost are routed around.
   var DANGER = 2;
 
@@ -27,6 +31,7 @@ window.PV = window.PV || {};
     var queue = new Int32Array(CELLS);
     var dangerGen = 0;
     var routeGen = 0;
+    var rotateTimer = 0;
 
     function idx(col, row) { return row * COLS + col; }
 
@@ -108,8 +113,8 @@ window.PV = window.PV || {};
         var cur = queue[head++];
         var col = cur % COLS, row = (cur / COLS) | 0;
 
-        // The root is skipped: a pellet underfoot is eaten this frame anyway,
-        // and it has no first step to report.
+        // The root is skipped: it has no first step to report, and Pac-Man is
+        // already on his way across it.
         if (routeFirst[cur] !== -1 && isTarget(col, row)) return STEPS[routeFirst[cur]];
 
         for (var k = 0; k < STEPS.length; k++) {
@@ -146,6 +151,18 @@ window.PV = window.PV || {};
       game.steer(routeStep(true) || routeStep(false) || anyOpenStep());
     }
 
+    /* The next layer is read off the one that is lit rather than kept in a
+     * counter, so a round reset — which puts the vision back to `walls` —
+     * resumes the cycle instead of skipping a layer. An unrecognised or absent
+     * layer indexes to -1 and so starts the lap over. */
+    function rotate(dt) {
+      rotateTimer += dt;
+      if (rotateTimer < HOLD) return;
+      rotateTimer -= HOLD;
+      var at = ROTATION.indexOf(game.vision.current());
+      game.selectVision(ROTATION[(at + 1) % ROTATION.length]);
+    }
+
     return {
       game: game,
 
@@ -154,6 +171,9 @@ window.PV = window.PV || {};
         // 'gameover' is terminal.
         if (game.state === 'gameover') game.restart();
         if (game.state === 'ready' || game.state === 'playing') steer();
+        // Held outside 'playing': selectVision() refuses there, and a death
+        // would otherwise burn cycle time behind a frozen board.
+        if (game.state === 'playing') rotate(dt);
         game.update(dt);
       }
     };

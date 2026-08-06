@@ -145,5 +145,30 @@ console.log('autopilot progress');
 })();
 
 console.log('');
+console.log('layer rotation');
+
+/* One cycle is 12s, so 13s covers a full lap and the start of the next.
+ * invuln is frozen because a death resets the vision to `walls` mid-lap. */
+(function () {
+  var a = PV.createAttract();
+  a.game.invuln = Infinity;
+
+  var order = [], seen = {};
+  for (var i = 0; i < 60 * 13; i++) {
+    a.update(STEP);
+    var cur = a.game.vision.current();
+    if (!cur) continue;
+    seen[cur] = true;
+    if (order[order.length - 1] !== cur) order.push(cur);
+  }
+
+  var pool = PV.DIFFICULTIES.normal.pool.slice().sort().join(',');
+  check('reaches every layer in the pool', Object.keys(seen).sort().join(',') === pool,
+    Object.keys(seen).sort().join(','));
+  check('walks walls -> dots -> ghosts, then repeats',
+    order.join(' ') === 'walls dots ghosts walls', order.join(' '));
+})();
+
+console.log('');
 console.log(failures === 0 ? 'ALL ATTRACT CHECKS OK' : failures + ' CHECK(S) FAILED');
 process.exit(failures === 0 ? 0 : 1);
