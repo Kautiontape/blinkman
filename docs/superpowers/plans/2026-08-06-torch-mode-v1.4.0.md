@@ -194,7 +194,13 @@ git commit -m "vision: Add the torch ping fade curve"
 
 **Files:**
 - Modify: `js/vision.js`
+- Modify: `js/game.js` — `selectVision` only
 - Test: `test/torch-test.js`
+
+> Corrected during execution: the `select(layer, game.pacman)` call and the
+> sound switch were originally scheduled for Task 3, but the frozen-origin test
+> below cannot pass without them — it reads the spawn fallback instead. They
+> moved here; Task 3 is now `samplePulse` alone.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -402,6 +408,18 @@ In `reset()`, widen the flash condition from `blink` to both flash styles:
         intro = 0;
         v.update(0);
       }
+```
+
+Finally, in `js/game.js`, hand `select()` the origin and let Torch take the flash sound:
+
+```js
+      // Torch expands its ping from wherever Pac-Man is standing; the other
+      // styles ignore the origin.
+      var res = game.vision.select(layer, game.pacman);
+      if (res === 'ok') {
+        // Torch is a flash on a delay, so it takes the flash sound too.
+        game.onEvent(rules.style === 'persist' ? 'visionSwitch' : 'blink');
+      } else if (res !== 'same' && res !== 'ignored') {
 ```
 
 - [ ] **Step 4: Run the test to verify it passes**

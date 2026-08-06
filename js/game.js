@@ -144,9 +144,12 @@ window.PV = window.PV || {};
       // The board is covered outside 'playing', so a pick there spends a
       // cooldown on nothing.
       if (game.state !== 'playing') return 'ignored';
-      var res = game.vision.select(layer);
+      // Torch expands its ping from wherever Pac-Man is standing; the other
+      // styles ignore the origin.
+      var res = game.vision.select(layer, game.pacman);
       if (res === 'ok') {
-        game.onEvent(rules.style === 'blink' ? 'blink' : 'visionSwitch');
+        // Torch is a flash on a delay, so it takes the flash sound too.
+        game.onEvent(rules.style === 'persist' ? 'visionSwitch' : 'blink');
       } else if (res !== 'same' && res !== 'ignored') {
         // 'cooldown' and 'unavailable' are refusals and get the denied sound;
         // 'same' is silent — you already have that layer.
