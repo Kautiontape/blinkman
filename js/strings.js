@@ -13,7 +13,7 @@ window.PV = window.PV || {};
   /* Shown in the menu's bottom corner and logged to the console, so you can
    * tell at a glance which build a deploy is actually serving. Bump on release
    * and tag the commit to match. */
-  PV.VERSION = '1.3.0';
+  PV.VERSION = '1.4.0';
 
   PV.TEXT = {
     title: 'BLINK-MAN',
