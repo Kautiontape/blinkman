@@ -71,9 +71,11 @@ git commit -q -m "$message" -- "$strings"
 git tag -a "$tag" -m "$message"
 # Branch before tag: a tag on origin without its commit gives the workflow a
 # version assert that cannot pass.
-stranded="the commit and $tag are local only. Undo with:
+git push -q origin "$branch" || die "branch push failed. The commit and $tag are local only. Undo with:
   git tag -d $tag && git reset --hard HEAD~1"
-git push -q origin "$branch" || die "branch push failed. $stranded"
-git push -q origin "$tag" || die "tag push failed. $stranded"
+# The branch is on origin by this point, so undoing locally would strand the
+# commit there. Only the tag is missing.
+git push -q origin "$tag" || die "tag push failed, but $branch already reached origin. Retry with:
+  git push origin $tag"
 
 printf 'pushed %s\n' "$tag"

@@ -142,7 +142,8 @@ old one. Hard reload with Ctrl-Shift-R.
 
 Bumps `PV.VERSION`, commits, tags `v1.4.0` and pushes. The tag triggers
 `.github/workflows/deploy.yml`, which checks the tag against `PV.VERSION`, runs
-the game suites, packages the zip and pushes it to itch.io.
+the game suites, packages the zip, pushes it to itch.io and creates a GitHub
+release.
 
 To ship a build without cutting a version, `./tools/itch-package.sh` builds the
 zip and `./tools/itch-deploy.sh` pushes it. `docs/itch.md` covers the store

@@ -206,5 +206,23 @@ else
 fi
 teardown
 
+setup 0
+cat > "$work/origin.git/hooks/pre-receive" <<'HOOK'
+#!/bin/sh
+while read -r _ _ ref; do
+  case "$ref" in refs/tags/*) exit 1 ;; esac
+done
+exit 0
+HOOK
+chmod +x "$work/origin.git/hooks/pre-receive"
+run y 1.4.0
+expect 'says the branch landed when only the tag push fails' 1 'already reached origin'
+if [ "$(git -C "$work/origin.git" rev-parse main)" = "$(git -C "$work/repo" rev-parse main)" ]; then
+  ok 'does not claim the commit is local when it reached origin'
+else
+  no 'does not claim the commit is local when it reached origin' 'origin main is behind'
+fi
+teardown
+
 printf '\n%s passed, %s failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
