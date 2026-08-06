@@ -11,8 +11,8 @@ window.PV = window.PV || {};
   'use strict';
 
   /* Shown in the menu's bottom corner and logged to the console, so you can
-   * tell at a glance which build a deploy is actually serving. Bump on release
-   * and tag the commit to match. */
+   * tell at a glance which build a deploy is actually serving.
+   * ./tools/release.sh bumps this, tags it and pushes. */
   PV.VERSION = '1.3.0';
 
   PV.TEXT = {

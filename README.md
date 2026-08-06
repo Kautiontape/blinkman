@@ -116,12 +116,17 @@ is what lets `file://` work.
 read `PV.TILE` and the spawn table at load time. `main.js` has to load last.
 Everything else in the script order is slack.
 
-Two test suites, both plain node scripts with nothing to install. The second
-covers the ghost release ladder, the house reveal and the dots blink, none of
-which are visible to a layout check.
+Four test suites: two node scripts, two bash, none of them need anything
+installed. The second node suite covers the ghost release ladder, the house
+reveal and the dots blink, none of which are visible to a layout check. The
+bash suites are bash because what they exercise is bash; `release-test.sh`
+drives `tools/release.sh` against a throwaway repo, so nothing it does reaches
+GitHub.
 
     node test/maze-test.js
     node test/opening-test.js
+    bash test/release-test.sh
+    bash test/itch-deploy-test.sh
 
 The game always draws into a fixed 560x620 space and a canvas transform maps
 that onto whatever size the board actually is. Nothing in the game logic knows
@@ -133,8 +138,15 @@ old one. Hard reload with Ctrl-Shift-R.
 
 ## Publishing
 
-`docs/itch.md` covers the itch.io upload. `./tools/itch-package.sh` builds the
-zip and `./tools/itch-deploy.sh` pushes it with butler.
+    ./tools/release.sh 1.4.0
+
+Bumps `PV.VERSION`, commits, tags `v1.4.0` and pushes. The tag triggers
+`.github/workflows/deploy.yml`, which checks the tag against `PV.VERSION`, runs
+both suites, packages the zip and pushes it to itch.io.
+
+To ship a build without cutting a version, `./tools/itch-package.sh` builds the
+zip and `./tools/itch-deploy.sh` pushes it. `docs/itch.md` covers the store
+page, which stays manual.
 
 ## License
 
