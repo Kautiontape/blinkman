@@ -198,5 +198,35 @@ console.log('rotation across a round reset');
 })();
 
 console.log('');
+console.log('recovery from game over');
+
+/* `levelclear` advances itself and `dying` restarts the round, so `gameover` is
+ * the one state the demo has to climb out of by hand. Left in it, `game.update`
+ * returns immediately every frame and the board freezes for as long as the menu
+ * is open. Three lives at Normal speed puts it within a few minutes. */
+(function () {
+  var a = PV.createAttract();
+  a.game.state = 'gameover';
+  a.update(STEP);
+  check('leaves game over on the next frame', a.game.state !== 'gameover', a.game.state);
+
+  // The whole way there: a death on the last life, then back to a fresh round.
+  var b = PV.createAttract();
+  b.game.lives = 0;
+  b.game.state = 'dying';
+  b.game.stateTime = 0;
+
+  var seen = {};
+  for (var i = 0; i < 60 * 4; i++) {
+    b.update(STEP);
+    seen[b.game.state] = true;
+  }
+  check('a last death passes through game over', seen.gameover === true,
+    Object.keys(seen).join(','));
+  check('and comes out on a fresh round', b.game.state === 'playing' && b.game.lives === 3,
+    b.game.state + ' with ' + b.game.lives + ' lives');
+})();
+
+console.log('');
 console.log(failures === 0 ? 'ALL ATTRACT CHECKS OK' : failures + ' CHECK(S) FAILED');
 process.exit(failures === 0 ? 0 : 1);

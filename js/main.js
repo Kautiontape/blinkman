@@ -118,6 +118,9 @@
     panelMsg.hidden = true;
     hud.showIdle();
     renderer.clear();
+    // The shake decays on wall-clock time and the demo draws every frame, so a
+    // death shaken into the last round would otherwise carry into this one.
+    renderer.shake = 0;
     // Under reduced motion the board stays the black rectangle it was.
     attract = wantsCalm() ? null : PV.createAttract();
   }
