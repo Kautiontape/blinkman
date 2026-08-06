@@ -90,16 +90,16 @@
     chomp: 'chomp', power: 'power', bump: 'bump', eatGhost: 'eatGhost',
     caught: 'caught', death: 'death', gameOver: 'gameOver', levelClear: 'levelClear',
     visionSwitch: 'visionSwitch', visionDenied: 'visionDenied', blink: 'blinkFlash',
-    roundStart: 'levelStart'
+    roundStart: 'levelStart', frightEnding: 'frightEnding'
   };
 
   var SHAKE = { bump: 7, eatGhost: 5, caught: 14 };
 
-  function handleEvent(name) {
+  function handleEvent(name, arg) {
     var sfx = PV.Sfx[SOUND[name]];
-    if (sfx) sfx();
+    if (sfx) sfx(arg);
     if (SHAKE[name] && !PV.wantsCalm()) renderer.kick(SHAKE[name]);
-    if (name === 'caught' || name === 'roundStart') PV.Sfx.stopSiren();
+    if (name === 'caught' || name === 'roundStart') PV.Sfx.stopAmbient();
   }
 
   function showMenu() {
@@ -108,7 +108,7 @@
     paused = false;
     overlayKey = '';
     splashEl.textContent = PV.pickSplash();   // a fresh one each time you land here
-    PV.Sfx.stopSiren();
+    PV.Sfx.stopAmbient();
     overlay.hidden = false;
     panelMenu.hidden = false;
     panelMsg.hidden = true;
@@ -218,7 +218,7 @@
     if (e.code === 'KeyR') { paused = false; game.restart(); return; }
     if (e.code === 'KeyP') {
       paused = !paused;
-      if (paused) PV.Sfx.stopSiren();
+      if (paused) PV.Sfx.stopAmbient();
       return;
     }
 
@@ -290,11 +290,17 @@
   });
 
   // The siren runs only while a round is live, and rises as the board empties.
-  function syncSiren() {
-    if (game.state !== 'playing') { PV.Sfx.stopSiren(); return; }
+  // Frightened ghosts swap it out for the distinct warble of the fright engine.
+  function syncAmbient() {
+    if (game.state !== 'playing') { PV.Sfx.stopAmbient(); return; }
+    if (game.frightTimer > 0) {
+      PV.Sfx.stopSiren();
+      PV.Sfx.startFrightSiren();
+      return;
+    }
+    PV.Sfx.stopFrightSiren();
     PV.Sfx.startSiren();
-    PV.Sfx.setSirenPitch(game.frightTimer > 0 ? 176
-      : 108 + (game.dotsEaten / Math.max(1, game.maze.totalPellets)) * 44);
+    PV.Sfx.setSirenPitch(108 + (game.dotsEaten / Math.max(1, game.maze.totalPellets)) * 44);
   }
 
   function frame(ts) {
@@ -308,7 +314,7 @@
 
     if (!paused) {
       game.update(dt);
-      syncSiren();
+      syncAmbient();
     }
 
     // Real dt even while paused: the shake decays on wall-clock time, not on

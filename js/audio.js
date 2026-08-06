@@ -10,6 +10,7 @@ window.PV = window.PV || {};
   var muted = false;
   var chompFlip = 0;      // alternates the two "waka" pitches
   var siren = null;       // { osc, lfo } while a round is running
+  var frightSiren = null; // { osc, lfo } while ghosts are frightened, in place of siren
 
   function ensure() {
     if (ctx) return ctx;
@@ -96,7 +97,7 @@ window.PV = window.PV || {};
     setMuted: function (m) {
       muted = m;
       if (master) master.gain.value = muted ? 0 : VOLUME;
-      if (muted) PV.Sfx.stopSiren();
+      if (muted) PV.Sfx.stopAmbient();
     },
 
     chomp: function () {
@@ -125,7 +126,7 @@ window.PV = window.PV || {};
     },
 
     death: function () {
-      PV.Sfx.stopSiren();
+      PV.Sfx.stopAmbient();
       var falling = [];
       for (var i = 0; i < 9; i++) falling.push(700 - i * 62);
       arp(falling, { type: 'square', bend: 0.7, dur: 0.14, gain: 0.2, step: 0.1 });
@@ -136,12 +137,12 @@ window.PV = window.PV || {};
     },
 
     levelClear: function () {
-      PV.Sfx.stopSiren();
+      PV.Sfx.stopAmbient();
       arp([523, 659, 784, 1046, 1318], { type: 'triangle', dur: 0.16, gain: 0.2, step: 0.1 });
     },
 
     gameOver: function () {
-      PV.Sfx.stopSiren();
+      PV.Sfx.stopAmbient();
       arp([392, 330, 262, 196], { type: 'sawtooth', bend: 0.9, dur: 0.34, gain: 0.16, step: 0.24 });
     },
 
@@ -158,6 +159,24 @@ window.PV = window.PV || {};
       tone({ type: 'sine', from: 900, to: 1800, dur: 0.18, gain: 0.07 });
     },
 
+    // Countdown for the last stretch of a power pellet: one continuous stream
+    // of beeps on a quadratic ease, so the gaps between them shrink gently at
+    // first and then collapse into a frantic flurry right before the closing
+    // chirp — a rhythmic cue for when render.js's white/blue flash goes unseen.
+    // `span` is however many seconds of fright are actually left (usually 2,
+    // but high levels start ghosts already inside the warning window).
+    frightEnding: function (span) {
+      span = span > 0 ? span : 2;
+      var N = 8;
+      for (var i = 0; i <= N; i++) {
+        var u = i / N;
+        var t = span * (1 - Math.pow(1 - u, 2));
+        var last = i === N;
+        tone({ type: last ? 'square' : 'sine', from: last ? 520 : 330 + i * 16,
+               dur: last ? 0.17 : 0.05, gain: last ? 0.14 : 0.09, delay: t });
+      }
+    },
+
     startSiren: function () {
       if (!ensure() || muted || siren) return;
       var osc = ctx.createOscillator();
@@ -165,12 +184,12 @@ window.PV = window.PV || {};
       var lfoGain = ctx.createGain();
       var gain = ctx.createGain();
 
-      osc.type = 'sawtooth';
+      osc.type = 'triangle';
       osc.frequency.value = 116;
       lfo.type = 'sine';
       lfo.frequency.value = 0.85;
       lfoGain.gain.value = 26;
-      gain.gain.value = 0.028;
+      gain.gain.value = 0.05;
 
       lfo.connect(lfoGain).connect(osc.frequency);
       osc.connect(gain).connect(master);
@@ -186,6 +205,40 @@ window.PV = window.PV || {};
 
     setSirenPitch: function (hz) {
       if (siren) siren.osc.frequency.value = hz;
+    },
+
+    // The frightened "wa-wow" warble: a square LFO swings the pitch between
+    // two extremes instead of sweeping it, unlike the siren's sine LFO.
+    startFrightSiren: function () {
+      if (!ensure() || muted || frightSiren) return;
+      var osc = ctx.createOscillator();
+      var lfo = ctx.createOscillator();
+      var lfoGain = ctx.createGain();
+      var gain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.value = 210;
+      lfo.type = 'square';
+      lfo.frequency.value = 4.5;
+      lfoGain.gain.value = 30;
+      gain.gain.value = 0.05;
+
+      lfo.connect(lfoGain).connect(osc.frequency);
+      osc.connect(gain).connect(master);
+      osc.start(); lfo.start();
+      frightSiren = { osc: osc, lfo: lfo };
+    },
+
+    stopFrightSiren: function () {
+      if (!frightSiren) return;
+      try { frightSiren.osc.stop(); frightSiren.lfo.stop(); } catch (e) { /* already stopped */ }
+      frightSiren = null;
+    },
+
+    // Kills every looping ambient engine outright, siren and fright alike.
+    stopAmbient: function () {
+      PV.Sfx.stopSiren();
+      PV.Sfx.stopFrightSiren();
     }
   };
 

@@ -67,6 +67,7 @@ window.PV = window.PV || {};
 
       invuln: 0,
       frightTimer: 0,
+      frightEndingCued: false,   // has the countdown cue fired for the current fright?
       ghostCombo: 0,
       killer: null,        // the ghost that caught you, shown during 'dying'
       waveIndex: 0,
@@ -86,6 +87,7 @@ window.PV = window.PV || {};
       });
       game.vision.reset();
       game.frightTimer = 0;
+      game.frightEndingCued = false;
       game.ghostCombo = 0;
       game.waveIndex = 0;
       game.waveTimer = WAVES[0].t;
@@ -211,6 +213,12 @@ window.PV = window.PV || {};
     function advanceWaves(dt) {
       if (game.frightTimer > 0) {
         game.frightTimer -= dt;
+        // fire the countdown cue once, the instant the last-two-seconds
+        // warning window opens (mirrors render.js's flash threshold)
+        if (!game.frightEndingCued && game.frightTimer > 0 && game.frightTimer < 2) {
+          game.frightEndingCued = true;
+          game.onEvent('frightEnding', game.frightTimer);
+        }
         if (game.frightTimer <= 0) {
           game.ghosts.forEach(function (g) { g.frightened = false; });
           game.ghostCombo = 0;
@@ -251,6 +259,7 @@ window.PV = window.PV || {};
 
       addScore(50);
       game.frightTimer = Math.max(1, FRIGHT_TIME - (game.level - 1) * 0.6);
+      game.frightEndingCued = false;
       game.ghostCombo = 0;
       game.ghosts.forEach(function (g) {
         if (g.state === 'out') {
