@@ -14,7 +14,7 @@ window.PV = window.PV || {};
   var SCAN = '#5cffb0';
   var SCAN_EDGE = '#d8fff0';   // the leading edge, so the ring reads as a ring
   var EDGE_TIME = 0.1;         // how long an element counts as just-reached
-  var FRONT_ALPHA = 0.11;      // the wavefront: present, never competing
+  var FRONT_ALPHA = 0.16;      // the wavefront: present, never competing
 
   var TORCH_R = 46;            // 2.3 tiles
   var TORCH_SOFT = 12;         // px over which a ghost fades in at the rim
