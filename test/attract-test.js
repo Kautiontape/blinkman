@@ -71,7 +71,7 @@ console.log('autopilot steering');
  * `want` is read after the step because game.update() does not touch it, and
  * the tile is read before, because that is the tile the route was rooted at. */
 (function () {
-  var illegal = 0, samples = 0, blocked = 0, near = 0, first = '';
+  var illegal = 0, samples = 0, blocked = 0, first = '';
 
   for (var run = 0; run < 5; run++) {
     var a = PV.createAttract();
@@ -85,7 +85,6 @@ console.log('autopilot steering');
       if (a.game.maze !== maze) continue;      // a level clear rolled a new maze
       if (state !== 'ready' && state !== 'playing') continue;
       samples++;
-      if (was.col <= 1 || was.col >= PV.COLS - 2) near++;
       if (p.blocked) blocked++;
       if (!maze.passable(was.col + p.want.x, was.row + p.want.y, false)) {
         illegal++;
@@ -97,9 +96,33 @@ console.log('autopilot steering');
   check('steered enough frames to mean something', samples > 3000, samples);
   check('never steers into a wall', illegal === 0, illegal + ' of ' + samples + '  ' + first);
   check('never walks into one either', blocked === 0, blocked);
-  // The route search wraps columns, so the tunnel is an ordinary edge. If it
-  // did not, the two mouths would be unreachable and this would read 0.
-  check('uses the tunnel', near > 0, near);
+})();
+
+console.log('');
+console.log('tunnel routing');
+
+/* The one place the column wrap carries weight. Pac-Man stands on the left
+ * mouth with the board's only pellet two steps west through the tunnel and 26
+ * steps east the long way round, so reaching it the short way means wrapping.
+ * The tunnel row carries no pellets of its own, which is why ordinary play
+ * never exercises this. */
+(function () {
+  var a = PV.createAttract();
+  var m = a.game.maze;
+  for (var r = 0; r < m.rows; r++) {
+    for (var c = 0; c < m.cols; c++) m.pellets[r][c] = 0;
+  }
+  m.pellets[PV.TUNNEL_ROW][m.cols - 2] = 1;
+
+  a.game.pacman.x = PV.center(0);
+  a.game.pacman.y = PV.center(PV.TUNNEL_ROW);
+  a.game.pacman.dir = PV.DIRS.right;
+  a.update(STEP);
+
+  // Facing east, so the fallback that picks any open direction answers
+  // 'right'. Only a wrapped search answers 'left'.
+  check('routes through the tunnel', a.game.pacman.want === PV.DIRS.left,
+    a.game.pacman.want.name);
 })();
 
 console.log('');
@@ -116,9 +139,9 @@ console.log('autopilot progress');
     for (var i = 0; i < 60 * 20; i++) a.update(STEP);
     worst = Math.min(worst, a.game.dotsEaten);
   }
-  // 20s at 5.6 tiles/sec is ~112 tiles crossed. A Pac-Man that circles without
-  // eating, or one that stalls, lands well under this.
-  check('clears dots at a sane rate', worst >= 40, worst);
+  // An autopilot that skipped the search and walked any open direction clears
+  // 40-44 in this window. The search clears 71 or more.
+  check('clears dots at a sane rate', worst >= 60, worst);
 })();
 
 console.log('');
