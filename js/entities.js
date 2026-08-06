@@ -145,11 +145,20 @@ window.PV = window.PV || {};
     return pac;
   };
 
+  /* `release` gates the trip out of the house: a ghost goes once `earliest`
+   * has passed and either the dot count is met or `latest` has passed too.
+   * The floors are what keep the exits one at a time — dot counts alone send
+   * Inky and Clyde out together on a mid-level respawn, where dotsEaten is
+   * already well past both. Blinky has none; it starts on the board. */
   var GHOST_DEFS = [
-    { name: 'blinky', color: '#ff3c3c', spawn: 'blinky', scatter: { col: 25, row: 0 },  release: 0 },
-    { name: 'pinky',  color: '#ff9ede', spawn: 'pinky',  scatter: { col: 2,  row: 0 },  release: 0 },
-    { name: 'inky',   color: '#42e8ff', spawn: 'inky',   scatter: { col: 27, row: 30 }, release: 20 },
-    { name: 'clyde',  color: '#ffab42', spawn: 'clyde',  scatter: { col: 0,  row: 30 }, release: 60 }
+    { name: 'blinky', color: '#ff3c3c', spawn: 'blinky', scatter: { col: 25, row: 0 },
+      release: null },
+    { name: 'pinky',  color: '#ff9ede', spawn: 'pinky',  scatter: { col: 2,  row: 0 },
+      release: { dots: 0,  earliest: 2, latest: 2 } },
+    { name: 'inky',   color: '#42e8ff', spawn: 'inky',   scatter: { col: 27, row: 30 },
+      release: { dots: 20, earliest: 5, latest: 9 } },
+    { name: 'clyde',  color: '#ffab42', spawn: 'clyde',  scatter: { col: 0,  row: 30 },
+      release: { dots: 60, earliest: 8, latest: 14 } }
   ];
   PV.GHOST_DEFS = GHOST_DEFS;
 
@@ -164,7 +173,7 @@ window.PV = window.PV || {};
         name: def.name,
         color: def.color,
         scatterTile: def.scatter,
-        releaseAt: def.release,     // dots eaten before this one leaves
+        release: def.release,       // when this one may leave the house
 
         x: 0, y: 0,
         dir: DIRS.left,

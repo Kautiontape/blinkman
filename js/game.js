@@ -271,12 +271,16 @@ window.PV = window.PV || {};
       game.ghosts.forEach(function (g) {
         if (g.state !== 'house') return;
         if (g.releaseTimer > 0) { g.releaseTimer -= dt; return; }
-        // out on a dot count, or on a timer so a cautious player isn't left alone
-        if (game.dotsEaten >= g.releaseAt || game.stateTime > 4 + g.releaseAt * 0.08) {
-          g.state = 'leaving';
-          // A ghost released mid-fright joins the fright already running.
-          g.frightened = game.frightTimer > 0;
-        }
+
+        // `earliest` staggers the exits so they read one at a time; `latest`
+        // covers a player who isn't eating, so nobody is left alone with Blinky.
+        var r = g.release;
+        if (game.stateTime < r.earliest) return;
+        if (game.dotsEaten < r.dots && game.stateTime < r.latest) return;
+
+        g.state = 'leaving';
+        // A ghost released mid-fright joins the fright already running.
+        g.frightened = game.frightTimer > 0;
       });
     }
 
