@@ -159,5 +159,42 @@ console.log('ghost-house reveal');
 })();
 
 console.log('');
+console.log('dots intro blink');
+
+(function () {
+  // Sampled away from the phase boundaries: the constants are sums of tenths
+  // and land a few float ulps either side of them.
+  [[0.05, 1], [0.24, 0], [0.35, 1], [0.54, 0], [0.65, 1], [0.84, 0]]
+    .forEach(function (row) {
+      check('blink phase at ' + row[0] + 's is ' + row[1],
+        PV.introAlpha(row[0]) === row[1], PV.introAlpha(row[0]));
+    });
+
+  check('fade opens near full', near(PV.introAlpha(0.92), 0.91, 0.02), PV.introAlpha(0.92));
+  check('fade is eased at the midpoint', near(PV.introAlpha(1.125), 0.25, 0.01), PV.introAlpha(1.125));
+  check('fade is spent by 1.4s', PV.introAlpha(1.4) === 0, PV.introAlpha(1.4));
+
+  /* Wired into the layer alphas as a floor, so it lifts the dots in the modes
+   * that start them dark and settles back to whatever the mode itself shows. */
+  function dotsAfter(difficulty, seconds) {
+    var v = PV.createVision(PV.DIFFICULTIES[difficulty]);
+    var peak = 0;
+    for (var t = 0; t < seconds; t += 0.01) {
+      v.update(0.01);
+      if (v.alpha.dots > peak) peak = v.alpha.dots;
+    }
+    return { peak: peak, settled: v.alpha.dots };
+  }
+
+  var normal = dotsAfter('normal', 1.6);
+  check('normal blinks the dots to full', near(normal.peak, 1, 0.001), normal.peak);
+  check('normal settles the dots dark', normal.settled === 0, normal.settled);
+
+  var easy = dotsAfter('easy', 1.6);
+  check('easy blinks the dots to full', near(easy.peak, 1, 0.001), easy.peak);
+  check('easy settles the dots to its own alpha', near(easy.settled, 0.55, 0.001), easy.settled);
+})();
+
+console.log('');
 console.log(failures === 0 ? 'ALL OPENING CUES OK' : failures + ' CHECK(S) FAILED');
 process.exit(failures === 0 ? 0 : 1);

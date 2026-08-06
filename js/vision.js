@@ -11,6 +11,21 @@ window.PV = window.PV || {};
   var DENIED_FLASH = 0.35;   // how long the HUD flinches after a rejected press
   var OLDER_PICK_ALPHA = 0.55;
 
+  /* The opening dots cue: three blinks, then an eased fade out. It runs as a
+   * floor under whatever the mode would show, so the dots get introduced even
+   * in the modes that start them dark. */
+  var INTRO_ON = 0.18, INTRO_OFF = 0.12, INTRO_BLINKS = 3, INTRO_FADE = 0.45;
+  var INTRO_BLINK_TIME = INTRO_BLINKS * (INTRO_ON + INTRO_OFF);
+  var INTRO_TIME = INTRO_BLINK_TIME + INTRO_FADE;
+
+  PV.introAlpha = function (age) {
+    if (age >= INTRO_TIME) return 0;
+    if (age < INTRO_BLINK_TIME) return (age % (INTRO_ON + INTRO_OFF)) < INTRO_ON ? 1 : 0;
+    // the eased falloff a Blink flash uses, so the two cues read alike
+    var t = (age - INTRO_BLINK_TIME) / INTRO_FADE;
+    return (1 - t) * (1 - t);
+  };
+
   /* Behaviour only — the name and blurb of each mode live in strings.js.
    *
    * style 'persist' — your last `keep` picks stay lit until you pick again.
@@ -56,6 +71,7 @@ window.PV = window.PV || {};
     var flash = null;    // blink mode: { layer, age }
     var cooldown = 0;
     var denied = 0;
+    var intro = 0;       // age of the opening dots blink
 
     var v = {
       rules: rules,
@@ -125,6 +141,11 @@ window.PV = window.PV || {};
           });
         }
 
+        if (intro < INTRO_TIME) {
+          intro += dt;
+          a.dots = Math.max(a.dots, PV.introAlpha(intro));
+        }
+
         if (rules.freeSelf) a.pacman = 1;
       },
 
@@ -138,6 +159,7 @@ window.PV = window.PV || {};
           : null;
         cooldown = 0;
         denied = 0;
+        intro = 0;
         v.update(0);
       }
     };
