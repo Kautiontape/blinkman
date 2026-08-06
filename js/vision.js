@@ -11,6 +11,37 @@ window.PV = window.PV || {};
   var DENIED_FLASH = 0.35;   // how long the HUD flinches after a rejected press
   var OLDER_PICK_ALPHA = 0.55;
 
+  /* Torch mode's sonar ping. The ring expands at PULSE_SPEED and every element
+   * fades on the same curve a Blink flash uses, clocked from the moment the
+   * ring reached it — so near walls are already dimming while far ones are
+   * still lighting up. PV.WIDTH and PV.HEIGHT are read at load time, which is
+   * why maze.js has to load first. */
+  var PULSE_SPEED = 700;                              // px/s
+  var PULSE_SPAN = Math.hypot(PV.WIDTH, PV.HEIGHT);   // worst-case corner origin
+  PV.PULSE_SPEED = PULSE_SPEED;
+  PV.PULSE_SPAN = PULSE_SPAN;
+
+  PV.pulseAlpha = function (dist, age, rules) {
+    var t = age - dist / PULSE_SPEED;   // seconds since the ring passed
+    if (t < 0) return 0;                // not reached yet
+    var f = (t - rules.hold) / rules.fade;
+    if (f <= 0) return 1;
+    if (f >= 1) return 0;
+    return (1 - f) * (1 - f);
+  };
+
+  /** How long a ping lives: the ring clearing the board, then the last fade. */
+  function pulseLife(rules) {
+    return PULSE_SPAN / PULSE_SPEED + rules.hold + rules.fade;
+  }
+
+  /* Where a ping fires from when there is no Pac-Man to ask — the free one a
+   * round opens with. Reads the spawn table at load time, as above. */
+  var SPAWN_CENTRE = {
+    x: PV.center(PV.SPAWN.pacman.col),
+    y: PV.center(PV.SPAWN.pacman.row)
+  };
+
   /* The opening dots cue: three blinks, then an eased fade out. It runs as a
    * floor under whatever the mode would show, so the dots get introduced even
    * in the modes that start them dark. */
@@ -30,6 +61,8 @@ window.PV = window.PV || {};
    *
    * style 'persist' — your last `keep` picks stay lit until you pick again.
    * style 'blink'   — a pick flashes at full alpha, holds, then fades out.
+   * style 'torch'   — a pick pings outward from you; render.js paints it in
+   *                   board space, so the layer alphas stay dark.
    * freeSelf        — your own layer is always drawn and costs no pick. */
   PV.DIFFICULTIES = {
     easy: {
@@ -59,6 +92,13 @@ window.PV = window.PV || {};
       style: 'blink', keep: 1, freeSelf: false,
       cooldown: 1.0, hold: 0.4, fade: 2.0,
       ghostSpeed: 0.86, initial: ['walls']
+    },
+    torch: {
+      id: 'torch',
+      pool: ['dots', 'ghosts', 'walls'],
+      style: 'torch', keep: 1, freeSelf: true,
+      cooldown: 1.0, hold: 0.25, fade: 1.1,
+      ghostSpeed: 0.90, initial: ['walls']
     }
   };
 
@@ -73,6 +113,13 @@ window.PV = window.PV || {};
     var denied = 0;
     var intro = 0;       // age of the opening dots blink
 
+    /* Blink ignores the origin; Torch expands from it. Copied, not referenced,
+     * so walking away doesn't drag the ring's centre along. */
+    function newFlash(layer, origin) {
+      var o = origin || SPAWN_CENTRE;
+      return { layer: layer, age: 0, x: o.x, y: o.y, blips: [] };
+    }
+
     var v = {
       rules: rules,
       alpha: { dots: 0, ghosts: 0, walls: 0, pacman: 0 },
@@ -86,8 +133,8 @@ window.PV = window.PV || {};
 
       /** The layer the HUD badge shows. */
       current: function () {
-        if (rules.style === 'blink') return flash ? flash.layer : null;
-        return stack[0] || null;
+        if (rules.style === 'persist') return stack[0] || null;
+        return flash ? flash.layer : null;
       },
 
       selectable: function (layer) { return rules.pool.indexOf(layer) !== -1; },
@@ -96,16 +143,22 @@ window.PV = window.PV || {};
       isFree: function (layer) { return rules.freeSelf && layer === 'pacman'; },
 
       /**
+       * Torch mode's live ping, or null. game.js fills `blips`, one entry per
+       * ghost the ring has reached; render.js draws from it.
+       * @returns {?{layer: string, age: number, x: number, y: number, blips: Array}}
+       */
+      pulse: function () { return rules.style === 'torch' ? flash : null; },
+
+      /**
        * Player pressed a vision key.
+       * @param origin  where a Torch ping expands from; ignored by other styles
        * @returns {'ok'|'cooldown'|'unavailable'|'same'}
        */
-      select: function (layer) {
+      select: function (layer, origin) {
         if (!v.selectable(layer)) { denied = DENIED_FLASH; return 'unavailable'; }
         if (cooldown > 0) { denied = DENIED_FLASH; return 'cooldown'; }
 
-        if (rules.style === 'blink') {
-          flash = { layer: layer, age: 0 };
-        } else {
+        if (rules.style === 'persist') {
           var i = stack.indexOf(layer);
           // Re-picking the layer already on top changes nothing, so it costs no
           // cooldown. Promoting an older one from the stack still does.
@@ -113,6 +166,8 @@ window.PV = window.PV || {};
           if (i !== -1) stack.splice(i, 1);
           stack.unshift(layer);
           if (stack.length > rules.keep) stack.length = rules.keep;
+        } else {
+          flash = newFlash(layer, origin);
         }
         cooldown = rules.cooldown;
         return 'ok';
@@ -125,7 +180,14 @@ window.PV = window.PV || {};
         var a = v.alpha;
         LAYERS.forEach(function (l) { a[l] = 0; });
 
-        if (rules.style === 'blink') {
+        if (rules.style === 'torch') {
+          // No layer alpha: the ping and the torch are spatial and are drawn
+          // in board space by render.js.
+          if (flash) {
+            flash.age += dt;
+            if (flash.age > pulseLife(rules)) flash = null;
+          }
+        } else if (rules.style === 'blink') {
           if (flash) {
             flash.age += dt;
             var fade = (flash.age - rules.hold) / rules.fade;
@@ -153,9 +215,10 @@ window.PV = window.PV || {};
 
       reset: function () {
         stack = (rules.initial || []).slice(0, rules.keep);
-        // Blink starts pitch black, so the round opens on one free flash.
-        flash = rules.style === 'blink' && rules.initial
-          ? { layer: rules.initial[0], age: 0 }
+        // Blink and Torch start pitch black, so the round opens on one free
+        // flash, fired from the spawn.
+        flash = rules.style !== 'persist' && rules.initial
+          ? newFlash(rules.initial[0], null)
           : null;
         cooldown = 0;
         denied = 0;

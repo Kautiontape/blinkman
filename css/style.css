@@ -112,7 +112,16 @@ html, body {
   margin-top: calc(14px * var(--sc, 1));
 }
 
-.diffs { display: grid; gap: calc(8px * var(--sc, 1)); margin-bottom: calc(22px * var(--sc, 1)); }
+/* Three rows filled column-first, so DOM order — and therefore tab order and
+   the 1-5 keys — puts the standard modes on the left and the dark ones right. */
+.diffs {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(3, auto);
+  grid-auto-columns: 1fr;
+  gap: calc(8px * var(--sc, 1));
+  margin-bottom: calc(22px * var(--sc, 1));
+}
 
 .diff {
   display: flex;

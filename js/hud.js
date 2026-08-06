@@ -171,10 +171,13 @@ window.PV = window.PV || {};
         wrap.classList.toggle('denied', v.wasDenied());
 
         // Chips follow what is actually on screen, including the forced reveal
-        // during a death — not just what the player selected.
+        // during a death — not just what the player selected. Torch's ping
+        // paints in board space rather than through the layer alphas, so it
+        // has to report itself.
         var shown = game.visibleAlpha();
+        var pulse = v.pulse();
         PV.LAYERS.forEach(function (layer) {
-          var lit = shown[layer] > 0.001;
+          var lit = shown[layer] > 0.001 || !!(pulse && pulse.layer === layer);
           if (lit === lastShown[layer]) return;
           lastShown[layer] = lit;
           chipEls[layer].classList.toggle('on', lit);

@@ -8,6 +8,29 @@ window.PV = window.PV || {};
 
   var PAC_YELLOW = '#ffd23f';
 
+  /* The ping is one flat colour for every layer. Reading as a sweep rather
+   * than as the board is the whole point, so nothing here uses a layer's own
+   * palette. */
+  var SCAN = '#5cffb0';
+  var SCAN_EDGE = '#d8fff0';   // the leading edge, so the ring reads as a ring
+  var EDGE_TIME = 0.1;         // how long an element counts as just-reached
+  var FRONT_ALPHA = 0.70;      // the wavefront: present, never competing
+
+  var TORCH_R = 46;            // 2.3 tiles
+  var TORCH_SOFT = 12;         // px over which a ghost fades in at the rim
+
+  var calmQuery = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  /** True when the player has asked for less movement. */
+  PV.wantsCalm = function () { return !!(calmQuery && calmQuery.matches); };
+
+  /* Two summed sines, so the flicker never settles into an obvious beat. */
+  function torchRadius(time) {
+    if (PV.wantsCalm()) return TORCH_R;
+    return TORCH_R * (1 + 0.045 * Math.sin(time * 11.3) + 0.028 * Math.sin(time * 23.7));
+  }
+
   PV.createRenderer = function (canvas) {
     var ctx = canvas.getContext('2d');
     var scale = 1;   // backing-store pixels per design pixel
@@ -29,6 +52,8 @@ window.PV = window.PV || {};
       draw: function (game, dt) {
         // visibleAlpha(), not vision.alpha: a death forces ghosts + Pac-Man on.
         var alpha = game.visibleAlpha();
+        // Non-zero only in Torch, where it doubles as the mode test.
+        var torchR = game.rules.style === 'torch' ? torchRadius(game.time) : 0;
 
         ctx.save();
         // Everything below is authored in the fixed 560x620 design space; this
@@ -43,10 +68,16 @@ window.PV = window.PV || {};
           renderer.shake = Math.max(0, renderer.shake - dt * 26);
         }
 
+        // Under the layers, so a death reveal still draws over the top.
+        if (torchR) {
+          drawPulse(ctx, game);
+          drawTorch(ctx, game, torchR, scale);
+        }
+
         // Only drawWalls needs `scale` — see its shadowBlur.
         if (alpha.walls > 0)  drawWalls(ctx, game.maze, alpha.walls, scale);
         if (alpha.dots > 0)   drawPellets(ctx, game.maze, alpha.dots, game.time);
-        drawGhosts(ctx, game, alpha.ghosts);
+        drawGhosts(ctx, game, alpha.ghosts, torchR);
         if (alpha.pacman > 0) drawPacman(ctx, game, alpha.pacman);
 
         drawFloatingScores(ctx, game);
@@ -106,6 +137,137 @@ window.PV = window.PV || {};
     ctx.stroke();
   }
 
+  /* The ping. Each element's distance from the frozen origin decides both how
+   * bright it is and whether the ring has reached it at all. */
+  function drawPulse(ctx, game) {
+    var p = game.vision.pulse();
+    if (!p) return;
+
+    ctx.save();
+    // Under the layer, so it never sits over a contact.
+    drawPulseFront(ctx, p);
+    if (p.layer === 'walls') drawPulseWalls(ctx, game.maze, p, game.rules);
+    else if (p.layer === 'dots') drawPulseDots(ctx, game.maze, p, game.rules);
+    else if (p.layer === 'ghosts') drawPulseBlips(ctx, p, game.rules);
+    ctx.restore();
+  }
+
+  /* The wavefront itself. A walls or dots ping shows where the ring is for
+   * free, as things light up; a ghosts ping has nothing to light between
+   * contacts and reads as if the press did nothing. This gives every layer the
+   * same running commentary, and weakens as it spreads. */
+  function drawPulseFront(ctx, p) {
+    var reach = p.age * PV.PULSE_SPEED;
+    var spent = reach / PV.PULSE_SPAN;
+    if (spent >= 1) return;   // off the board; nothing left to show
+
+    ctx.globalAlpha = FRONT_ALPHA * (1 - spent);
+    ctx.strokeStyle = SCAN;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, reach, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  /** True while an element is close enough behind the ring to read as its edge. */
+  function justReached(dist, age) {
+    return age - dist / PV.PULSE_SPEED < EDGE_TIME;
+  }
+
+  function drawPulseWalls(ctx, maze, p, rules) {
+    var segs = maze.edges;   // already one segment per tile face
+    ctx.lineCap = 'round';
+    for (var i = 0; i < segs.length; i++) {
+      var s = segs[i];
+      var d = Math.hypot((s[0] + s[2]) / 2 - p.x, (s[1] + s[3]) / 2 - p.y);
+      var a = PV.pulseAlpha(d, p.age, rules);
+      if (a <= 0.001) continue;
+      var edge = justReached(d, p.age);
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = edge ? SCAN_EDGE : SCAN;
+      ctx.lineWidth = edge ? 3 : 2;
+      ctx.beginPath();
+      ctx.moveTo(s[0], s[1]);
+      ctx.lineTo(s[2], s[3]);
+      ctx.stroke();
+    }
+  }
+
+  function drawPulseDots(ctx, maze, p, rules) {
+    for (var r = 0; r < maze.rows; r++) {
+      for (var c = 0; c < maze.cols; c++) {
+        if (!maze.pellets[r][c]) continue;   // an eaten dot simply isn't there
+        var x = PV.center(c), y = PV.center(r);
+        var d = Math.hypot(x - p.x, y - p.y);
+        var a = PV.pulseAlpha(d, p.age, rules);
+        if (a <= 0.001) continue;
+        var edge = justReached(d, p.age);
+        ctx.globalAlpha = a;
+        ctx.fillStyle = edge ? SCAN_EDGE : SCAN;
+        fillCircle(ctx, x, y, edge ? 2.6 : 1.8);
+      }
+    }
+  }
+
+  /* A contact is the ghost's own outline, so there is no doubt what the ring
+   * found. The wobble is frozen with the position — a sampled contact should
+   * not keep animating. blips is sparse, indexed by ghost, and forEach skips
+   * the holes. */
+  function drawPulseBlips(ctx, p, rules) {
+    p.blips.forEach(function (b) {
+      var d = Math.hypot(b.x - p.x, b.y - p.y);
+      var a = PV.pulseAlpha(d, p.age, rules);
+      if (a <= 0.001) return;
+      var edge = justReached(d, p.age);
+
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.translate(b.x, b.y);
+      ctx.strokeStyle = edge ? SCAN_EDGE : SCAN;
+      ctx.lineWidth = edge ? 2.5 : 1.5;
+      ctx.lineJoin = 'round';
+      ghostBodyPath(ctx, TILE * 0.46, b.wobble);
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  /* The torch: a disc of real colour around Pac-Man in a mode that is
+   * otherwise black. Ghosts are not clipped — drawGhosts gives them an alpha
+   * floor instead, so one straddling the rim shows whole rather than sliced.
+   * Pac-Man himself is drawn by the freeSelf path. */
+  function drawTorch(ctx, game, radius, scale) {
+    var p = game.pacman;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+    ctx.clip();
+    drawWalls(ctx, game.maze, 1, scale);
+    drawPellets(ctx, game.maze, 1, game.time);
+    ctx.restore();
+
+    // A warm halo on the rim, so the hard clip edge reads as light falling off.
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,214,130,0.45)';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(255,196,92,0.9)';
+    ctx.shadowBlur = 10 * scale;   // in device pixels, so scale by hand
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /* Same shape as PV.ghostReveal: a per-entity alpha floor, not a clip. */
+  function torchReveal(g, pacman, radius) {
+    if (!radius) return 0;
+    var d = Math.hypot(g.x - pacman.x, g.y - pacman.y);
+    if (d <= radius - TORCH_SOFT) return 1;
+    if (d >= radius) return 0;
+    return (radius - d) / TORCH_SOFT;
+  }
+
   function drawPellets(ctx, maze, alpha, time) {
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -126,13 +288,16 @@ window.PV = window.PV || {};
     ctx.restore();
   }
 
-  function drawGhosts(ctx, game, alpha) {
+  function drawGhosts(ctx, game, alpha, torchR) {
     var dying = game.state === 'dying';
     var rad = TILE * 0.46;
 
     game.ghosts.forEach(function (g) {
-      // A ghost in the house shows through even with the layer dark.
-      var a = Math.max(alpha, PV.ghostReveal(g));
+      // A ghost in the house shows through even with the layer dark — except
+      // in Torch, which brings its own light and so opts out: what is waiting
+      // in the house is something you walk up to or ping for.
+      var housed = torchR ? 0 : PV.ghostReveal(g);
+      var a = Math.max(alpha, housed, torchReveal(g, game.pacman, torchR));
       if (a <= 0.001) return;
 
       var eyesOnly = g.state === 'eaten' || g.state === 'entering';
@@ -158,8 +323,10 @@ window.PV = window.PV || {};
     });
   }
 
-  function drawGhostBody(ctx, color, rad, wobble) {
-    ctx.fillStyle = color;
+  /* The dome-and-skirt silhouette, in the ghost's local space. Left as a bare
+   * path so callers can fill it as a body or stroke it as a sonar contact,
+   * which keeps the two from drifting apart. */
+  function ghostBodyPath(ctx, rad, wobble) {
     ctx.beginPath();
     ctx.arc(0, -rad * 0.15, rad, Math.PI, 0);           // domed head
     ctx.lineTo(rad, rad * 0.7);
@@ -171,6 +338,11 @@ window.PV = window.PV || {};
       ctx.quadraticCurveTo(x0 - w * 0.5, rad * 0.7 + dip, x0 - w, rad * 0.7);
     }
     ctx.closePath();
+  }
+
+  function drawGhostBody(ctx, color, rad, wobble) {
+    ghostBodyPath(ctx, rad, wobble);
+    ctx.fillStyle = color;
     ctx.fill();
   }
 
