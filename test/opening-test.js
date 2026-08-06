@@ -79,8 +79,14 @@ function releaseTimes(g) {
 }
 
 (function () {
-  var slow = releaseTimes(newGame());
-  check('blinky is already out', near(slow.blinky, 0, 0.02), slow.blinky);
+  // All four wait inside, so the round opens on a countable house.
+  var start = newGame();
+  var housed = start.ghosts.filter(function (g) { return g.state === 'house'; });
+  check('all four start in the house', housed.length === 4,
+    start.ghosts.map(function (g) { return g.name + ':' + g.state; }).join(' '));
+
+  var slow = releaseTimes(start);
+  check('blinky leads at 0s', near(slow.blinky, 0, 0.05), slow.blinky);
   check('pinky leaves at 2s', near(slow.pinky, 2), slow.pinky);
   check('inky waits out latest at 9s', near(slow.inky, 9), slow.inky);
   check('clyde waits out latest at 14s', near(slow.clyde, 14), slow.clyde);
@@ -90,15 +96,17 @@ function releaseTimes(g) {
   var g = newGame();
   g.dotsEaten = 999;
   var fast = releaseTimes(g);
+  check('blinky floor at 0s', near(fast.blinky, 0, 0.05), fast.blinky);
   check('pinky floor at 2s', near(fast.pinky, 2), fast.pinky);
   check('inky floor at 5s', near(fast.inky, 5), fast.inky);
   check('clyde floor at 8s', near(fast.clyde, 8), fast.clyde);
 
-  var order = ['pinky', 'inky', 'clyde'];
+  var order = ['blinky', 'pinky', 'inky', 'clyde'];
   [slow, fast].forEach(function (t, n) {
-    var gaps = [t[order[0]], t[order[1]] - t[order[0]], t[order[2]] - t[order[1]]];
+    var gaps = [];
+    for (var i = 1; i < order.length; i++) gaps.push(t[order[i]] - t[order[i - 1]]);
     check('exits stay 2s apart (' + (n === 0 ? 'no dots' : 'dots met') + ')',
-      gaps.every(function (d) { return d >= 2 - 0.02; }), gaps.join(' / '));
+      gaps.every(function (d) { return d >= 2 - 0.05; }), gaps.join(' / '));
   });
 })();
 

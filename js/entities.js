@@ -149,9 +149,8 @@ window.PV = window.PV || {};
    * has passed and either the dot count is met or `latest` has passed too.
    * The floors are what keep the exits one at a time — dot counts alone send
    * Inky and Clyde out together on a mid-level respawn, where dotsEaten is
-   * already well past both. Blinky's is all zeroes: it opens the round on the
-   * board and only passes through the house after being eaten, where the 1s
-   * dwell is the gate. */
+   * already well past both. Blinky's is all zeroes: it leads the file-out and
+   * goes the moment play starts. */
   var GHOST_DEFS = [
     { name: 'blinky', color: '#ff3c3c', spawn: 'blinky', scatter: { col: 25, row: 0 },
       release: { dots: 0, earliest: 0, latest: 0 } },
@@ -208,9 +207,9 @@ window.PV = window.PV || {};
           this.x = PV.center(spawn.col);
           this.y = PV.center(spawn.row);
           this.homeY = this.y;
-          // blinky starts on the board, the rest wait inside
-          this.dir = def.name === 'blinky' ? DIRS.left : DIRS.up;
-          this.state = def.name === 'blinky' ? 'out' : 'house';
+          // all four wait inside, facing the door, and file out on the ladder
+          this.dir = DIRS.up;
+          this.state = 'house';
           this.frightened = false;
           this.releaseTimer = 0;
           this.wobble = Math.random() * Math.PI * 2;

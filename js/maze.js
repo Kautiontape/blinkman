@@ -140,7 +140,7 @@ window.PV = window.PV || {};
     pacman:  { col: 13, row: 23 },
     door:    { col: 13, row: 12 },
     outside: { col: 13, row: 11 },
-    blinky:  { col: 13, row: 11 },
+    blinky:  { col: 13, row: 13 },
     pinky:   { col: 13, row: 14 },
     inky:    { col: 11, row: 14 },
     clyde:   { col: 15, row: 14 }

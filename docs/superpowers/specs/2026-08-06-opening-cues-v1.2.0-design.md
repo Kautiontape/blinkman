@@ -48,6 +48,11 @@ passed).
 Blinky opens the round already outside, so the ladder only applies to it on a
 respawn.
 
+> Superseded in v1.3.0: Blinky's spawn moved inside the house, to `(13, 13)`
+> below the door. All four now start housed and the ladder governs every exit,
+> Blinky's included, so the opening reads as a countable file-out. Its release
+> triple is unchanged — all zeroes still means it leads.
+
 `earliest` is the new term and guarantees a ≥2s gap between exits that no dot
 count can undercut. A passive player sees exits at 0 / 2 / 9 / 14; a fast one
 at 0 / 2 / 5 / 8.

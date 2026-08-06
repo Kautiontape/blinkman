@@ -57,9 +57,11 @@ for 0.6s before the death animation, with a red ring on whichever one got you,
 so a death always has a visible cause.
 
 A round opens the same way in every mode. The dots blink three times and then
-obey the layer, ghosts leave the house one at a time over the first several
-seconds, and a ghost inside the house is visible whatever the layer says,
-fading out as it crosses the door.
+obey the layer, and all four ghosts start in the house and file out one at a
+time over the first several seconds. A ghost inside the house is visible
+whatever the layer says, fading out as it crosses the door, so you can count
+what is still waiting. Pac-Man starts Blinky outside the house; keeping all
+four in makes the count readable, which matters more here than the pedigree.
 
 ## Mazes
 
