@@ -106,6 +106,18 @@ window.PV = window.PV || {};
   PV.modeName = function (id) { return PV.TEXT.modes[id].name.toUpperCase(); };
   PV.modeBlurb = function (id) { return PV.TEXT.modes[id].blurb; };
 
+  /* The board nudge for a player who hasn't used the number keys. Only the
+   * digits the mode answers to are named: a freeSelf mode never spends a pick
+   * on your own layer, so it has no 4. Digits come off LAYER_KEYS rather than
+   * the layer order, so the two can't drift apart. */
+  PV.modeHint = function (id) {
+    var rules = PV.DIFFICULTIES[id];
+    var keys = LAYERS.filter(function (l) { return rules.pool.indexOf(l) !== -1; })
+      .map(function (l) { return PV.LAYER_KEYS[l].split(' / ')[0]; })
+      .join('/');
+    return PV.t(PV.TEXT.hint.press, { KEYS: keys, VERB: PV.TEXT.hint[rules.style] });
+  };
+
   PV.createVision = function (rules) {
     var stack = [];      // persist mode: lit layers, most recent first
     var flash = null;    // blink mode: { layer, age }

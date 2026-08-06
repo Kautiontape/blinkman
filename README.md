@@ -66,6 +66,12 @@ house stays dark and who is still in it is something you walk up to or ping
 for. Pac-Man starts Blinky outside the house; keeping all four in makes the
 count readable, which matters more here than the pedigree.
 
+Five seconds into a round, a player who hasn't pressed a number key gets a line
+low on the board naming the ones that mode answers to — `Press 1/2/3 to scan`
+in Torch, `Press 1/2/3/4 to flash` in Blink. It fades after ten seconds and
+returns each round until a pick is made, then stays gone for the rest of the
+game.
+
 ## Mazes
 
 Every level builds a new maze, so you can't coast on memory. It isn't a random
@@ -111,7 +117,7 @@ is what lets `file://` work.
     js/vision.js    the layer and cooldown state machine
     js/game.js      rounds, scoring, collisions, ghost release
     js/render.js    canvas drawing
-    js/hud.js       score, badge, cooldown ring
+    js/hud.js       score, badge, cooldown ring, the layer nudge
     js/audio.js     synthesised sound, no audio files
     js/main.js      input, frame loop, layout
 
@@ -120,9 +126,10 @@ is what lets `file://` work.
 time. `main.js` has to load last. Everything else in the script order is slack.
 
 Three test suites, all plain node scripts with nothing to install. The second
-covers the ghost release ladder, the house reveal and the dots blink; the third
-covers Torch's ping — its fade curve, its frozen origin, and the ghost blips it
-leaves behind. None of that is visible to a layout check.
+covers the ghost release ladder, the house reveal, the dots blink and the
+wording of the layer nudge; the third covers Torch's ping — its fade curve, its
+frozen origin, and the ghost blips it leaves behind. None of that is visible to
+a layout check.
 
     node test/maze-test.js
     node test/opening-test.js

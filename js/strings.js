@@ -13,7 +13,7 @@ window.PV = window.PV || {};
   /* Shown in the menu's bottom corner and logged to the console, so you can
    * tell at a glance which build a deploy is actually serving. Bump on release
    * and tag the commit to match. */
-  PV.VERSION = '1.4.0';
+  PV.VERSION = '1.5.0';
 
   PV.TEXT = {
     title: 'BLINK-MAN',
@@ -101,6 +101,17 @@ window.PV = window.PV || {};
     keys: {
       move: '&mdash; move',
       vision: '&mdash; dots / ghosts / walls / you'
+    },
+
+    /* The nudge on the board for a player who hasn't used the number keys.
+     * PV.modeHint fills %KEYS% with the digits the mode answers to and %VERB%
+     * with the entry named after its style — a pick does something different
+     * in each. */
+    hint: {
+      press: 'Press %KEYS% %VERB%',
+      persist: 'to change layer',
+      torch: 'to scan',
+      blink: 'to flash'
     },
 
     hud: {

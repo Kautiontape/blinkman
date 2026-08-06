@@ -19,6 +19,7 @@
 
   var renderer = PV.createRenderer(canvas);
   var hud = PV.createHud();
+  var hint = PV.createHint();
 
   var game = null;
   var paused = false;
@@ -100,6 +101,7 @@
     if (sfx) sfx();
     if (SHAKE[name] && !PV.wantsCalm()) renderer.kick(SHAKE[name]);
     if (name === 'caught' || name === 'roundStart') PV.Sfx.stopSiren();
+    if (name === 'roundStart') hint.reset();
   }
 
   function showMenu() {
@@ -113,6 +115,7 @@
     panelMenu.hidden = false;
     panelMsg.hidden = true;
     hud.showIdle();
+    hint.arm();
     renderer.clear();
   }
 
@@ -124,6 +127,7 @@
     paused = false;
     overlayKey = '';
     hud.rebuild(game);
+    hint.arm();
     game.startRound();
     panelMenu.hidden = true;
   }
@@ -231,6 +235,9 @@
     }
 
     if (VISION_KEYS[e.code]) {
+      // Ahead of selectVision, which refuses the press outside 'playing'. The
+      // player found the key either way, so the nudge has done its job.
+      hint.dismiss();
       game.selectVision(VISION_KEYS[e.code]);
       e.preventDefault();
     }
@@ -248,6 +255,7 @@
     var chip = e.target.closest('.chip');
     if (!chip || !game || paused) return;
     PV.Sfx.unlock();
+    hint.dismiss();
     game.selectVision(chip.dataset.layer);
   });
 
@@ -315,6 +323,7 @@
     // game time.
     renderer.draw(game, dt);
     hud.update(game);
+    hint.update(dt, game, paused);
     syncOverlay();
   }
 
