@@ -28,6 +28,11 @@
       <span data-t="canvasFallback"></span>
     </canvas>
 
+    <!-- The nudge for a player who hasn't used the number keys, driven by
+         js/hud.js. Ahead of the overlay so the overlay covers it, and
+         aria-hidden because the layer chips carry the same shortcuts. -->
+    <div id="hint" aria-hidden="true"></div>
+
     <div id="overlay" class="overlay">
       <div class="panel" id="panel-menu">
         <!-- The eye stands in for the hyphen, so the accessible name has to

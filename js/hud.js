@@ -1,4 +1,5 @@
-/* hud.js — score, lives, and the vision badge with its cooldown ring. */
+/* hud.js — score, lives, the vision badge with its cooldown ring, and the
+ * board nudge that names the layer keys. */
 window.PV = window.PV || {};
 (function (PV) {
   'use strict';
@@ -187,6 +188,59 @@ window.PV = window.PV || {};
     };
 
     return hud;
+  };
+
+  /* The board nudge, for the player who never presses a number. It waits out
+   * HINT_DELAY of live play, shows for HINT_LIFE, then stays quiet until the
+   * next round. Any pick silences it for the rest of the game. */
+  var HINT_DELAY = 5, HINT_LIFE = 10;
+
+  PV.createHint = function () {
+    var el = document.getElementById('hint');
+
+    var t = 0;
+    var dismissed = false;
+    var lastOn = null;     // as in update() above: no DOM write per idle frame
+    var lastMode = null;
+
+    function show(on) {
+      if (on === lastOn) return;
+      lastOn = on;
+      el.classList.toggle('on', on);
+    }
+
+    return {
+      /** Menu, or a new game: due again, with nothing left on screen. */
+      arm: function () {
+        t = 0;
+        dismissed = false;
+        show(false);
+      },
+
+      /** A new round inside the same game: one more showing. */
+      reset: function () { t = 0; },
+
+      /** The player used a layer key or chip and doesn't need telling again. */
+      dismiss: function () { dismissed = true; },
+
+      /**
+       * @param dt      seconds; the clock only runs while the round is live
+       * @param paused  board chrome, so it goes away with the board
+       */
+      update: function (dt, game, paused) {
+        if (dismissed) { show(false); return; }
+
+        var live = !paused && game.state === 'playing';
+        if (live) t += dt;
+
+        var on = live && t >= HINT_DELAY && t < HINT_DELAY + HINT_LIFE;
+        if (on && game.difficulty !== lastMode) {
+          lastMode = game.difficulty;
+          el.textContent = PV.modeHint(game.difficulty);
+        }
+        show(on);
+      }
+    };
   };
 
 })(window.PV);

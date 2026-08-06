@@ -1,12 +1,14 @@
 /* Opening-cues regression test — run with:  node test/opening-test.js
  *
  * Covers what a round opens with: the staggered ghost release, the ghost-house
- * reveal, and the dots blink. All three are timing-sensitive and invisible to
- * maze-test.js, which only reads layouts.
+ * reveal, the dots blink, and the layer nudge. All of it is timing-sensitive
+ * or mode-dependent, and invisible to maze-test.js, which only reads layouts.
+ *
+ * strings.js is here for the nudge's wording; nothing else needs it.
  */
 global.window = {};
 var path = require('path');
-['maze.js', 'entities.js', 'vision.js', 'game.js'].forEach(function (f) {
+['strings.js', 'maze.js', 'entities.js', 'vision.js', 'game.js'].forEach(function (f) {
   require(path.join(__dirname, '..', 'js', f));
 });
 var PV = global.window.PV;
@@ -201,6 +203,30 @@ console.log('dots intro blink');
   var easy = dotsAfter('easy', 1.6);
   check('easy blinks the dots to full', near(easy.peak, 1, 0.001), easy.peak);
   check('easy settles the dots to its own alpha', near(easy.settled, 0.55, 0.001), easy.settled);
+})();
+
+console.log('');
+console.log('layer nudge');
+
+/* Pinned per mode, because both halves are derived: the digits come from the
+ * mode's pool, so a mode that never spends a pick on your own layer must not
+ * offer a 4, and the verb comes from its style. */
+(function () {
+  var EXPECTED = {
+    easy: 'Press 1/2/3 to change layer',
+    normal: 'Press 1/2/3 to change layer',
+    hard: 'Press 1/2/3/4 to change layer',
+    torch: 'Press 1/2/3 to scan',
+    blink: 'Press 1/2/3/4 to flash'
+  };
+
+  Object.keys(PV.DIFFICULTIES).forEach(function (id) {
+    check(id, PV.modeHint(id) === EXPECTED[id], PV.modeHint(id));
+  });
+
+  check('every mode is covered',
+    Object.keys(EXPECTED).length === Object.keys(PV.DIFFICULTIES).length,
+    Object.keys(PV.DIFFICULTIES).join(' '));
 })();
 
 console.log('');
