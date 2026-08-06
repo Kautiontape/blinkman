@@ -198,6 +198,7 @@ git -C "$work/other" commit -q -m diverge
 git -C "$work/other" push -q origin main
 run y 1.4.0
 expect 'stops when the branch push is rejected' 1 'rejected'
+expect 'names the undo when the push fails' 1 'git tag -d v1.4.0 && git reset --hard HEAD~1'
 if [ -z "$(git -C "$work/origin.git" tag -l v1.4.0)" ]; then
   ok 'leaves origin untagged when the branch push fails'
 else

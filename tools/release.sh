@@ -71,7 +71,9 @@ git commit -q -m "$message" -- "$strings"
 git tag -a "$tag" -m "$message"
 # Branch before tag: a tag on origin without its commit gives the workflow a
 # version assert that cannot pass.
-git push -q origin "$branch"
-git push -q origin "$tag"
+stranded="the commit and $tag are local only. Undo with:
+  git tag -d $tag && git reset --hard HEAD~1"
+git push -q origin "$branch" || die "branch push failed. $stranded"
+git push -q origin "$tag" || die "tag push failed. $stranded"
 
 printf 'pushed %s\n' "$tag"

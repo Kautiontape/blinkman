@@ -576,6 +576,7 @@ git -C "$work/other" commit -q -m diverge
 git -C "$work/other" push -q origin main
 run y 1.4.0
 expect 'stops when the branch push is rejected' 1 'rejected'
+expect 'names the undo when the push fails' 1 'git tag -d v1.4.0 && git reset --hard HEAD~1'
 if [ -z "$(git -C "$work/origin.git" tag -l v1.4.0)" ]; then
   ok 'leaves origin untagged when the branch push fails'
 else
@@ -602,8 +603,10 @@ git commit -q -m "$message" -- "$strings"
 git tag -a "$tag" -m "$message"
 # Branch before tag: a tag on origin without its commit gives the workflow a
 # version assert that cannot pass.
-git push -q origin "$branch"
-git push -q origin "$tag"
+stranded="the commit and $tag are local only. Undo with:
+  git tag -d $tag && git reset --hard HEAD~1"
+git push -q origin "$branch" || die "branch push failed. $stranded"
+git push -q origin "$tag" || die "tag push failed. $stranded"
 
 printf 'pushed %s\n' "$tag"
 ```
@@ -614,7 +617,7 @@ printf 'pushed %s\n' "$tag"
 bash test/release-test.sh
 ```
 
-Expected: `28 passed, 0 failed`, exit 0.
+Expected: `29 passed, 0 failed`, exit 0.
 
 - [ ] **Step 5: Commit**
 
