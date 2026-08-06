@@ -11,6 +11,29 @@ window.PV = window.PV || {};
   var DENIED_FLASH = 0.35;   // how long the HUD flinches after a rejected press
   var OLDER_PICK_ALPHA = 0.55;
 
+  /* Torch mode's sonar ping. The ring expands at PULSE_SPEED and every element
+   * fades on the same curve a Blink flash uses, clocked from the moment the
+   * ring reached it — so near walls are already dimming while far ones are
+   * still lighting up. PV.WIDTH and PV.HEIGHT are read at load time, which is
+   * why maze.js has to load first. */
+  var PULSE_SPEED = 700;                              // px/s
+  var PULSE_SPAN = Math.hypot(PV.WIDTH, PV.HEIGHT);   // worst-case corner origin
+  PV.PULSE_SPEED = PULSE_SPEED;
+
+  PV.pulseAlpha = function (dist, age, rules) {
+    var t = age - dist / PULSE_SPEED;   // seconds since the ring passed
+    if (t < 0) return 0;                // not reached yet
+    var f = (t - rules.hold) / rules.fade;
+    if (f <= 0) return 1;
+    if (f >= 1) return 0;
+    return (1 - f) * (1 - f);
+  };
+
+  /** How long a ping lives: the ring clearing the board, then the last fade. */
+  function pulseLife(rules) {
+    return PULSE_SPAN / PULSE_SPEED + rules.hold + rules.fade;
+  }
+
   /* The opening dots cue: three blinks, then an eased fade out. It runs as a
    * floor under whatever the mode would show, so the dots get introduced even
    * in the modes that start them dark. */
@@ -30,6 +53,8 @@ window.PV = window.PV || {};
    *
    * style 'persist' — your last `keep` picks stay lit until you pick again.
    * style 'blink'   — a pick flashes at full alpha, holds, then fades out.
+   * style 'torch'   — a pick pings outward from you; render.js paints it in
+   *                   board space, so the layer alphas stay dark.
    * freeSelf        — your own layer is always drawn and costs no pick. */
   PV.DIFFICULTIES = {
     easy: {
@@ -59,6 +84,13 @@ window.PV = window.PV || {};
       style: 'blink', keep: 1, freeSelf: false,
       cooldown: 1.0, hold: 0.4, fade: 2.0,
       ghostSpeed: 0.86, initial: ['walls']
+    },
+    torch: {
+      id: 'torch',
+      pool: ['dots', 'ghosts', 'walls'],
+      style: 'torch', keep: 1, freeSelf: true,
+      cooldown: 1.0, hold: 0.25, fade: 1.1,
+      ghostSpeed: 0.90, initial: ['walls']
     }
   };
 
