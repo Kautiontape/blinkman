@@ -51,6 +51,7 @@ blue ring means you can switch. A shrinking red arc means wait.
 | Normal | You and your last pick | 1s |
 | Hard | One of four, and you can go dark | 3s |
 | Blink | Nothing. A press flashes one layer, which fades over 2s. | 1s |
+| Torch | A lit circle around you. A press pings one layer outward from where you stood, and it fades behind the ring. | 1s |
 
 Death is the one exception to all of this. Get caught and the ghosts light up
 for 0.6s before the death animation, with a red ring on whichever one got you,
@@ -112,16 +113,18 @@ is what lets `file://` work.
     js/audio.js     synthesised sound, no audio files
     js/main.js      input, frame loop, layout
 
-`maze.js` has to load before `entities.js`, `render.js` and `game.js`, which
-read `PV.TILE` and the spawn table at load time. `main.js` has to load last.
-Everything else in the script order is slack.
+`maze.js` has to load before `vision.js`, `entities.js`, `render.js` and
+`game.js`, which read `PV.TILE`, the board size and the spawn table at load
+time. `main.js` has to load last. Everything else in the script order is slack.
 
-Two test suites, both plain node scripts with nothing to install. The second
-covers the ghost release ladder, the house reveal and the dots blink, none of
-which are visible to a layout check.
+Three test suites, all plain node scripts with nothing to install. The second
+covers the ghost release ladder, the house reveal and the dots blink; the third
+covers Torch's ping — its fade curve, its frozen origin, and the ghost blips it
+leaves behind. None of that is visible to a layout check.
 
     node test/maze-test.js
     node test/opening-test.js
+    node test/torch-test.js
 
 The game always draws into a fixed 560x620 space and a canvas transform maps
 that onto whatever size the board actually is. Nothing in the game logic knows
