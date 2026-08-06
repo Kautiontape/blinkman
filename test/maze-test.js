@@ -1,9 +1,9 @@
 /* Maze regression test — run with:  node test/maze-test.js
  *
  * Checks every top x bottom quadrant combination. Run this after editing
- * TOP_PIECES or BOTTOM_PIECES in js/maze.js; it catches the two mistakes that
+ * TOP_PIECES or BOTTOM_PIECES in js/maze.js; it catches the mistakes that
  * are easy to make by hand and invisible until you play the level:
- * an unreachable pocket, and a two-wide corridor.
+ * an unreachable pocket, a two-wide corridor, and a dead end.
  */
 global.window = {};
 require(require('path').join(__dirname, '..', 'js', 'maze.js'));
@@ -31,6 +31,35 @@ function wideSpots(layout) {
   return hits;
 }
 
+/* An open tile with only one walkable neighbour is a dead end. The two
+ * tunnel mouths (row 14, columns 0 and 27) are the one exception — they
+ * wrap to each other rather than stopping. */
+function deadEnds(layout) {
+  var hits = [];
+  function open(c, r) {
+    if (r < 0 || r >= PV.ROWS || c < 0 || c >= PV.COLS) return false;
+    var ch = layout[r][c];
+    return ch !== '#' && ch !== '-';
+  }
+  var DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  for (var r = 0; r < PV.ROWS; r++) {
+    for (var c = 0; c < PV.COLS; c++) {
+      if (!open(c, r)) continue;
+      var deg = 0;
+      DIRS.forEach(function (d) {
+        var nc = c + d[0], nr = r + d[1];
+        if (r === PV.TUNNEL_ROW) {
+          if (nc < 0) nc = PV.COLS - 1;
+          else if (nc >= PV.COLS) nc = 0;
+        }
+        if (open(nc, nr)) deg++;
+      });
+      if (deg <= 1) hits.push('(c' + c + ',r' + r + ')');
+    }
+  }
+  return hits;
+}
+
 var failures = 0;
 var combos = 0;
 
@@ -41,6 +70,7 @@ PV.TOP_PIECES.forEach(function (top) {
     var layout = PV.assembleLayout(top, bottom);
     var problems = PV.checkLayout(layout);
     var wide = wideSpots(layout);
+    var dead = deadEnds(layout);
 
     var pellets = 0;
     for (var r = 0; r < PV.ROWS; r++) {
@@ -49,12 +79,16 @@ PV.TOP_PIECES.forEach(function (top) {
       }
     }
 
-    if (problems.length || wide.length) {
+    if (problems.length || wide.length || dead.length) {
       failures++;
       if (problems.length) console.log('  ' + id + '  BROKEN: ' + problems.join('; '));
       if (wide.length) {
         console.log('  ' + id + '  TWO-WIDE CORRIDOR at ' + wide.slice(0, 8).join(' ') +
           (wide.length > 8 ? ' (+' + (wide.length - 8) + ' more)' : ''));
+      }
+      if (dead.length) {
+        console.log('  ' + id + '  DEAD END at ' + dead.slice(0, 8).join(' ') +
+          (dead.length > 8 ? ' (+' + (dead.length - 8) + ' more)' : ''));
       }
     } else {
       console.log('  ' + id + '  ok    pellets=' + pellets);
