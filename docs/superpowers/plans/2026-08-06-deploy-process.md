@@ -163,6 +163,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 pass=0
 fail=0
 work=''
+trap 'rm -rf "$work"' EXIT
 out=''
 code=0
 
