@@ -158,5 +158,35 @@ run '' 1.4.0 -y extra
 expect 'rejects a stray argument' 1 'unexpected argument: extra'
 teardown
 
+setup 0
+run y 1.4.0
+expect 'reports the pushed tag' 0 'pushed v1.4.0'
+if [ "$(git -C "$work/repo" log -1 --pretty=%s)" = 'blinkman: Bump version to 1.4.0' ]; then
+  ok 'commits in the project style'
+else
+  no 'commits in the project style' "$(git -C "$work/repo" log -1 --pretty=%s)"
+fi
+if [ -n "$(git -C "$work/origin.git" tag -l v1.4.0)" ]; then
+  ok 'pushes the tag to origin'
+else
+  no 'pushes the tag to origin' "$(git -C "$work/origin.git" tag -l)"
+fi
+if [ "$(git -C "$work/origin.git" rev-parse main)" = "$(git -C "$work/repo" rev-parse main)" ]; then
+  ok 'pushes the branch to origin'
+else
+  no 'pushes the branch to origin' 'origin main is behind'
+fi
+teardown
+
+setup 0
+run y v1.4.0
+expect 'accepts a v-prefixed argument' 0 'pushed v1.4.0'
+if [ -z "$(git -C "$work/origin.git" tag -l vv1.4.0)" ]; then
+  ok 'does not double the v prefix'
+else
+  no 'does not double the v prefix' "$(git -C "$work/origin.git" tag -l)"
+fi
+teardown
+
 printf '\n%s passed, %s failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

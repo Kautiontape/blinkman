@@ -27,7 +27,7 @@ tag="v$version"
 branch="$(git rev-parse --abbrev-ref HEAD)"
 [ "$branch" = "$release_branch" ] || die "releases are cut from $release_branch, not $branch"
 
-# Untracked files don't count as dirty: the commit in Task 5 is scoped to
+# Untracked files don't count as dirty: the commit below is scoped to
 # js/strings.js, not git add -A.
 git diff-index --quiet HEAD -- || die 'working tree is dirty'
 
@@ -65,3 +65,13 @@ if [ "${2:-}" != '-y' ]; then
     *) git checkout -- "$strings"; die 'aborted' ;;
   esac
 fi
+
+message="blinkman: Bump version to $version"
+git commit -q -m "$message" -- "$strings"
+git tag -a "$tag" -m "$message"
+# Branch before tag: a tag on origin without its commit gives the workflow a
+# version assert that cannot pass.
+git push -q origin "$branch"
+git push -q origin "$tag"
+
+printf 'pushed %s\n' "$tag"
