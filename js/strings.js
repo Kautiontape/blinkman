@@ -10,6 +10,11 @@ window.PV = window.PV || {};
 (function (PV) {
   'use strict';
 
+  /* Shown in the menu's bottom corner and logged to the console, so you can
+   * tell at a glance which build a deploy is actually serving. Bump on release
+   * and tag the commit to match. */
+  PV.VERSION = '1.0.0';
+
   PV.TEXT = {
     title: 'BLINK-MAN',
     logo: { before: 'BLINK', after: 'MAN' },

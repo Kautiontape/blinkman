@@ -149,6 +149,17 @@ html, body {
 
 .keys { color: var(--dim); font-size: calc(11px * var(--sc, 1)); line-height: 1.9; }
 
+/* Deliberately faint: a build marker, not a thing to read. */
+.version {
+  position: absolute;
+  right: calc(10px * var(--sc, 1));
+  bottom: calc(6px * var(--sc, 1));
+  font-size: calc(8.5px * var(--sc, 1));
+  letter-spacing: .12em;
+  color: var(--dim);
+  opacity: .4;
+}
+
 kbd {
   display: inline-block;
   min-width: calc(18px * var(--sc, 1));

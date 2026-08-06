@@ -74,6 +74,7 @@
   /* Elements carrying data-t are filled once from strings.js, by dotted path. */
   function applyStaticText() {
     document.title = PV.TEXT.title;
+    document.getElementById('version').textContent = 'v' + PV.VERSION;
     document.querySelectorAll('[data-t]').forEach(function (el) {
       var value = el.dataset.t.split('.').reduce(function (obj, key) {
         return obj == null ? null : obj[key];
@@ -307,6 +308,9 @@
     hud.update(game);
     syncOverlay();
   }
+
+  // Also on the console: an itch iframe hides the menu behind a play button.
+  if (window.console) console.log('BLINK-MAN v' + PV.VERSION);
 
   applyStaticText();
   updateMuteLabel();

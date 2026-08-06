@@ -119,8 +119,11 @@ zip.
 
 ## License
 
-None, so default copyright applies: read it, learn from it, but it isn't
-licensed for reuse. Ask if you want to do something with it.
+MIT. See `LICENSE`.
+
+The licence covers this code, not the arcade game it takes after. If you build
+on it, keep someone else's trademark out of anything a player or a storefront
+sees, the way this does.
 
 ## Not done
 
