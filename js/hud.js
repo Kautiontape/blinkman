@@ -60,16 +60,30 @@ window.PV = window.PV || {};
     var lastIcon = null;
     var lastLives = -1;
     var lastStats = '';
+    var lastShown = {};
 
-    function buildChips(vision) {
+    /**
+     * @param vision  rules to read the free/pickable state from
+     * @param live    false on the menu, where there is no pick to make
+     */
+    function buildChips(vision, live) {
       el.chips.innerHTML = '';
       chipEls = {};
+      lastShown = {};
       PV.LAYERS.forEach(function (layer) {
         var free = vision.isFree(layer);
         var pickable = vision.selectable(layer);
 
-        var chip = document.createElement('div');
+        // A button rather than a div: main.js wires clicks to the same pick the
+        // layer's key makes, so it has to answer to Tab and Enter as well.
+        var chip = document.createElement('button');
+        chip.type = 'button';
         chip.className = 'chip' + (free ? ' free' : '') + (pickable || free ? '' : ' locked');
+        chip.dataset.layer = layer;
+        chip.disabled = !live;
+        chip.setAttribute('aria-pressed', 'false');
+        // '1 / H' is written for the player; aria wants the keys space-separated.
+        if (pickable) chip.setAttribute('aria-keyshortcuts', PV.LAYER_KEYS[layer].replace(' / ', ' '));
         chip.innerHTML =
           '<span class="ico">' + ICONS[layer] + '</span>' +
           '<span class="nm">' + layerName(layer) + '</span>' +
@@ -95,8 +109,7 @@ window.PV = window.PV || {};
     var hud = {
       /** Neutral state for the menu screen, so the panels aren't just empty. */
       showIdle: function () {
-        buildChips(PV.createVision(PV.DIFFICULTIES.normal));
-        PV.LAYERS.forEach(function (l) { chipEls[l].classList.remove('on'); });
+        buildChips(PV.createVision(PV.DIFFICULTIES.normal), false);
         el.badgeIcon.innerHTML = ICONS.none;
         el.badgeName.textContent = PV.TEXT.hud.idleBadge;
         el.badgeMode.textContent = PV.TEXT.hud.idleMode;
@@ -114,7 +127,7 @@ window.PV = window.PV || {};
       },
 
       rebuild: function (game) {
-        buildChips(game.vision);
+        buildChips(game.vision, true);
         el.badgeMode.textContent = PV.modeName(game.difficulty);
         lastIcon = null;
         lastLives = -1;
@@ -161,7 +174,11 @@ window.PV = window.PV || {};
         // during a death — not just what the player selected.
         var shown = game.visibleAlpha();
         PV.LAYERS.forEach(function (layer) {
-          chipEls[layer].classList.toggle('on', shown[layer] > 0.001);
+          var lit = shown[layer] > 0.001;
+          if (lit === lastShown[layer]) return;
+          lastShown[layer] = lit;
+          chipEls[layer].classList.toggle('on', lit);
+          chipEls[layer].setAttribute('aria-pressed', lit ? 'true' : 'false');
         });
       }
     };

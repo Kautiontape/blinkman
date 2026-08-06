@@ -242,6 +242,16 @@
     if (btn) startGame(btn.dataset.diff);
   });
 
+  /* A layer chip is the mouse equivalent of that layer's key, refusals and all:
+   * the guards here are the ones the vision keys pass on their way down. The
+   * chips are disabled on the menu, so `!game` only catches a stray event. */
+  document.getElementById('chips').addEventListener('click', function (e) {
+    var chip = e.target.closest('.chip');
+    if (!chip || !game || paused) return;
+    PV.Sfx.unlock();
+    game.selectVision(chip.dataset.layer);
+  });
+
   function updateMuteLabel() {
     muteBtn.textContent = PV.Sfx.isMuted()
       ? PV.TEXT.buttons.soundOff : PV.TEXT.buttons.soundOn;

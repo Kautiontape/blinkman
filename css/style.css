@@ -284,19 +284,28 @@ kbd {
 
 .chips { display: grid; gap: .55em; }
 
+/* A <button>: clicking a chip makes the same pick as its key. The font and
+   text-align below are the button defaults being undone. */
 .chip {
   display: flex;
   align-items: center;
   gap: .8em;
+  width: 100%;
   padding: .55em .85em;
   background: var(--sunken);
   border: 1px solid var(--line);
   border-radius: .55em;
+  font-family: inherit;
   font-size: .95em;
   letter-spacing: .19em;
+  text-align: left;
   color: var(--dim);
+  cursor: pointer;
   transition: color .12s, border-color .12s, background .12s;
 }
+/* Disabled only on the menu, where there is no round to pick a layer in. */
+.chip:disabled { cursor: default; }
+.chip:enabled:hover, .chip:focus-visible { color: var(--ink); border-color: var(--accent); }
 .chip .ico { width: 1.5em; height: 1.5em; flex: 0 0 1.5em; opacity: .45; }
 .chip .ico svg { width: 100%; height: 100%; display: block; }
 .chip .key { margin-left: auto; font-size: .86em; opacity: .55; letter-spacing: .1em; }
