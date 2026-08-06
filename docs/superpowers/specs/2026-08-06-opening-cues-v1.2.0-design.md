@@ -145,22 +145,28 @@ DOM-free and `localStorage` is already wrapped in try/catch, so `maze.js` →
 `entities.js` → `vision.js` → `game.js` load headless under a `global.window`
 stub.
 
-Four checks:
+Five checks:
 
 1. **Release ladder** — step a game with zero dots eaten and assert Pinky,
    Inky and Clyde leave the house at their `latest` times, in that order,
-   with gaps of at least 2s. Blinky is exempt: `g.reset()` puts it straight
-   into `out`, so the ladder never governs it. Step a second game with
-   `dotsEaten` forced past every count and assert the exits move to the
-   `earliest` times rather than all firing at once — the mid-level respawn
-   case that motivates the floors.
-2. **Baseline** — assert `stateTime` is 0 on the first `playing` frame by
+   with gaps of at least 2s. Blinky opens the round in `out`, so the ladder
+   does not govern its first exit. Step a second game with `dotsEaten` forced
+   past every count and assert the exits move to the `earliest` times rather
+   than all firing at once — the mid-level respawn case that motivates the
+   floors.
+2. **Respawn through the house** — drive a ghost through `entering` into
+   `house` and step past the 1.0s dwell, asserting it leaves again without
+   throwing. Every ghost lands in the house on the way back from being eaten,
+   Blinky included, so every ghost needs a release rule. The `newGame()` seam
+   freezes `eatPellet`, which makes fright and the eaten state unreachable, so
+   nothing else in this file covers that path.
+3. **Baseline** — assert `stateTime` is 0 on the first `playing` frame by
    both routes out of `ready`: waiting the 1.8s out, and calling
    `game.steer()` early.
-3. **Reveal alpha** — assert the value at the house row, the door line, a
+4. **Reveal alpha** — assert the value at the house row, the door line, a
    mid-doorway position and the exit row, for each of the five ghost states.
    `out` and `eaten` must read 0 at every one of those positions.
-4. **Intro blink** — sample `vision.update()` on a fine step and assert the
+5. **Intro blink** — sample `vision.update()` on a fine step and assert the
    floor reaches 1 three times, drops to 0 between them, and has released to
    the layer's own alpha by 1.35s. Run it against Normal (dots start dark)
    and Easy (dots start at 0.55) so the floor is shown to settle to each.
