@@ -22,6 +22,7 @@ version="${1:-}"
 version="${version#v}"
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "not a version: $version"
 tag="v$version"
+[ $# -le 2 ] || die "unexpected argument: $3"
 
 branch="$(git rev-parse --abbrev-ref HEAD)"
 [ "$branch" = "$release_branch" ] || die "releases are cut from $release_branch, not $branch"
@@ -40,8 +41,15 @@ fi
 remote_tag="$(git ls-remote --tags origin "$tag")" || die 'could not check origin for existing tags'
 [ -z "$remote_tag" ] || die "tag $tag already exists on origin"
 
-node test/maze-test.js >/dev/null || die 'test/maze-test.js failed'
-node test/opening-test.js >/dev/null || die 'test/opening-test.js failed'
+# The suites report failures on stdout, so hold their output and show it only
+# when one fails.
+run_suite() {
+  local suite="$1" output
+  output="$(node "$suite" 2>&1)" || { printf '%s\n' "$output" >&2; die "$suite failed"; }
+}
+
+run_suite test/maze-test.js
+run_suite test/opening-test.js
 printf '  tests ....................... ok\n'
 
 sed -i "s/^\( *PV\.VERSION = '\)[^']*\(';\)\$/\1$version\2/" "$strings"

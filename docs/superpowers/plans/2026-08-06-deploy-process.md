@@ -406,37 +406,35 @@ Append these four blocks to `test/release-test.sh`, immediately before the `prin
 version_in() {
   sed -n "s/^ *PV\.VERSION = '\([^']*\)';/\1/p" "$work/repo/js/strings.js"
 }
+
+# $1 description, $2 expected version in the fixture's strings.js.
+expect_version() {
+  local desc="$1" want="$2"
+  if [ "$(version_in)" = "$want" ]; then
+    ok "$desc"
+  else
+    no "$desc" "version is $(version_in)"
+  fi
+}
 ```
 
 ```bash
 setup 1
 run y 1.4.0
 expect 'aborts when a suite fails' 1 'test/maze-test.js failed'
-if [ "$(version_in)" = '1.3.0' ]; then
-  ok 'leaves strings.js alone when a suite fails'
-else
-  no 'leaves strings.js alone when a suite fails' "version is $(version_in)"
-fi
+expect_version 'leaves strings.js alone when a suite fails' '1.3.0'
 teardown
 
 setup 0
 run n 1.4.0
 expect 'aborts when the prompt is declined' 1 'aborted'
-if [ "$(version_in)" = '1.3.0' ]; then
-  ok 'reverts the bump when the prompt is declined'
-else
-  no 'reverts the bump when the prompt is declined' "version is $(version_in)"
-fi
+expect_version 'reverts the bump when the prompt is declined' '1.3.0'
 teardown
 
 setup 0
 run y 1.4.0
 expect 'shows the bump before asking' 0 '1.3.0 -> 1.4.0'
-if [ "$(version_in)" = '1.4.0' ]; then
-  ok 'bumps strings.js when accepted'
-else
-  no 'bumps strings.js when accepted' "version is $(version_in)"
-fi
+expect_version 'bumps strings.js when accepted' '1.4.0'
 teardown
 
 setup 0
@@ -448,11 +446,19 @@ setup 0
 out="$(cd "$work/repo" && ./tools/release.sh 1.4.0 </dev/null 2>&1)"
 code=$?
 expect 'declines safely when stdin is closed' 1 'aborted'
-if [ "$(version_in)" = '1.3.0' ]; then
-  ok 'reverts the bump when stdin is closed'
-else
-  no 'reverts the bump when stdin is closed' "version is $(version_in)"
-fi
+expect_version 'reverts the bump when stdin is closed' '1.3.0'
+teardown
+
+setup 1
+printf 'console.log("BROKEN: quadrant 3"); process.exit(1);\n' > "$work/repo/test/maze-test.js"
+git -C "$work/repo" commit -q -am 'stub with console.log'
+run y 1.4.0
+expect 'surfaces the failing suite output' 1 'BROKEN: quadrant 3'
+teardown
+
+setup 0
+run '' 1.4.0 -y extra
+expect 'rejects a stray argument' 1 'unexpected argument: extra'
 teardown
 ```
 
@@ -466,11 +472,23 @@ Expected: the nine earlier cases pass; the seven new ones FAIL, because `release
 
 - [ ] **Step 3: Write minimal implementation**
 
-Append to `tools/release.sh`:
+Append to `tools/release.sh`, and add the stray-argument guard right after the version is parsed:
 
 ```bash
-node test/maze-test.js >/dev/null || die 'test/maze-test.js failed'
-node test/opening-test.js >/dev/null || die 'test/opening-test.js failed'
+tag="v$version"
+[ $# -le 2 ] || die "unexpected argument: $3"
+```
+
+```bash
+# The suites report failures on stdout, so hold their output and show it only
+# when one fails.
+run_suite() {
+  local suite="$1" output
+  output="$(node "$suite" 2>&1)" || { printf '%s\n' "$output" >&2; die "$suite failed"; }
+}
+
+run_suite test/maze-test.js
+run_suite test/opening-test.js
 printf '  tests ....................... ok\n'
 
 sed -i "s/^\( *PV\.VERSION = '\)[^']*\(';\)/\1$version\2/" "$strings"
@@ -488,7 +506,7 @@ if [ "${2:-}" != '-y' ]; then
 fi
 ```
 
-`read` gets `|| true` because `set -e` would otherwise exit on EOF before the revert runs, leaving a bumped file behind.
+`read` gets `|| true` because `set -e` would otherwise exit on EOF before the revert runs, leaving a bumped file behind. `run_suite` captures each suite's output instead of discarding it, so a failure prints the suite's diagnostics before `die` exits.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -496,7 +514,7 @@ fi
 bash test/release-test.sh
 ```
 
-Expected: `18 passed, 0 failed`, exit 0.
+Expected: `20 passed, 0 failed`, exit 0.
 
 - [ ] **Step 5: Commit**
 
@@ -555,7 +573,7 @@ teardown
 bash test/release-test.sh
 ```
 
-Expected: the eighteen earlier cases pass; the six new ones FAIL — `release.sh` exits after the prompt without committing, tagging or pushing.
+Expected: the twenty earlier cases pass; the six new ones FAIL — `release.sh` exits after the prompt without committing, tagging or pushing.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -579,7 +597,7 @@ printf 'pushed %s\n' "$tag"
 bash test/release-test.sh
 ```
 
-Expected: `24 passed, 0 failed`, exit 0.
+Expected: `26 passed, 0 failed`, exit 0.
 
 - [ ] **Step 5: Commit**
 
