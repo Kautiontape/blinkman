@@ -13,7 +13,7 @@ window.PV = window.PV || {};
   /* Shown in the menu's bottom corner and logged to the console, so you can
    * tell at a glance which build a deploy is actually serving. Bump on release
    * and tag the commit to match. */
-  PV.VERSION = '1.3.0';
+  PV.VERSION = '1.4.0';
 
   PV.TEXT = {
     title: 'BLINK-MAN',
@@ -28,7 +28,7 @@ window.PV = window.PV || {};
     splashes: [
       'We didn’t even know he had an eye.',
       'Blink and you’ll Ms. it',
-      'Torches not supplied.',
+      'Don’t forget to bring a torch.',
       'You can’t hide under the covers forever.',
       'Mascara sold separately.',
       'The eyelashes are canon.',
@@ -90,6 +90,11 @@ window.PV = window.PV || {};
         name: 'Blink',
         blurb: 'Flash one layer and remember it',
         menu: 'Dark. Flash <b>one layer</b>, then it fades &middot; 1s cooldown'
+      },
+      torch: {
+        name: 'Torch',
+        blurb: 'A pool of light, and a ping that sweeps',
+        menu: 'Lit around you. A ping <b>sweeps one layer</b> &middot; 1s cooldown'
       }
     },
 
