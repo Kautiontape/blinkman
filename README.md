@@ -50,6 +50,7 @@ blue ring means you can switch. A shrinking red arc means wait.
 | Easy | You and your last two picks | 1s |
 | Normal | You and your last pick | 1s |
 | Hard | One of four, and you can go dark | 3s |
+| Torch | A lit circle around you. A press pings one layer outward from where you stood, and it fades behind the ring. | 1s |
 | Blink | Nothing. A press flashes one layer, which fades over 2s. | 1s |
 
 Death is the one exception to all of this. Get caught and the ghosts light up
@@ -63,8 +64,10 @@ A round opens the same way in every mode. The dots blink three times and then
 obey the layer, and all four ghosts start in the house and file out one at a
 time over the first several seconds. A ghost inside the house is visible
 whatever the layer says, fading out as it crosses the door, so you can count
-what is still waiting. Pac-Man starts Blinky outside the house; keeping all
-four in makes the count readable, which matters more here than the pedigree.
+what is still waiting. Torch opts out of that: it brings its own light, so the
+house stays dark and who is still in it is something you walk up to or ping
+for. Pac-Man starts Blinky outside the house; keeping all four in makes the
+count readable, which matters more here than the pedigree.
 
 ## Mazes
 
@@ -116,19 +119,22 @@ is what lets `file://` work.
     js/audio.js     synthesised sound, no audio files
     js/main.js      input, frame loop, layout
 
-`maze.js` has to load before `entities.js`, `render.js` and `game.js`, which
-read `PV.TILE` and the spawn table at load time. `attract.js` reads `PV.DIRS`
-and the grid size, so it comes after `entities.js` too. `main.js` has to load
-last. Everything else in the script order is slack.
+`maze.js` has to load before `vision.js`, `entities.js`, `render.js` and
+`game.js`, which read `PV.TILE`, the board size and the spawn table at load
+time. `attract.js` reads `PV.DIRS` and the grid size, so it comes after
+`entities.js` too. `main.js` has to load last. Everything else in the script
+order is slack.
 
-Three test suites, all plain node scripts with nothing to install. The second
-covers the ghost release ladder, the house reveal and the dots blink, none of
-which are visible to a layout check. The third covers the menu demo: that its
-autopilot only steers into open tiles, that it eats, and that the layer
-rotation reaches every layer.
+Four test suites, all plain node scripts with nothing to install. The second
+covers the ghost release ladder, the house reveal and the dots blink; the third
+covers Torch's ping — its fade curve, its frozen origin, and the ghost blips it
+leaves behind; the fourth covers the menu demo, whose autopilot has to steer
+only into open tiles, eat at a reasonable rate, and reach every layer as it
+rotates. None of that is visible to a layout check.
 
     node test/maze-test.js
     node test/opening-test.js
+    node test/torch-test.js
     node test/attract-test.js
 
 The game always draws into a fixed 560x620 space and a canvas transform maps

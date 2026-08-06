@@ -147,9 +147,12 @@ window.PV = window.PV || {};
       // The board is covered outside 'playing', so a pick there spends a
       // cooldown on nothing.
       if (game.state !== 'playing') return 'ignored';
-      var res = game.vision.select(layer);
+      // Torch expands its ping from wherever Pac-Man is standing; the other
+      // styles ignore the origin.
+      var res = game.vision.select(layer, game.pacman);
       if (res === 'ok') {
-        game.onEvent(rules.style === 'blink' ? 'blink' : 'visionSwitch');
+        // Torch is a flash on a delay, so it takes the flash sound too.
+        game.onEvent(rules.style === 'persist' ? 'visionSwitch' : 'blink');
       } else if (res !== 'same' && res !== 'ignored') {
         // 'cooldown' and 'unavailable' are refusals and get the denied sound;
         // 'same' is silent — you already have that layer.
@@ -186,6 +189,7 @@ window.PV = window.PV || {};
 
       consumePellet();
       moveGhosts(dt);
+      samplePulse();
       checkCollisions();
 
       // Only while still alive: checkCollisions above may have set 'dying', and
@@ -267,6 +271,26 @@ window.PV = window.PV || {};
       game.ghosts.forEach(function (g) {
         var target = PV.ghostTarget(g, mode, game.pacman, blinky);
         PV.updateGhost(g, dt, game.maze, target);
+      });
+    }
+
+    /* Torch mode: a ghost blips where the expanding ring first reaches it, and
+     * stays drawn there for the rest of the ping. Plain distance, not the
+     * tunnel-wrapped one checkCollisions uses — the ring is drawn as a circle
+     * in board space, so a wrapped distance would light a blip before the
+     * visible ring arrived. Every ghost is sampled whatever its state: the ping
+     * reports where things are, and eaten ghosts show as eyes in every mode. */
+    function samplePulse() {
+      var p = game.vision.pulse();
+      if (!p || p.layer !== 'ghosts') return;
+      var reach = p.age * PV.PULSE_SPEED;
+      game.ghosts.forEach(function (g, i) {
+        if (p.blips[i]) return;
+        // wobble too: render.js draws the contact as the ghost's own outline,
+        // and a frozen contact should be frozen mid-waddle, not still moving.
+        if (Math.hypot(g.x - p.x, g.y - p.y) <= reach) {
+          p.blips[i] = { x: g.x, y: g.y, wobble: g.wobble };
+        }
       });
     }
 

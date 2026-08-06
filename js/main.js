@@ -96,13 +96,10 @@
 
   var SHAKE = { bump: 7, eatGhost: 5, caught: 14 };
 
-  var calmQuery = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
-  function wantsCalm() { return !!(calmQuery && calmQuery.matches); }
-
   function handleEvent(name) {
     var sfx = PV.Sfx[SOUND[name]];
     if (sfx) sfx();
-    if (SHAKE[name] && !wantsCalm()) renderer.kick(SHAKE[name]);
+    if (SHAKE[name] && !PV.wantsCalm()) renderer.kick(SHAKE[name]);
     if (name === 'caught' || name === 'roundStart') PV.Sfx.stopSiren();
   }
 
@@ -122,7 +119,7 @@
     // death shaken into the last round would otherwise carry into this one.
     renderer.shake = 0;
     // Under reduced motion the board stays the black rectangle it was.
-    attract = wantsCalm() ? null : PV.createAttract();
+    attract = PV.wantsCalm() ? null : PV.createAttract();
   }
 
   function startGame(difficultyId) {
@@ -193,7 +190,9 @@
     Digit4: 'pacman', Numpad4: 'pacman', KeyL: 'pacman'
   };
 
-  var MENU_KEYS = { Digit1: 'easy', Digit2: 'normal', Digit3: 'hard', Digit4: 'blink' };
+  var MENU_KEYS = {
+    Digit1: 'easy', Digit2: 'normal', Digit3: 'hard', Digit4: 'torch', Digit5: 'blink'
+  };
 
   var SCROLL_KEYS = {
     ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1, Space: 1
