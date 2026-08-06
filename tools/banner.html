@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BLINK-MAN banner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@800&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; padding: 28px; background: #12141c; color: #e8ecff;
+         font: 13px ui-monospace, monospace; }
+  canvas { display: block; width: 930px; height: 233px; margin-bottom: 18px; }
+  /* Half brightness, to check the 18% ghost survives a dim screen. */
+  #dim { filter: brightness(0.55); }
+  button { font: inherit; padding: 7px 14px; background: #ffd23f; color: #05060c;
+           border: 0; border-radius: 3px; cursor: pointer; }
+  p { color: #6a7398; }
+</style>
+</head>
+<body>
+  <p>Full brightness</p>
+  <canvas id="out" width="1860" height="465"></canvas>
+  <p>Dimmed to 55% — the near ghost must still resolve</p>
+  <canvas id="dim" width="1860" height="465"></canvas>
+  <button id="save">Download banner.png</button>
+  <p id="info"></p>
+
+<script src="../js/maze.js"></script>
+<script src="../js/render.js"></script>
+<script src="./banner-layout.js"></script>
+<script src="./banner-draw.js"></script>
+<script>
+  var out = document.getElementById('out');
+
+  document.fonts.load('800 100px "JetBrains Mono"').then(function () {
+    return document.fonts.ready;
+  }).then(function () {
+    var meta = PV.drawBanner(out, PV.BANNER.seed);
+    document.getElementById('dim').getContext('2d').drawImage(out, 0, 0);
+    document.getElementById('info').textContent =
+      'seed ' + meta.seed + '  recipe ' + meta.recipe +
+      '  player c' + meta.player.col + ',r' + meta.player.row;
+  }).catch(function (err) {
+    document.getElementById('info').textContent = 'FAILED: ' + err.message;
+    throw err;
+  });
+
+  document.getElementById('save').onclick = function () {
+    out.toBlob(function (blob) {
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'banner.png';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+  };
+</script>
+</body>
+</html>
