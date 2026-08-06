@@ -116,9 +116,17 @@ window.PV = window.PV || {};
       game.startRound();
     };
 
+    /* Entering 'playing' restarts the clock. The ghost release ladder measures
+     * from the first frame the player can act, and 'ready' runs for a length
+     * the player controls. */
+    function beginPlay() {
+      game.state = 'playing';
+      game.stateTime = 0;
+    }
+
     game.steer = function (dir) {
       game.pacman.want = dir;
-      if (game.state === 'ready') game.state = 'playing';
+      if (game.state === 'ready') beginPlay();
     };
 
     /**
@@ -155,7 +163,7 @@ window.PV = window.PV || {};
       if (game.state === 'ready') {
         // Returning before vision.update() freezes the cooldown and Blink's
         // opening flash while the board is still behind the curtain.
-        if (game.stateTime > 1.8) game.state = 'playing';
+        if (game.stateTime > 1.8) beginPlay();
         return;
       }
 
