@@ -57,6 +57,9 @@ Death is the one exception to all of this. Get caught and the ghosts light up
 for 0.6s before the death animation, with a red ring on whichever one got you,
 so a death always has a visible cause.
 
+The menu runs a demo behind it: a Normal round on autopilot, with the lit layer
+rotating every four seconds. `prefers-reduced-motion` turns it off.
+
 A round opens the same way in every mode. The dots blink three times and then
 obey the layer, and all four ghosts start in the house and file out one at a
 time over the first several seconds. A ghost inside the house is visible
@@ -116,6 +119,7 @@ is what lets `file://` work.
     js/entities.js  grid movement, ghost targeting
     js/vision.js    the layer and cooldown state machine
     js/game.js      rounds, scoring, collisions, ghost release
+    js/attract.js   the autopilot demo behind the menu
     js/render.js    canvas drawing
     js/hud.js       score, badge, cooldown ring, the layer nudge
     js/audio.js     synthesised sound, no audio files
@@ -123,17 +127,22 @@ is what lets `file://` work.
 
 `maze.js` has to load before `vision.js`, `entities.js`, `render.js` and
 `game.js`, which read `PV.TILE`, the board size and the spawn table at load
-time. `main.js` has to load last. Everything else in the script order is slack.
+time. `attract.js` reads `PV.DIRS` and the grid size, so it comes after
+`entities.js` too. `main.js` has to load last. Everything else in the script
+order is slack.
 
-Three test suites, all plain node scripts with nothing to install. The second
+Four test suites, all plain node scripts with nothing to install. The second
 covers the ghost release ladder, the house reveal, the dots blink and the
 wording of the layer nudge; the third covers Torch's ping — its fade curve, its
-frozen origin, and the ghost blips it leaves behind. None of that is visible to
-a layout check.
+frozen origin, and the ghost blips it leaves behind; the fourth covers the menu
+demo, whose autopilot has to steer only into open tiles, eat at a reasonable
+rate, and reach every layer as it rotates. None of that is visible to a layout
+check.
 
     node test/maze-test.js
     node test/opening-test.js
     node test/torch-test.js
+    node test/attract-test.js
 
 The game always draws into a fixed 560x620 space and a canvas transform maps
 that onto whatever size the board actually is. Nothing in the game logic knows
@@ -158,7 +167,7 @@ sees, the way this does.
 
 ## Not done
 
-- No bonus fruit, no attract mode.
+- No bonus fruit.
 - Ghosts do scatter/chase with the four classic personalities, but skip the
   arcade's speed tables and exact house dot counters.
 - Collision is a radius check rather than the arcade's tile test, so it's a
