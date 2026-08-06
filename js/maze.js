@@ -32,11 +32,14 @@ window.PV = window.PV || {};
 
   /* Rows 1-8. Every variant leaves rows 1, 5 and 8 plus columns 1 and 6 open.
    *
-   * Authoring rule, enforced by test/maze-test.js: a two-row band (6-7) may
+   * Authoring rules, enforced by test/maze-test.js: a two-row band (6-7) may
    * hold vertical corridors only — a horizontal one would sit flush against the
    * fixed corridor above or below and open a two-wide passage that lets ghosts
    * pass abreast. The three-row band (2-4) can afford one down its middle.
-   * Corridor columns must never be adjacent. */
+   * Corridor columns must never be adjacent. No open tile may dead-end; the
+   * two tunnel mouths are the only exception. When closing a dead end into a
+   * corridor, leave at least 2 straight tiles before the next turn — not
+   * test-enforced, check by eye. */
   var TOP_PIECES = [
     { id: 'T1', rows: [                 // the original arcade layout
       '#............#',

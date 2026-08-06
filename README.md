@@ -69,21 +69,26 @@ right like the original. The HUD shows which pair you got.
 
 Mazes only change between levels, so dying never costs you pellet progress.
 
-To add pieces, edit `TOP_PIECES` and `BOTTOM_PIECES` in `js/maze.js`. Two rules
-apply, and the test enforces both:
+To add pieces, edit `TOP_PIECES` and `BOTTOM_PIECES` in `js/maze.js`. Three
+rules apply, and the test enforces all three:
 
 1. Everything must be reachable from Pac-Man's spawn.
 2. No 2x2 block of open floor. Real Pac-Man mazes have none, and a two-wide
    corridor lets a ghost slide past you in the same passage. In practice a
    two-row band between fixed corridors can only hold vertical corridors, and
    corridor columns can't sit next to each other.
+3. No dead-ends. Every open tile needs at least one walkable neighbour beyond
+   the one it's reached from; the two tunnel mouths are the only exception.
 
     node test/maze-test.js
+
+One more guideline, not test-enforced: when closing a dead-end into a
+corridor, leave at least 2 straight tiles before the next turn.
 
 `PV.createMaze(seed)` is deterministic, so any maze can be reproduced from its
 seed. At runtime a piece that leaves something unreachable gets logged and
 falls back to the arcade layout rather than shipping a broken level. The
-two-wide check is test-only, so run the test after editing pieces.
+two-wide and dead-end checks are test-only, so run the test after editing pieces.
 
 ## Code
 
