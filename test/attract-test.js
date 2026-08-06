@@ -170,5 +170,33 @@ console.log('layer rotation');
 })();
 
 console.log('');
+console.log('rotation across a round reset');
+
+/* What reading the next layer off the lit one buys. A death puts the vision
+ * back on `walls` mid-lap while the hold timer keeps its phase. A counter would
+ * call for the layer already lit, get `same` back, and stall there for a second
+ * hold. */
+(function () {
+  var a = PV.createAttract();
+  a.game.invuln = Infinity;
+
+  // Two swaps in, so the lit layer is the last of the three.
+  for (var i = 0; i < 60 * 9; i++) a.update(STEP);
+  check('lit layer is ghosts at 9s', a.game.vision.current() === 'ghosts',
+    a.game.vision.current());
+
+  // startRound() is where a death lands, and it is what resets the vision.
+  // resetActors() puts invuln back to 1.2, so it needs freezing again.
+  a.game.startRound();
+  a.game.invuln = Infinity;
+  check('the reset puts the vision back on walls', a.game.vision.current() === 'walls',
+    a.game.vision.current());
+
+  for (var j = 0; j < 60 * 5; j++) a.update(STEP);
+  check('the lap resumes from the reset layer', a.game.vision.current() === 'dots',
+    a.game.vision.current());
+})();
+
+console.log('');
 console.log(failures === 0 ? 'ALL ATTRACT CHECKS OK' : failures + ' CHECK(S) FAILED');
 process.exit(failures === 0 ? 0 : 1);
