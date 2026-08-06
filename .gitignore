@@ -1,0 +1,8 @@
+dist/
+.playwright-mcp/
+.DS_Store
+Thumbs.db
+*~
+.vscode/
+.idea/
+.superpowers/

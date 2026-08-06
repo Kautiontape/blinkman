@@ -1,0 +1,312 @@
+/* Sizing model:
+ *   main.js measures the viewport and sets #stage's pixel size plus a --sc
+ *   scale factor (1 = the original 560x620 design size). Everything drawn on
+ *   the board scales through the canvas transform; everything around it scales
+ *   off --sc or the HUD's own font-size, so the whole UI grows together. */
+:root {
+  --bg: #05060c;
+  --panel: #0c0f1c;
+  --sunken: #0a0e1c;
+  --line: #1d2440;
+  --ink: #e8ecff;
+  --dim: #6a7398;
+  --accent: #ffd23f;
+  --accent2: #4fc3ff;
+  --danger: #ff4d6d;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(120vw 70vh at 50% -10%, #131a35 0%, transparent 60%),
+    var(--bg);
+  color: var(--ink);
+  font-family: var(--mono);
+}
+
+#app {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(12px, 1.4vw, 34px);
+  padding: clamp(8px, 1.4vh, 26px);
+}
+
+#stage {
+  position: relative;
+  flex: 0 0 auto;
+  /* width and height are set by main.js to preserve the 28:31 aspect ratio */
+}
+
+#board {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  border: 1px solid var(--line);
+  border-radius: calc(10px * var(--sc, 1));
+  box-shadow: 0 0 0 1px rgba(255,255,255,.02), 0 3vh 8vh rgba(0,0,0,.7);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(3,5,12,.86);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  border-radius: calc(10px * var(--sc, 1));
+}
+/* display:flex above outranks [hidden]'s default style, which main.js toggles */
+.overlay[hidden] { display: none; }
+
+.panel {
+  width: 92%;
+  text-align: center;
+  padding: 0 calc(18px * var(--sc, 1));
+}
+
+.panel h1 {
+  margin: 0 0 calc(4px * var(--sc, 1));
+  font-size: calc(42px * var(--sc, 1));
+  letter-spacing: calc(6px * var(--sc, 1));
+  color: var(--accent);
+  text-shadow: 0 0 calc(24px * var(--sc, 1)) rgba(255,210,63,.35);
+}
+/* The half-shut eye standing in for the hyphen in BLINK-MAN. */
+.panel h1 .eye {
+  display: inline-block;
+  width: 1.2em;
+  height: .6em;
+  margin: 0 .12em;
+  vertical-align: .04em;
+  color: var(--accent2);
+}
+.panel h1 .eye svg { width: 100%; height: 100%; display: block; }
+
+.panel .tag {
+  margin: 0 0 calc(22px * var(--sc, 1));
+  color: var(--dim);
+  font-size: calc(12.5px * var(--sc, 1));
+  letter-spacing: .4px;
+}
+
+.panel.small h2 {
+  margin: 0 0 calc(8px * var(--sc, 1));
+  font-size: calc(30px * var(--sc, 1));
+  letter-spacing: calc(4px * var(--sc, 1));
+  color: var(--accent);
+}
+.panel.small p { margin: calc(4px * var(--sc, 1)) 0; font-size: calc(13px * var(--sc, 1)); }
+.panel.small .hint {
+  color: var(--dim);
+  font-size: calc(11.5px * var(--sc, 1));
+  margin-top: calc(14px * var(--sc, 1));
+}
+
+.diffs { display: grid; gap: calc(8px * var(--sc, 1)); margin-bottom: calc(22px * var(--sc, 1)); }
+
+.diff {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(3px * var(--sc, 1));
+  width: 100%;
+  padding: calc(11px * var(--sc, 1)) calc(14px * var(--sc, 1));
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: calc(3px * var(--sc, 1)) solid var(--line);
+  border-radius: calc(7px * var(--sc, 1));
+  color: var(--ink);
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color .12s, background .12s, transform .08s;
+}
+.diff:hover, .diff:focus-visible {
+  background: #131a30;
+  border-color: var(--accent2);
+  border-left-color: var(--accent);
+  outline: none;
+  transform: translateX(2px);
+}
+.diff .dname {
+  text-transform: uppercase;   /* strings.js stores mode names in normal case */
+  font-size: calc(14px * var(--sc, 1));
+  letter-spacing: calc(3px * var(--sc, 1));
+  color: var(--accent);
+}
+.diff .ddesc { font-size: calc(11px * var(--sc, 1)); color: var(--dim); }
+.diff .ddesc b { color: var(--ink); font-weight: 600; }
+
+.keys { color: var(--dim); font-size: calc(11px * var(--sc, 1)); line-height: 1.9; }
+
+kbd {
+  display: inline-block;
+  min-width: calc(18px * var(--sc, 1));
+  padding: calc(1px * var(--sc, 1)) calc(5px * var(--sc, 1));
+  margin: 0 1px;
+  background: #141a2e;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: calc(4px * var(--sc, 1));
+  color: var(--ink);
+  font-size: calc(10.5px * var(--sc, 1));
+}
+
+/* HUD — sized in em below, so the one font-size here scales the whole panel. */
+
+#hud {
+  font-size: clamp(11px, 1.35vh, 18px);
+  width: 19em;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.3em;
+  /* On a short viewport the panels are taller than the window; scroll them
+     rather than clip the score off the top. */
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.hud-block {
+  background: linear-gradient(180deg, #0d1120, #090c17);
+  border: 1px solid var(--line);
+  border-radius: .9em;
+  padding: 1.3em;
+}
+.hud-block.vision { text-align: center; }
+.hud-block.foot { display: flex; flex-direction: column; gap: .7em; padding: .9em; }
+
+.label {
+  font-size: .87em;
+  letter-spacing: .27em;
+  color: var(--dim);
+  margin-bottom: .8em;
+}
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: .25em 0;
+}
+.stat .label { margin: 0; }
+.stat .value { font-size: 1.64em; color: var(--accent); letter-spacing: .05em; }
+.stat .value.dim { color: var(--ink); font-size: 1.27em; }
+
+#lives { display: flex; gap: .45em; align-items: center; }
+#lives span { width: 1.1em; height: 1.1em; display: block; }
+
+.badge-wrap {
+  position: relative;
+  width: 9.8em;
+  height: 9.8em;
+  margin: .4em auto .9em;
+}
+
+.ring { position: absolute; inset: 0; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 6; stroke-linecap: round; }
+.ring-track { stroke: #182040; }
+.ring-fill {
+  stroke: var(--accent2);
+  stroke-dasharray: 276.46;      /* 2*pi*44, matching r=44 in the markup */
+  stroke-dashoffset: 0;
+  transition: stroke .15s;
+}
+.badge-wrap.cooling .ring-fill { stroke: var(--danger); }
+
+.badge {
+  position: absolute;
+  inset: 1.1em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  transition: box-shadow .15s, border-color .15s;
+}
+.badge-wrap.ready .badge {
+  border-color: rgba(79,195,255,.5);
+  box-shadow: 0 0 2em rgba(79,195,255,.18) inset, 0 0 1.3em rgba(79,195,255,.15);
+}
+.badge-wrap.denied .badge { animation: shake .3s; border-color: var(--danger); }
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The border colour above still marks a refusal without the movement. */
+  .badge-wrap.denied .badge { animation: none; }
+  .diff:hover, .diff:focus-visible { transform: none; }
+  * { transition-duration: .01ms !important; }
+}
+.badge-icon { width: 4.9em; height: 4.9em; display: block; }
+.badge-icon svg { width: 100%; height: 100%; display: block; }
+
+.badge-cd {
+  position: absolute;
+  bottom: -.2em;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: .91em;
+  color: var(--danger);
+  background: var(--sunken);
+  padding: 0 .45em;
+  border-radius: .35em;
+  min-height: 1.2em;
+}
+
+.badge-name { font-size: 1.36em; letter-spacing: .27em; color: var(--accent); }
+.badge-mode { font-size: .87em; letter-spacing: .27em; color: var(--dim); margin-top: .3em; }
+
+.chips { display: grid; gap: .55em; }
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: .8em;
+  padding: .55em .85em;
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: .55em;
+  font-size: .95em;
+  letter-spacing: .19em;
+  color: var(--dim);
+  transition: color .12s, border-color .12s, background .12s;
+}
+.chip .ico { width: 1.5em; height: 1.5em; flex: 0 0 1.5em; opacity: .45; }
+.chip .ico svg { width: 100%; height: 100%; display: block; }
+.chip .key { margin-left: auto; font-size: .86em; opacity: .55; letter-spacing: .1em; }
+.chip.on { color: var(--ink); border-color: rgba(79,195,255,.45); background: #101736; }
+.chip.on .ico { opacity: 1; }
+.chip.locked { opacity: .3; }
+.chip.free { border-style: dashed; }
+
+.txtbtn {
+  width: 100%;
+  padding: .65em;
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: .55em;
+  color: var(--dim);
+  font-family: inherit;
+  font-size: .91em;
+  letter-spacing: .19em;
+  cursor: pointer;
+  transition: color .12s, border-color .12s;
+}
+.txtbtn:hover, .txtbtn:focus-visible { color: var(--ink); border-color: var(--accent2); }
+
+:fullscreen #app { padding: clamp(6px, 1vh, 16px); }

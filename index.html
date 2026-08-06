@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BLINK-MAN</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- content must match PV.TEXT.description in js/strings.js: link scrapers
+     don't run JS, so they only ever see what is written here. -->
+<meta name="description" data-t="description"
+      content="A maze chase drawn one layer at a time.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="BLINK-MAN">
+<meta property="og:description" content="A maze chase drawn one layer at a time.">
+<meta property="og:image" content="cover.png">
+<meta name="twitter:card" content="summary_large_image">
+<!-- inline so it survives being zipped for itch.io and served from a subpath -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%2305060c'/%3E%3Cpath d='M12 12L22 5.5a11 11 0 1 0 0 13z' fill='%23ffd23f'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Player-facing wording lives in js/strings.js. Elements marked data-t are
+     filled from it at startup; data-t-html allows inline markup. -->
+<div id="app">
+
+  <div id="stage">
+    <canvas id="board" width="560" height="620" role="img" aria-label="BLINK-MAN game board">
+      <span data-t="canvasFallback"></span>
+    </canvas>
+
+    <div id="overlay" class="overlay">
+      <div class="panel" id="panel-menu">
+        <!-- The eye stands in for the hyphen, so the accessible name has to
+             come from aria-label rather than the text inside. -->
+        <h1 aria-label="BLINK-MAN"><span data-t="logo.before">BLINK</span><span class="eye" aria-hidden="true">
+          <svg viewBox="0 0 32 15" fill="none" stroke="currentColor"
+               stroke-width="1.9" stroke-linecap="round">
+            <path d="M2.5 6.5C8 12 24 12 29.5 6.5"/>
+            <path d="M2.5 6.5H29.5"/>
+            <path d="M13.5 6.5a2.5 2.5 0 0 0 5 0" fill="currentColor" stroke="none"/>
+            <path d="M8 5.4 5.8 2.8M16 5.1V2M24 5.4 26.2 2.8" stroke-width="1.3"/>
+          </svg>
+        </span><span data-t="logo.after">MAN</span></h1>
+        <p class="tag" id="splash"></p>
+        <noscript><p class="tag">JavaScript is required to play.</p></noscript>
+
+        <div class="diffs" id="diffs" role="group" aria-label="Difficulty">
+          <button class="diff" type="button" data-diff="easy" aria-keyshortcuts="1">
+            <span class="dname" data-t="modes.easy.name"></span>
+            <span class="ddesc" data-t="modes.easy.menu" data-t-html></span>
+          </button>
+          <button class="diff" type="button" data-diff="normal" aria-keyshortcuts="2">
+            <span class="dname" data-t="modes.normal.name"></span>
+            <span class="ddesc" data-t="modes.normal.menu" data-t-html></span>
+          </button>
+          <button class="diff" type="button" data-diff="hard" aria-keyshortcuts="3">
+            <span class="dname" data-t="modes.hard.name"></span>
+            <span class="ddesc" data-t="modes.hard.menu" data-t-html></span>
+          </button>
+          <button class="diff" type="button" data-diff="blink" aria-keyshortcuts="4">
+            <span class="dname" data-t="modes.blink.name"></span>
+            <span class="ddesc" data-t="modes.blink.menu" data-t-html></span>
+          </button>
+        </div>
+
+        <div class="keys">
+          <div><kbd>&larr;</kbd><kbd>&darr;</kbd><kbd>&uarr;</kbd><kbd>&rarr;</kbd> or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
+            <span data-t="keys.move" data-t-html></span></div>
+          <div><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> or <kbd>H</kbd><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd>
+            <span data-t="keys.vision" data-t-html></span></div>
+          <div><kbd>P</kbd> pause &middot; <kbd>R</kbd> restart &middot; <kbd>M</kbd> mute &middot; <kbd>F</kbd> fullscreen &middot; <kbd>Esc</kbd> menu</div>
+        </div>
+      </div>
+
+      <div class="panel small" id="panel-message" role="status" hidden>
+        <h2 id="msg-title">READY</h2>
+        <p id="msg-body"></p>
+        <p class="hint" id="msg-hint"></p>
+      </div>
+    </div>
+  </div>
+
+  <aside id="hud" aria-label="Game status">
+    <div class="hud-block">
+      <div class="stat"><span class="label" data-t="hud.score"></span><span class="value" id="score">0</span></div>
+      <div class="stat"><span class="label" data-t="hud.best"></span><span class="value dim" id="best">0</span></div>
+      <div class="stat"><span class="label" data-t="hud.level"></span><span class="value dim" id="level">1</span></div>
+      <div class="stat"><span class="label" data-t="hud.maze"></span><span class="value dim" id="maze-id">&mdash;</span></div>
+      <div class="stat"><span class="label" data-t="hud.lives"></span><span class="value" id="lives"></span></div>
+    </div>
+
+    <div class="hud-block vision">
+      <div class="label" data-t="hud.vision"></div>
+
+      <div class="badge-wrap">
+        <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
+          <circle class="ring-track" cx="50" cy="50" r="44"></circle>
+          <circle class="ring-fill"  cx="50" cy="50" r="44" id="ring-fill"></circle>
+        </svg>
+        <div class="badge" id="badge">
+          <div class="badge-icon" id="badge-icon"></div>
+        </div>
+        <div class="badge-cd" id="badge-cd"></div>
+      </div>
+      <div class="badge-name" id="badge-name"></div>
+      <div class="badge-mode" id="badge-mode"></div>
+    </div>
+
+    <div class="hud-block">
+      <div class="label" data-t="hud.layers"></div>
+      <div class="chips" id="chips"></div>
+    </div>
+
+    <div class="hud-block foot">
+      <button id="btn-mute" class="txtbtn" type="button" title="Toggle sound (M)" aria-keyshortcuts="M"></button>
+      <button id="btn-full" class="txtbtn" type="button" title="Toggle fullscreen (F)" aria-keyshortcuts="F"></button>
+      <button id="btn-menu" class="txtbtn" type="button" title="Menu (Esc)" aria-keyshortcuts="Escape" data-t="buttons.menu"></button>
+    </div>
+  </aside>
+
+</div>
+
+<!-- maze.js first of the game files: entities, render and game read PV.TILE at
+     load time. main.js last — it starts the loop. -->
+<script src="js/strings.js"></script>
+<script src="js/maze.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/vision.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/render.js"></script>
+<script src="js/hud.js"></script>
+<script src="js/game.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
