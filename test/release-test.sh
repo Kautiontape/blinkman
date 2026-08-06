@@ -188,5 +188,22 @@ else
 fi
 teardown
 
+setup 0
+git clone -q "$work/origin.git" "$work/other"
+git -C "$work/other" config user.email release-test@example.com
+git -C "$work/other" config user.name 'release test'
+printf 'diverged\n' > "$work/other/README"
+git -C "$work/other" add -A
+git -C "$work/other" commit -q -m diverge
+git -C "$work/other" push -q origin main
+run y 1.4.0
+expect 'stops when the branch push is rejected' 1 'rejected'
+if [ -z "$(git -C "$work/origin.git" tag -l v1.4.0)" ]; then
+  ok 'leaves origin untagged when the branch push fails'
+else
+  no 'leaves origin untagged when the branch push fails' "$(git -C "$work/origin.git" tag -l)"
+fi
+teardown
+
 printf '\n%s passed, %s failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
