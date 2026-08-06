@@ -43,9 +43,12 @@ window.PV = window.PV || {};
     return isFinite(n) && n > 0 ? n : 0;
   }
 
-  PV.createGame = function (difficultyId) {
+  PV.createGame = function (difficultyId, opts) {
     var rules = PV.DIFFICULTIES[difficultyId];
     var bestKey = 'pv-best-' + difficultyId;
+    // The menu demo scores like any other round; persisting that would
+    // overwrite the player's own best.
+    var persist = !opts || opts.persist !== false;
     var deathSounded = false;
 
     var game = {
@@ -229,7 +232,7 @@ window.PV = window.PV || {};
       game.score += points;
       if (game.score > game.best) {
         game.best = game.score;
-        store.set(bestKey, String(game.best));
+        if (persist) store.set(bestKey, String(game.best));
       }
     }
 
