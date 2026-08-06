@@ -119,8 +119,8 @@ old one. Hard reload with Ctrl-Shift-R.
 
 ## Publishing
 
-`docs/itch.md` covers the itch.io upload. `./tools/package-itch.sh` builds the
-zip.
+`docs/itch.md` covers the itch.io upload. `./tools/itch-package.sh` builds the
+zip and `./tools/itch-deploy.sh` pushes it with butler.
 
 ## License
 

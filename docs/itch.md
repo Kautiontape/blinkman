@@ -2,10 +2,15 @@
 
 Build the upload:
 
-    ./tools/package-itch.sh
+    ./tools/itch-package.sh
 
 That writes `dist/blinkman-itch.zip` (~30 KB) with `index.html` at the archive
 root, which is what itch looks for.
+
+Push it to the `html` channel with [butler](https://itch.io/docs/butler/),
+which needs `butler login` once:
+
+    ./tools/itch-deploy.sh
 
 ## Project settings
 
