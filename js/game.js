@@ -186,6 +186,7 @@ window.PV = window.PV || {};
 
       consumePellet();
       moveGhosts(dt);
+      samplePulse();
       checkCollisions();
 
       // Only while still alive: checkCollisions above may have set 'dying', and
@@ -267,6 +268,22 @@ window.PV = window.PV || {};
       game.ghosts.forEach(function (g) {
         var target = PV.ghostTarget(g, mode, game.pacman, blinky);
         PV.updateGhost(g, dt, game.maze, target);
+      });
+    }
+
+    /* Torch mode: a ghost blips where the expanding ring first reaches it, and
+     * stays drawn there for the rest of the ping. Plain distance, not the
+     * tunnel-wrapped one checkCollisions uses — the ring is drawn as a circle
+     * in board space, so a wrapped distance would light a blip before the
+     * visible ring arrived. Every ghost is sampled whatever its state: the ping
+     * reports where things are, and eaten ghosts show as eyes in every mode. */
+    function samplePulse() {
+      var p = game.vision.pulse();
+      if (!p || p.layer !== 'ghosts') return;
+      var reach = p.age * PV.PULSE_SPEED;
+      game.ghosts.forEach(function (g, i) {
+        if (p.blips[i]) return;
+        if (Math.hypot(g.x - p.x, g.y - p.y) <= reach) p.blips[i] = { x: g.x, y: g.y };
       });
     }
 

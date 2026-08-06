@@ -130,5 +130,45 @@ console.log('layer alpha stays dark');
 })();
 
 console.log('');
+console.log('ghost blips');
+
+(function () {
+  var g = playing();
+  for (var i = 0; i < 100; i++) g.update(STEP);
+  check('a ghost ping opens', g.selectVision('ghosts') === 'ok');
+
+  var p = g.vision.pulse();
+  var ghost = g.ghosts[0];       // blinky, out of the house by now
+  check('no blip on the frame it is fired', p.blips[0] === undefined, p.blips[0]);
+
+  // Step until the ring reaches it, remembering where it was each frame.
+  var at = null;
+  for (var f = 0; f < 60 && !at; f++) {
+    g.update(STEP);
+    if (p.blips[0]) at = { x: ghost.x, y: ghost.y };
+  }
+  check('the ring eventually reaches it', at !== null);
+  check('the blip is where the ghost stood when the ring arrived',
+    near(p.blips[0].x, at.x, 0.001) && near(p.blips[0].y, at.y, 0.001),
+    p.blips[0].x + ',' + p.blips[0].y);
+
+  var frozen = { x: p.blips[0].x, y: p.blips[0].y };
+  for (var k = 0; k < 20; k++) g.update(STEP);
+  check('the ghost moved on',
+    Math.hypot(ghost.x - frozen.x, ghost.y - frozen.y) > 4,
+    Math.hypot(ghost.x - frozen.x, ghost.y - frozen.y).toFixed(1));
+  check('the blip stayed where the ring found it',
+    p.blips[0].x === frozen.x && p.blips[0].y === frozen.y);
+
+  // A walls ping must not leave ghost blips behind.
+  var h = playing();
+  for (var m = 0; m < 100; m++) h.update(STEP);
+  h.selectVision('walls');
+  for (var n = 0; n < 40; n++) h.update(STEP);
+  check('a walls ping records no blips',
+    h.vision.pulse().blips.length === 0, h.vision.pulse().blips.length);
+})();
+
+console.log('');
 console.log(failures === 0 ? 'ALL TORCH CHECKS OK' : failures + ' CHECK(S) FAILED');
 process.exit(failures === 0 ? 0 : 1);
