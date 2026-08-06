@@ -166,7 +166,23 @@ window.PV = window.PV || {};
 
   var EXIT_X = PV.center(PV.SPAWN.outside.col);
   var EXIT_Y = PV.center(PV.SPAWN.outside.row);
+  var DOOR_Y = PV.center(PV.SPAWN.door.row);
   var HOUSE_Y = PV.center(PV.SPAWN.pinky.row);
+
+  // The states in which a ghost is inside the house or crossing its door.
+  var IN_HOUSE = { house: 1, leaving: 1, entering: 1 };
+
+  /* How strongly a ghost shows through a dark ghosts layer. Full anywhere at or
+   * below the door line, zero on the tile it emerges onto, linear across the
+   * doorway between them, so leaving the house is what turns a ghost invisible
+   * and re-entering is what brings it back. Position alone drives it — no timer
+   * to keep in step. The state list is load-bearing: a ghost loose on the lower
+   * board is below the door line too, and would otherwise read as fully lit. */
+  PV.ghostReveal = function (g) {
+    if (!IN_HOUSE[g.state]) return 0;
+    var t = (g.y - EXIT_Y) / (DOOR_Y - EXIT_Y);
+    return t < 0 ? 0 : t > 1 ? 1 : t;
+  };
 
   PV.createGhosts = function () {
     return GHOST_DEFS.map(function (def) {

@@ -131,5 +131,33 @@ console.log('respawn through the house');
 })();
 
 console.log('');
+console.log('ghost-house reveal');
+
+(function () {
+  var HOUSE = PV.center(14), DOOR = PV.center(12);
+  var MID = (DOOR + PV.center(11)) / 2, EXIT = PV.center(11);
+
+  // Full below the door line, falling to zero across the doorway.
+  ['house', 'leaving', 'entering'].forEach(function (st) {
+    check(st + ' is lit in the house',
+      PV.ghostReveal({ state: st, y: HOUSE }) === 1);
+    check(st + ' is lit at the door line',
+      PV.ghostReveal({ state: st, y: DOOR }) === 1);
+    check(st + ' is half lit mid-doorway',
+      near(PV.ghostReveal({ state: st, y: MID }), 0.5, 0.001));
+    check(st + ' is dark at the exit',
+      PV.ghostReveal({ state: st, y: EXIT }) === 0);
+  });
+
+  /* The state guard is load-bearing: a ghost loose on the lower board sits well
+   * below the door line, and the position term alone would clamp it to 1. */
+  ['out', 'eaten'].forEach(function (st) {
+    [HOUSE, DOOR, MID, EXIT, PV.center(23)].forEach(function (y) {
+      check(st + ' is dark at y=' + y, PV.ghostReveal({ state: st, y: y }) === 0);
+    });
+  });
+})();
+
+console.log('');
 console.log(failures === 0 ? 'ALL OPENING CUES OK' : failures + ' CHECK(S) FAILED');
 process.exit(failures === 0 ? 0 : 1);

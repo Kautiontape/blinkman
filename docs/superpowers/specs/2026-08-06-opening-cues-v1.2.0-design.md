@@ -80,8 +80,8 @@ the ladder applies to round openings only.
 
 ### 2. Reveal alpha
 
-Each ghost carries `revealAlpha`, set in `PV.updateGhost()` and in
-`g.reset()`. It is a pure function of position and state, with no timer:
+`PV.ghostReveal(g)` in `js/entities.js` returns a ghost's reveal alpha. It is a
+pure function of position and state, with no timer and nothing stored:
 
 - states `out` and `eaten` → `0`
 - states `house`, `leaving` and `entering` →
@@ -99,7 +99,8 @@ Rising out at 6 tiles/sec that is a 0.17s fade; the descent on `entering` at
 cost.
 
 `js/render.js` stops gating `drawGhosts` on `alpha.ghosts > 0` and draws each
-ghost at `max(layerAlpha, g.revealAlpha)`, skipping any that resolve to zero.
+ghost at `max(layerAlpha, PV.ghostReveal(g))`, skipping any that resolve to
+zero.
 The forced reveal during a death and the culprit dimming are unchanged.
 
 ### 3. Intro blink
@@ -127,12 +128,13 @@ modes.
 - **The dots chip lights during the blink**, then goes dark. `hud.update()`
   reads `visibleAlpha()` and the intro floor lives inside it. Intended: it
   ties the flash to the chip that controls it.
-- **The ghosts chip does not light for housed ghosts.** `revealAlpha` is
+- **The ghosts chip does not light for housed ghosts.** `PV.ghostReveal()` is
   per-entity and sits outside `visibleAlpha()`. The ghosts layer genuinely is
   not on, so the chip stays honest.
 - **Housed ghosts are faintly visible behind the `ready` overlay**, which is
-  86% opaque rather than opaque. `g.reset()` sets `revealAlpha` so this holds
-  from the first frame of the round.
+  86% opaque rather than opaque. `PV.ghostReveal()` reads position and state
+  directly, so this holds from the first frame of the round with no
+  initialisation.
 - **Hard and Blink lose some blackout.** A housed ghost is visible mid-level,
   including one respawning after being eaten. Accepted: housed ghosts are
   stationary and cannot threaten the player.
