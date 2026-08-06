@@ -39,3 +39,21 @@ if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
 fi
 remote_tag="$(git ls-remote --tags origin "$tag")" || die 'could not check origin for existing tags'
 [ -z "$remote_tag" ] || die "tag $tag already exists on origin"
+
+node test/maze-test.js >/dev/null || die 'test/maze-test.js failed'
+node test/opening-test.js >/dev/null || die 'test/opening-test.js failed'
+printf '  tests ....................... ok\n'
+
+sed -i "s/^\( *PV\.VERSION = '\)[^']*\(';\)\$/\1$version\2/" "$strings"
+printf '  %s  %s -> %s\n\n' "$strings" "$current" "$version"
+printf '  will commit, tag %s, and push to origin\n' "$tag"
+printf '  this publishes to %s\n\n' "$storefront"
+
+if [ "${2:-}" != '-y' ]; then
+  reply=''
+  read -r -p 'Proceed? [y/N] ' reply || true
+  case "$reply" in
+    y | Y) printf '\n' ;;
+    *) git checkout -- "$strings"; die 'aborted' ;;
+  esac
+fi

@@ -56,6 +56,10 @@ $out"
   fi
 }
 
+version_in() {
+  sed -n "s/^ *PV\.VERSION = '\([^']*\)';\$/\1/p" "$work/repo/js/strings.js"
+}
+
 setup 0
 run '' nope
 expect 'rejects an argument that is not a version' 1 'not a version: nope'
@@ -100,6 +104,41 @@ setup 0
 git -C "$work/repo" remote remove origin
 run '' 1.4.0
 expect 'aborts when origin cannot be checked' 1 'could not check origin for existing tags'
+teardown
+
+setup 1
+run y 1.4.0
+expect 'aborts when a suite fails' 1 'test/maze-test.js failed'
+if [ "$(version_in)" = '1.3.0' ]; then
+  ok 'leaves strings.js alone when a suite fails'
+else
+  no 'leaves strings.js alone when a suite fails' "version is $(version_in)"
+fi
+teardown
+
+setup 0
+run n 1.4.0
+expect 'aborts when the prompt is declined' 1 'aborted'
+if [ "$(version_in)" = '1.3.0' ]; then
+  ok 'reverts the bump when the prompt is declined'
+else
+  no 'reverts the bump when the prompt is declined' "version is $(version_in)"
+fi
+teardown
+
+setup 0
+run y 1.4.0
+expect 'shows the bump before asking' 0 '1.3.0 -> 1.4.0'
+if [ "$(version_in)" = '1.4.0' ]; then
+  ok 'bumps strings.js when accepted'
+else
+  no 'bumps strings.js when accepted' "version is $(version_in)"
+fi
+teardown
+
+setup 0
+run '' 1.4.0 -y
+expect 'skips the prompt with -y' 0 '1.3.0 -> 1.4.0'
 teardown
 
 printf '\n%s passed, %s failed\n' "$pass" "$fail"
