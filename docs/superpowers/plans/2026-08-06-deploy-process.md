@@ -404,7 +404,7 @@ Append these four blocks to `test/release-test.sh`, immediately before the `prin
 ```bash
 # Add beside ok/no/setup/teardown, above the test blocks:
 version_in() {
-  sed -n "s/^ *PV\.VERSION = '\([^']*\)';/\1/p" "$work/repo/js/strings.js"
+  sed -n "s/^ *PV\.VERSION = '\([^']*\)';\$/\1/p" "$work/repo/js/strings.js"
 }
 
 # $1 description, $2 expected version in the fixture's strings.js.
@@ -491,7 +491,7 @@ run_suite test/maze-test.js
 run_suite test/opening-test.js
 printf '  tests ....................... ok\n'
 
-sed -i "s/^\( *PV\.VERSION = '\)[^']*\(';\)/\1$version\2/" "$strings"
+sed -i "s/^\( *PV\.VERSION = '\)[^']*\(';\)\$/\1$version\2/" "$strings"
 printf '  %s  %s -> %s\n\n' "$strings" "$current" "$version"
 printf '  will commit, tag %s, and push to origin\n' "$tag"
 printf '  this publishes to %s\n\n' "$storefront"
@@ -660,7 +660,7 @@ jobs:
       - name: Check the tag against PV.VERSION
         run: |
           version="${GITHUB_REF_NAME#v}"
-          source="$(sed -n "s/^ *PV\.VERSION = '\([^']*\)';/\1/p" js/strings.js)"
+          source="$(sed -n "s/^ *PV\.VERSION = '\([^']*\)';\$/\1/p" js/strings.js)"
           if [ "$version" != "$source" ]; then
             echo "tag $GITHUB_REF_NAME does not match PV.VERSION $source — use ./tools/release.sh" >&2
             exit 1
@@ -677,7 +677,7 @@ jobs:
       # and nothing to track, and the publish key stays out of third-party code.
       - name: Install butler
         run: |
-          curl -sSL -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          curl -sSfL -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
           mkdir -p "$HOME/.local/bin"
           unzip -q butler.zip -d "$HOME/.local/bin"
           chmod +x "$HOME/.local/bin/butler"
@@ -694,7 +694,7 @@ jobs:
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/blinkman-itch.zip --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" dist/blinkman-itch.zip --generate-notes --verify-tag
 ```
 
 butler reads `BUTLER_API_KEY` from the environment, so there is no `butler login` step.
@@ -712,7 +712,7 @@ Expected: `ok`.
 Confirm the matching case passes and the mismatching case fails with the guiding message:
 
 ```bash
-source="$(sed -n "s/^ *PV\.VERSION = '\([^']*\)';/\1/p" js/strings.js)"
+source="$(sed -n "s/^ *PV\.VERSION = '\([^']*\)';\$/\1/p" js/strings.js)"
 [ "$source" = "1.3.0" ] && echo "match ok"
 for ref in v1.3.0 v9.9.9; do
   version="${ref#v}"
