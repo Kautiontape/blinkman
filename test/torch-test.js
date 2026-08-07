@@ -6,7 +6,7 @@
  */
 global.window = {};
 var path = require('path');
-['maze.js', 'entities.js', 'vision.js', 'game.js'].forEach(function (f) {
+['maze.js', 'entities.js', 'vision.js', 'game.js', 'render.js'].forEach(function (f) {
   require(path.join(__dirname, '..', 'js', f));
 });
 var PV = global.window.PV;
@@ -172,6 +172,98 @@ console.log('ghost blips');
   for (var n = 0; n < 40; n++) h.update(STEP);
   check('a walls ping records no blips',
     h.vision.pulse().blips.length === 0, h.vision.pulse().blips.length);
+})();
+
+console.log('');
+console.log('line of sight');
+
+(function () {
+  // A single wall tile at (col 1, row 1); everything else in this 3x3
+  // patch is open. isWall is the only method PV.canSee calls on a maze.
+  function fakeMaze(wallTiles) {
+    return {
+      isWall: function (c, r) { return wallTiles.indexOf(c + ',' + r) !== -1; }
+    };
+  }
+
+  var maze = fakeMaze(['1,1']);
+
+  check('a straight line with nothing on it sees through',
+    PV.canSee(PV.center(0), PV.center(0), PV.center(0), PV.center(2), maze));
+
+  check('a wall directly on the line blocks it',
+    !PV.canSee(PV.center(0), PV.center(1), PV.center(2), PV.center(1), maze));
+
+  check('a line that goes around the wall still sees',
+    PV.canSee(PV.center(0), PV.center(0), PV.center(2), PV.center(0), maze));
+
+  check('a point can always see itself',
+    PV.canSee(PV.center(5), PV.center(5), PV.center(5), PV.center(5), maze));
+
+  // A near-tangent line that clips only a thin sliver of the wall tile's
+  // corner — genuinely blocked, but close enough to the corner that a fixed
+  // sampling interval can step clean over the sliver without ever landing a
+  // sample inside it. Walking every tile the segment passes through, rather
+  // than sampling points along it, is what catches this.
+  check('a line grazing just a corner of the wall still counts as blocked',
+    !PV.canSee(42.324, 10.044, 37.576, 69.856, maze));
+
+  // The two corner-adjacent checks the tie branch makes, pinned down with a
+  // wall on only one side at a time. (0,0)-(9,9) is an exact 45deg line, so
+  // tMaxC and tMaxR tie at every crossing with no float drift — this isolates
+  // the branch's own logic from the drift case below.
+  var aboveMaze = fakeMaze(['5,4']);
+  check('a corner tie checks the row-neighbour side',
+    !PV.canSee(PV.center(0), PV.center(0), PV.center(9), PV.center(9), aboveMaze));
+
+  var leftMaze = fakeMaze(['4,5']);
+  check('a corner tie checks the column-neighbour side',
+    !PV.canSee(PV.center(0), PV.center(0), PV.center(9), PV.center(9), leftMaze));
+
+  // A non-45deg ray through several tile crossings does drift tMaxC and
+  // tMaxR apart by a float epsilon, unlike the exact-diagonal case above —
+  // this is what a strict === tie test misses. (0,0) to (100,300) crosses
+  // the corner shared by (1,5)/(2,5)/(1,6)/(2,6) with tMaxC and tMaxR one
+  // float apart by the time it gets there; a wall at (2,5) is only caught
+  // if the tie logic still recognizes the near-tie.
+  var driftMaze = fakeMaze(['2,5']);
+  check('a corner tie several crossings out still catches a wall despite float drift',
+    !PV.canSee(0, 0, 100, 300, driftMaze));
+})();
+
+console.log('');
+console.log('cone + circle shape');
+
+(function () {
+  var P = { radius: 46, coneLen: 120, coneHalf: Math.PI / 4, soft: 12 };
+  var right = PV.DIRS.right;
+
+  check('your own position is always fully lit',
+    PV.torchAlpha(0, 0, right, P) === 1);
+
+  check('far away in every sense is dark',
+    PV.torchAlpha(200, 200, right, P) === 0);
+
+  check('close behind you is lit by the circle',
+    PV.torchAlpha(-20, 0, right, P) === 1);
+
+  check('straight ahead beyond the circle is lit by the cone',
+    PV.torchAlpha(80, 0, right, P) === 1);
+
+  var off = PV.torchAlpha(40, 69.28, right, P);   // 60 deg off-axis, within coneLen
+  check('outside the cone angle stays dark even in range', off === 0, off);
+
+  var circleEdge = PV.torchAlpha(-40, 0, right, P);   // dist 40, between 34 and 46
+  check('the circle rim fades rather than snapping off',
+    near(circleEdge, (46 - 40) / 12, 0.001), circleEdge);
+
+  var coneTip = PV.torchAlpha(115, 0, right, P);      // dist 115, between 108 and 120
+  check('the cone tip fades the same way',
+    near(coneTip, (120 - 115) / 12, 0.001), coneTip);
+
+  var coneSide = PV.torchAlpha(46.5, 37.9, right, P); // ~39 deg off-axis, dist 60
+  check('the cone side edge is a fade, not a hard line',
+    coneSide > 0 && coneSide < 1, coneSide);
 })();
 
 console.log('');

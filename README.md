@@ -50,7 +50,7 @@ blue ring means you can switch. A shrinking red arc means wait.
 | Easy | You and your last two picks | 1s |
 | Normal | You and your last pick | 1s |
 | Hard | One of four, and you can go dark | 3s |
-| Torch | A lit circle around you. A press pings one layer outward from where you stood, and it fades behind the ring. | 1s |
+| Torch | A lit circle around you, plus a longer cone ahead — both stop at a wall. A press pings one layer outward from where you stood, and it fades behind the ring, through walls. | 1s |
 | Blink | Nothing. A press flashes one layer, which fades over 2s. | 1s |
 
 Death is the one exception to all of this. Get caught and the ghosts light up
@@ -133,8 +133,9 @@ order is slack.
 
 Six test suites, four node and two bash, none of them needing anything
 installed. The second covers the ghost release ladder, the house reveal, the
-dots blink and the wording of the layer nudge; the third covers Torch's ping —
-its fade curve, its frozen origin, and the ghost blips it leaves behind; the
+dots blink and the wording of the layer nudge; the third covers Torch — its
+ping's fade curve and frozen origin, the ghost blips it leaves behind, and the
+line-of-sight and circle/cone math behind what the light itself reaches; the
 fourth covers the menu demo, whose autopilot has to steer only into open tiles,
 eat at a reasonable rate, and reach every layer as it rotates. None of that is
 visible to a layout check. The last two are bash because what they exercise is
