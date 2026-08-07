@@ -473,7 +473,16 @@ window.PV = window.PV || {};
     ctx.restore();
   }
 
-  function drawGhosts(ctx, game, alpha, torchR) {
+  /* Same shape as torchTileLit, but against the ghost's exact float position
+   * rather than a tile centre — a ghost fading in mid-tile shouldn't snap. */
+  function torchGhostAlpha(g, maze, torch) {
+    var dx = g.x - torch.x, dy = g.y - torch.y;
+    var a = PV.torchAlpha(dx, dy, torch.dir, torch);
+    if (a <= 0) return 0;
+    return PV.canSee(torch.x, torch.y, g.x, g.y, maze) ? a : 0;
+  }
+
+  function drawGhosts(ctx, game, alpha, torch) {
     var dying = game.state === 'dying';
     var rad = TILE * 0.46;
 
@@ -481,8 +490,8 @@ window.PV = window.PV || {};
       // A ghost in the house shows through even with the layer dark — except
       // in Torch, which brings its own light and so opts out: what is waiting
       // in the house is something you walk up to or ping for.
-      var housed = torchR ? 0 : PV.ghostReveal(g);
-      var a = Math.max(alpha, housed, torchReveal(g, game.pacman, torchR));
+      var housed = torch ? 0 : PV.ghostReveal(g);
+      var a = Math.max(alpha, housed, torch ? torchGhostAlpha(g, game.maze, torch) : 0);
       if (a <= 0.001) return;
 
       var eyesOnly = g.state === 'eaten' || g.state === 'entering';
