@@ -90,6 +90,7 @@ html, body {
 @keyframes hint-breathe {
   0%, 100% { opacity: .55; }
   25%      { opacity: .95; }
+  50%      { opacity: .55; }
   75%      { opacity: .35; }
 }
 
