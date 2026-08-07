@@ -76,10 +76,14 @@ layer rotating every four seconds. `prefers-reduced-motion` turns it off.
 
 A round opens the same way in every mode. The dots blink three times and then
 obey the layer, and all four ghosts start in the house and file out one at a
-time over the first several seconds. Pac-Man starts Blinky outside the house;
-keeping all four in makes the count readable, which matters more here than the
-pedigree. The round holds on READY until you move, with the maze up dimly in
-every mode — the one chance to study it.
+time over the first several seconds. A ghost inside the house shows through a
+dark ghosts layer as far as the board around it is lit, fading out as it
+crosses the door, so you can count what is still waiting for as long as the
+board is up and lose them as it goes dark. Torch lights no layer of its own, so
+there the house is something you walk up to or ping for. Pac-Man starts Blinky
+outside the house; keeping all four in makes the count readable, which matters
+more here than the pedigree. The round holds on READY until you move, with the
+maze up dimly in every mode — the one chance to study it.
 
 Five seconds into a round, a player who hasn't pressed a number key gets a line
 low on the board naming the ones that mode answers to — `Press 1/2/3 to scan`
@@ -148,8 +152,8 @@ time. `attract.js` reads `PV.DIRS` and the grid size, so it comes after
 the script order is slack.
 
 Nine test suites, seven node and two bash, none of them needing anything
-installed. The second covers the ghost release ladder, the dots blink and the
-wording of the layer nudge; the third covers Torch — its
+installed. The second covers the ghost release ladder, the house reveal, the
+dots blink and the wording of the layer nudge; the third covers Torch — its
 ping's fade curve and frozen origin, the ghost blips it leaves behind, and the
 line-of-sight and circle/cone math behind what the light itself reaches; the
 fourth covers the menu demo, whose autopilot has to steer only into open tiles,
@@ -157,11 +161,12 @@ eat at a reasonable rate, and reach every layer as it rotates; the fifth pins
 the shape of all nine cells and the exact tuning each mode's Normal is
 balanced around, so a change to it has to be deliberate; the sixth covers what
 a pick leaves behind — picks stack rather than replace, each fades on its own
-clock, and what a round opens with; the seventh covers the board aura's
-schedule and its absence from the menu demo. None of that is visible to a
-layout check. The last two are bash because what they exercise is bash;
-`release-test.sh` drives `tools/release.sh` against a throwaway repo, so
-nothing it does reaches GitHub.
+clock, what a round opens with, and how much of the house the lit board leaves
+showing; the seventh covers the board aura's schedule, the mitre that keeps its
+four bands from doubling up in the corners, and its absence from the menu demo.
+None of that is visible to a layout check. The last two are bash
+because what they exercise is bash; `release-test.sh` drives `tools/release.sh`
+against a throwaway repo, so nothing it does reaches GitHub.
 
     node test/maze-test.js
     node test/opening-test.js

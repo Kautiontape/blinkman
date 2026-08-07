@@ -5,6 +5,7 @@ window.PV = window.PV || {};
   'use strict';
 
   var BAND = 34;   // px the glow reaches in from the rim
+  var PEAK = 0.6;  // alpha at the rim at full level
 
   /* Yellow and red are the ones Blinkman and the culprit ring are already
    * drawn in, so the aura reads as the same cast. */
@@ -59,7 +60,8 @@ window.PV = window.PV || {};
 
   /**
    * The aura for one session. `tint` is null when there is nothing to draw;
-   * `level` is 0..1 and is the peak alpha at the rim.
+   * `level` is 0..1, how loud the round is being — draw() scales it by PEAK to
+   * get the alpha it paints with.
    */
   PV.createAura = function () {
     var pulse = 0;         // seconds left of the closing yellow
@@ -118,31 +120,52 @@ window.PV = window.PV || {};
         aura.level = 0;
       },
 
-      /* Four bands, one per edge, each fading from the rim inward. Composited
-       * `lighter` so where two meet — the corners — they add rather than one
-       * covering the other. */
+      /* Four bands, one per edge, each fading from the rim inward. Every rim
+       * run goes clockwise, which is what puts the mitres the right way up. */
       draw: function (ctx) {
         if (!aura.tint || aura.level <= 0.001) return;
-        var W = PV.WIDTH, H = PV.HEIGHT, b = BAND;
+        var W = PV.WIDTH, H = PV.HEIGHT;
 
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        band(ctx, 0, 0, 0, b, 0, 0, W, b);            // top, fading down
-        band(ctx, 0, H, 0, H - b, 0, H - b, W, b);    // bottom, fading up
-        band(ctx, 0, 0, b, 0, 0, 0, b, H);            // left, fading right
-        band(ctx, W, 0, W - b, 0, W - b, 0, b, H);    // right, fading left
+        band(ctx, 0, 0, W, 0, 0, 1);    // top, fading down
+        band(ctx, W, 0, W, H, -1, 0);   // right, fading left
+        band(ctx, W, H, 0, H, 0, -1);   // bottom, fading up
+        band(ctx, 0, H, 0, 0, 1, 0);    // left, fading right
         ctx.restore();
       }
     };
 
-    /* One edge: a gradient from (x0,y0) to (x1,y1), painted over the rect at
-     * (rx,ry) sized rw by rh. */
-    function band(ctx, x0, y0, x1, y1, rx, ry, rw, rh) {
-      var grad = ctx.createLinearGradient(x0, y0, x1, y1);
-      grad.addColorStop(0, 'rgba(' + aura.tint + ',' + aura.level.toFixed(3) + ')');
+    /* One edge: the rim run (ax,ay) to (bx,by), reaching BAND in along the
+     * inward normal (nx,ny), with a gradient running the same way. Both ends
+     * are cut back at 45°, so the four bands mitre into a frame that is one
+     * thickness and one brightness the whole way round. Four rects spanning
+     * the full width and height would instead stack two deep in every corner.
+     *
+     * The pair of polygons meeting on a mitre are antialiased independently,
+     * so below canvas scale 1 — which layout() reaches on a small window —
+     * the shared edge lands about a tenth dim, a faint diagonal hairline.
+     * Overlapping the mitres to cover it buys a brighter one at every scale,
+     * which is the artifact the mitre is cut to avoid; adding the four in an
+     * offscreen buffer clears it exactly, for a board-sized buffer a frame.
+     */
+    function band(ctx, ax, ay, bx, by, nx, ny) {
+      var run = Math.abs(bx - ax) + Math.abs(by - ay);
+      var tx = BAND * (bx - ax) / run, ty = BAND * (by - ay) / run;
+      var ix = BAND * nx, iy = BAND * ny;
+
+      var grad = ctx.createLinearGradient(ax, ay, ax + ix, ay + iy);
+      grad.addColorStop(0, 'rgba(' + aura.tint + ',' +
+        (aura.level * PEAK).toFixed(3) + ')');
       grad.addColorStop(1, 'rgba(' + aura.tint + ',0)');
+
       ctx.fillStyle = grad;
-      ctx.fillRect(rx, ry, rw, rh);
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(bx, by);
+      ctx.lineTo(bx + ix - tx, by + iy - ty);
+      ctx.lineTo(ax + ix + tx, ay + iy + ty);
+      ctx.closePath();
+      ctx.fill();
     }
 
     return aura;

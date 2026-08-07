@@ -183,7 +183,9 @@ window.PV = window.PV || {};
         // Only drawWalls needs `scale` — see its shadowBlur.
         if (alpha.walls > 0)  drawWalls(ctx, game.maze, alpha.walls, scale);
         if (alpha.dots > 0)   drawPellets(ctx, game.maze, alpha.dots, game.time);
-        drawGhosts(ctx, game, alpha.ghosts, torch);
+        // The whole layer set, not just alpha.ghosts: the house reveal reads
+        // the board layers too.
+        drawGhosts(ctx, game, alpha, torch);
         if (alpha.pacman > 0) drawPacman(ctx, game, alpha.pacman);
 
         drawFloatingScores(ctx, game);
@@ -558,12 +560,18 @@ window.PV = window.PV || {};
     return PV.canSee(torch.x, torch.y, g.x, g.y, maze) ? a : 0;
   }
 
-  /* How solid a ghost draws: the brighter of the ghosts layer and whatever the
-   * torch is putting on it, and nothing else. A ghost in the house sits on the
-   * ghosts layer like any other, so a dark layer means a dark house. `torch`
-   * is null outside torch mode. */
+  /* How solid a ghost draws: the brightest of the ghosts layer, whatever the
+   * torch is putting on it, and the house reveal scaled by how lit the board
+   * around it is — so who is still waiting shows while the board is up and
+   * goes out with it, rather than glowing through a board the player has let
+   * go dark. The board is the dots and walls: a lit ghosts layer draws them in
+   * full anyway, and `pacman` is only him. `torch` is null outside torch mode,
+   * which lights no layer of its own once a round is under way, leaving the
+   * beam the whole of the decision there. */
   PV.ghostDrawAlpha = function (g, alpha, torch, maze) {
-    return Math.max(alpha, torch ? torchGhostAlpha(g, maze, torch) : 0);
+    var ambient = Math.max(alpha.dots, alpha.walls);
+    return Math.max(alpha.ghosts, PV.ghostReveal(g) * ambient,
+      torch ? torchGhostAlpha(g, maze, torch) : 0);
   };
 
   function drawGhosts(ctx, game, alpha, torch) {

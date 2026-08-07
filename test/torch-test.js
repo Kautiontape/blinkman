@@ -548,9 +548,10 @@ console.log('a contact fades on the distance it was found at');
 console.log('');
 console.log('what a ghost draws at');
 
-/* Ghosts are never clipped to the lit region — they take the brighter of the
- * layer's own alpha and the torch's, so one straddling the edge shows whole
- * rather than sliced. Those two are the whole decision. */
+/* Ghosts are never clipped to the lit region — they take the brightest of the
+ * ghosts layer, the torch, and the house reveal scaled by how lit the board
+ * is. Torch assigns no layer alphas, so mid-round the beam is the only one of
+ * the three with anything in it. */
 (function () {
   var torch = torchOf('torch-normal');
   // Well down the cone, so there are whole tiles between him and it for the
@@ -558,21 +559,45 @@ console.log('what a ghost draws at');
   var inBeam = { x: torch.x + 100, y: torch.y };
   var away = { x: torch.x - 400, y: torch.y };
 
+  // Layer alphas in the shape visibleAlpha() hands the renderer.
+  function layers(o) {
+    o = o || {};
+    return {
+      dots: o.dots || 0, walls: o.walls || 0,
+      ghosts: o.ghosts || 0, pacman: o.pacman || 0
+    };
+  }
+
   check('the beam draws a ghost a dark layer would not',
-    PV.ghostDrawAlpha(inBeam, 0, torch, OPEN_MAZE) === 1,
-    PV.ghostDrawAlpha(inBeam, 0, torch, OPEN_MAZE));
+    PV.ghostDrawAlpha(inBeam, layers(), torch, OPEN_MAZE) === 1,
+    PV.ghostDrawAlpha(inBeam, layers(), torch, OPEN_MAZE));
   check('a ghost the beam misses is left to its layer',
-    PV.ghostDrawAlpha(away, 0, torch, OPEN_MAZE) === 0,
-    PV.ghostDrawAlpha(away, 0, torch, OPEN_MAZE));
+    PV.ghostDrawAlpha(away, layers(), torch, OPEN_MAZE) === 0,
+    PV.ghostDrawAlpha(away, layers(), torch, OPEN_MAZE));
   check('the layer wins wherever it is the brighter of the two',
-    PV.ghostDrawAlpha(away, 0.35, torch, OPEN_MAZE) === 0.35,
-    PV.ghostDrawAlpha(away, 0.35, torch, OPEN_MAZE));
+    PV.ghostDrawAlpha(away, layers({ ghosts: 0.35 }), torch, OPEN_MAZE) === 0.35,
+    PV.ghostDrawAlpha(away, layers({ ghosts: 0.35 }), torch, OPEN_MAZE));
   check('a wall between you and a ghost keeps it dark',
-    PV.ghostDrawAlpha(inBeam, 0, torch,
+    PV.ghostDrawAlpha(inBeam, layers(), torch,
       { isWall: function () { return true; } }) === 0);
   check('outside torch mode the layer is all there is',
-    PV.ghostDrawAlpha(inBeam, 0.35, null, OPEN_MAZE) === 0.35,
-    PV.ghostDrawAlpha(inBeam, 0.35, null, OPEN_MAZE));
+    PV.ghostDrawAlpha(inBeam, layers({ ghosts: 0.35 }), null, OPEN_MAZE) === 0.35,
+    PV.ghostDrawAlpha(inBeam, layers({ ghosts: 0.35 }), null, OPEN_MAZE));
+
+  /* The house reveal needs a lit board, and Torch never lights one: what is
+   * waiting in the house is something you walk up to or ping for. */
+  var housedAway = { state: 'house', x: away.x, y: away.y };
+  var housedInBeam = { state: 'house', x: inBeam.x, y: inBeam.y };
+  check('the house is dark while the board is',
+    PV.ghostDrawAlpha(housedAway, layers(), torch, OPEN_MAZE) === 0,
+    PV.ghostDrawAlpha(housedAway, layers(), torch, OPEN_MAZE));
+  check('the beam still reaches into the house',
+    PV.ghostDrawAlpha(housedInBeam, layers(), torch, OPEN_MAZE) === 1,
+    PV.ghostDrawAlpha(housedInBeam, layers(), torch, OPEN_MAZE));
+  check('a lit board shows the house the beam misses',
+    near(PV.ghostDrawAlpha(housedAway, layers({ walls: 0.55 }), torch, OPEN_MAZE),
+      0.55, 0.001),
+    PV.ghostDrawAlpha(housedAway, layers({ walls: 0.55 }), torch, OPEN_MAZE));
 })();
 
 console.log('');
