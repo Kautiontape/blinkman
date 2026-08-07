@@ -68,7 +68,8 @@ for 0.6s before the death animation, with a red ring on whichever one got you,
 so a death always has a visible cause.
 
 The menu runs a demo behind it: a Stare Normal round on autopilot, with the lit
-layer rotating every four seconds. `prefers-reduced-motion` turns it off.
+layer rotating every four seconds. It asks for a level with a full-size board,
+so the menu keeps one shape. `prefers-reduced-motion` turns it off.
 
 A round opens the same way in every mode. The dots blink three times and then
 obey the layer, and all four ghosts start in the house and file out one at a
@@ -88,19 +89,43 @@ gone for the rest of the game.
 
 ## Mazes
 
-Every level builds a new maze, so you can't coast on memory. It isn't a random
-generator though. A fixed skeleton holds the parts that make it feel like
-Pac-Man: the border, the tunnel row, the ghost house, the perimeter corridors
-and the spine at column 6. Only the wall blocks between them change, drawn from
-four top pieces and four bottom pieces. Sixteen combinations, mirrored left to
-right like the original. The HUD shows which pair you got.
+Every level after level 1 builds a new maze, so you can't coast on memory. It
+isn't a random generator though. A fixed skeleton holds the parts that make it
+feel like Pac-Man: the border, the tunnel row, the ghost house and the corridors
+around them. Only the wall blocks between them change, drawn from four top
+pieces and four bottom pieces. Sixteen combinations, mirrored left to right like
+the original. The HUD shows which pair you got.
 
 ![Four of the sixteen mazes side by side](docs/mazes.png)
 
+The board grows with the level:
+
+| Level | Board | Tier | Maps |
+|---|---|---|---|
+| 1 | 20x23 | fixed | 1 |
+| 2 | 22x25 | gentle | 16 |
+| 3 | 24x27 | medium | 16 |
+| 4 | 28x31 | fixed, the arcade map | 1 |
+| 5-6 | 28x31 | classic | 16 |
+| 7-8 | 28x31 | dense | 16 |
+| 9+ | 28x31 | densest | 16 |
+
+Level 1 is one small map, the same every game, so a new player has a board to
+learn. Level 4 is the arcade layout at full size, a landmark to arrive at. Past
+that the board holds and the mazes get more cut-up instead: each tier packs in
+more junctions and corners than the one below it. The ghost house is the full
+8x5 block with a 6x3 interior at every board size, so only the playfield around
+it shrinks.
+
+A tile is 20 pixels at every size, so a smaller board draws with bigger tiles in
+the same screen space rather than as a smaller picture.
+
 Mazes only change between levels, so dying never costs you pellet progress.
 
-To add pieces, edit `TOP_PIECES` and `BOTTOM_PIECES` in `js/maze.js`. Three
-rules apply, and the test enforces all three:
+To add pieces, edit the pool for the board and tier you're after in `js/maze.js`
+— `MID_GENTLE_TOP`, `FULL_DENSEST_BOTTOM` and the rest, with `TOP_PIECES` and
+`BOTTOM_PIECES` holding the classic tier. Three rules apply, and the test
+enforces all three:
 
 1. Everything must be reachable from Pac-Man's spawn.
 2. No 2x2 block of open floor. Real Pac-Man mazes have none, and a two-wide
@@ -111,14 +136,23 @@ rules apply, and the test enforces all three:
    the one it's reached from; the two tunnel mouths are the only exception.
 
     node test/maze-test.js
+    node test/progression-test.js
 
 One more guideline, not test-enforced: when closing a dead-end into a
 corridor, leave at least 2 straight tiles before the next turn.
 
-`PV.createMaze(seed)` is deterministic, so any maze can be reproduced from its
-seed. At runtime a piece that leaves something unreachable gets logged and
-falls back to the arcade layout rather than shipping a broken level. The
-two-wide and dead-end checks are test-only, so run the test after editing pieces.
+To try candidate pieces before they go anywhere near `js/maze.js`, put them in a
+JSON file and point `tools/piece-check.js` at the board and tier they are meant
+for. It assembles every top x bottom combination, applies the three rules, and
+checks the results land inside that tier's score and pellet bands.
+
+    node tools/piece-check.js large medium pieces.json
+
+`PV.createMaze(level, seed)` is deterministic, so any maze can be reproduced
+from its level and seed. At runtime a piece that leaves something unreachable
+gets logged and falls back to the full board's arcade layout rather than
+shipping a broken level. The two-wide and dead-end checks are test-only, so run
+the tests after editing pieces.
 
 ## Code
 
@@ -126,7 +160,7 @@ Plain scripts hanging off a `window.PV` global. No modules, no bundler, which
 is what lets `file://` work.
 
     js/strings.js   every player-facing word
-    js/maze.js      maze pieces, assembly, pellets, passability
+    js/maze.js      board templates, maze pieces, assembly, pellets, passability
     js/entities.js  grid movement, ghost targeting
     js/vision.js    the layer and cooldown state machine
     js/game.js      rounds, scoring, collisions, ghost release
@@ -138,35 +172,43 @@ is what lets `file://` work.
     js/main.js      input, frame loop, layout
 
 `maze.js` has to load before `entities.js`, `render.js` and `game.js`, which
-read `PV.TILE` at load time. `attract.js` reads `PV.DIRS` and the grid size, so
-it comes after `entities.js` too. `main.js` has to load last.
+read `PV.TILE` at load time. `attract.js` reads `PV.DIRS`, so it comes after
+`entities.js` too. `main.js` has to load last.
 Everything else in the script order is slack.
 
-Seven test suites, five node and two bash, none of them needing anything
-installed. The second covers the ghost release ladder, the house reveal, the
-dots blink and the wording of the layer nudge; the third covers Torch — its
-ping's fade curve and frozen origin, the ghost blips it leaves behind, and the
-line-of-sight and circle/cone math behind what the light itself reaches; the
-fourth covers the menu demo, whose autopilot has to steer only into open tiles,
-eat at a reasonable rate, and reach every layer as it rotates; the fifth pins
-the shape of all nine cells and the exact tuning each mode's Normal is
-balanced around, so a change to it has to be deliberate. None of that is
-visible to a layout check. The last two are bash because what they exercise is
-bash; `release-test.sh` drives `tools/release.sh` against a throwaway repo, so
-nothing it does reaches GitHub.
+Nine test suites, seven node and two bash, none of them needing anything
+installed. The first proves every shipped maze is playable; the second reads
+the ladder as a ladder, so a piece authored into the wrong tier can't flatten
+the curve while passing on its own. The third covers the ghost release ladder,
+the house reveal, the dots blink and the wording of the layer nudge; the fourth
+covers Torch — its ping's fade curve and frozen origin, the ghost blips it
+leaves behind, and the line-of-sight and circle/cone math behind what the light
+itself reaches; the fifth covers the menu demo, whose autopilot has to steer
+only into open tiles, eat at a reasonable rate, and reach every layer as it
+rotates; the sixth pins the shape of all nine cells and the exact tuning each
+mode's Normal is balanced around, so a change to it has to be deliberate; the
+seventh guards the arithmetic behind `docs/banner.png`, where a mistake renders
+as a subtly wrong image rather than an error. None of that is visible to a
+layout check. The last two are bash because what they exercise is bash;
+`release-test.sh` drives `tools/release.sh` against a throwaway repo, so nothing
+it does reaches GitHub.
 
     node test/maze-test.js
+    node test/progression-test.js
     node test/opening-test.js
     node test/torch-test.js
     node test/attract-test.js
     node test/modes-test.js
+    node test/banner-layout-test.js
     bash test/release-test.sh
     bash test/itch-deploy-test.sh
 
-The game always draws into a fixed 560x620 space and a canvas transform maps
-that onto whatever size the board actually is. Nothing in the game logic knows
-the screen size, and the maze stays sharp instead of being a stretched bitmap.
-`PV.game` is exposed for poking at state from the console.
+The game draws at 20 pixels per tile and a canvas transform maps that onto
+whatever size the board actually is, so the extent it draws into changes with
+the level: a smaller board gets larger tiles rather than a smaller picture.
+Nothing in the game logic knows the screen size, and the maze stays sharp
+instead of being a stretched bitmap. `PV.game` is exposed for poking at state
+from the console; `PV.game.nextLevel()` skips ahead to see a later board.
 
 Editing a file and seeing nothing change usually means the browser cached the
 old one. Hard reload with Ctrl-Shift-R.
