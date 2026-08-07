@@ -177,7 +177,7 @@ window.PV = window.PV || {};
       // cooldown on nothing.
       if (game.state !== 'playing') return 'ignored';
       // Torch expands its ping from wherever Pac-Man is standing; the other
-      // styles ignore the origin.
+      // modes ignore the origin.
       var res = game.vision.select(layer, game.pacman);
       if (res === 'ok') {
         // Torch is a flash on a delay, so it takes the flash sound too.
@@ -196,7 +196,7 @@ window.PV = window.PV || {};
       updatePops(dt);
 
       if (game.state === 'ready') {
-        // Returning before vision.update() freezes the cooldown and Blink's
+        // Returning before vision.update() freezes the cooldown and Flash's
         // opening flash while the board is still behind the curtain.
         if (game.stateTime > 1.8) beginPlay();
         return;

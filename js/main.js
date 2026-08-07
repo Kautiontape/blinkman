@@ -112,11 +112,11 @@
     paused = false;
     overlayKey = '';
     splashEl.textContent = PV.pickSplash();   // a fresh one each time you land here
-    menu.reset();
     PV.Sfx.stopAmbient();
     overlay.hidden = false;
     panelMenu.hidden = false;
     panelMsg.hidden = true;
+    menu.reset();
     hud.showIdle();
     hint.arm();
     renderer.clear();

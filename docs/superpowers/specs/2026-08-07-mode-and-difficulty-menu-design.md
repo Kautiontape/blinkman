@@ -264,8 +264,8 @@ Bests are keyed `pv-best-<id>`, so nine ids means nine bests. This is correct:
 a Torch Hard score is not comparable to a Stare Easy one.
 
 Existing players hold bests under five old keys. A one-time migration copies
-them to their new ids on first load, then records that it ran so it never
-overwrites a newer score:
+them to their new ids on first load, skipping any new id that already holds a
+value, so it can never overwrite a newer score:
 
 | old | new |
 |---|---|

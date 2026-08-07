@@ -12,7 +12,7 @@ window.PV = window.PV || {};
   var OLDER_PICK_ALPHA = 0.55;
 
   /* Torch mode's sonar ping. The ring expands at PULSE_SPEED and every element
-   * fades on the same curve a Blink flash uses, clocked from the moment the
+   * fades on the same curve a Flash pick uses, clocked from the moment the
    * ring reached it — so near walls are already dimming while far ones are
    * still lighting up. PV.WIDTH and PV.HEIGHT are read at load time, which is
    * why maze.js has to load first. */
@@ -52,7 +52,7 @@ window.PV = window.PV || {};
   PV.introAlpha = function (age) {
     if (age >= INTRO_TIME) return 0;
     if (age < INTRO_BLINK_TIME) return (age % (INTRO_ON + INTRO_OFF)) < INTRO_ON ? 1 : 0;
-    // the eased falloff a Blink flash uses, so the two cues read alike
+    // the eased falloff a Flash pick uses, so the two cues read alike
     var t = (age - INTRO_BLINK_TIME) / INTRO_FADE;
     return (1 - t) * (1 - t);
   };
@@ -163,13 +163,13 @@ window.PV = window.PV || {};
   };
 
   PV.createVision = function (rules) {
-    var stack = [];      // persist mode: lit layers, most recent first
-    var flash = null;    // blink mode: { layer, age }
+    var stack = [];      // stare mode: lit layers, most recent first
+    var flash = null;    // flash mode: { layer, age }
     var cooldown = 0;
     var denied = 0;
     var intro = 0;       // age of the opening dots blink
 
-    /* Blink ignores the origin; Torch expands from it. Copied, not referenced,
+    /* Flash ignores the origin; Torch expands from it. Copied, not referenced,
      * so walking away doesn't drag the ring's centre along. */
     function newFlash(layer, origin) {
       var o = origin || SPAWN_CENTRE;
@@ -207,7 +207,7 @@ window.PV = window.PV || {};
 
       /**
        * Player pressed a vision key.
-       * @param origin  where a Torch ping expands from; ignored by other styles
+       * @param origin  where a Torch ping expands from; ignored by other modes
        * @returns {'ok'|'cooldown'|'unavailable'|'same'}
        */
       select: function (layer, origin) {
@@ -271,7 +271,7 @@ window.PV = window.PV || {};
 
       reset: function () {
         stack = (rules.initial || []).slice(0, rules.keep);
-        // Blink and Torch start pitch black, so the round opens on one free
+        // Flash and Torch start pitch black, so the round opens on one free
         // flash, fired from the spawn.
         flash = rules.mode !== 'stare' && rules.initial
           ? newFlash(rules.initial[0], null)

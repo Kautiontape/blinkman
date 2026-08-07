@@ -37,11 +37,15 @@ console.log('every cell is complete');
 
 /* A field silently missing from one cell is worse than a wrong value: nothing
  * short of a full field list catches it, since a NaN or undefined still lets
- * a round build and play. */
-var REQUIRED = ['mode', 'pool', 'keep', 'freeSelf', 'cooldown', 'ghostSpeed', 'initial'];
+ * a round build and play. Torch and Flash also fade a pick out on a
+ * hold/fade timer that Stare has no use for, so those two fields are
+ * required only on their cells. */
+var REQUIRED = ['id', 'mode', 'level', 'pool', 'keep', 'freeSelf', 'cooldown', 'ghostSpeed', 'initial'];
+var REQUIRED_TIMED = ['hold', 'fade'];
 IDS.forEach(function (id) {
   var r = PV.DIFFICULTIES[id];
-  var missing = REQUIRED.filter(function (k) { return r[k] === undefined; });
+  var need = REQUIRED.concat(r.mode === 'stare' ? [] : REQUIRED_TIMED);
+  var missing = need.filter(function (k) { return r[k] === undefined; });
   check(id + ' is complete', missing.length === 0, missing.join(','));
   check(id + ' has usable numbers', r.cooldown >= 0 && r.ghostSpeed > 0,
     r.cooldown + ' / ' + r.ghostSpeed);

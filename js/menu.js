@@ -135,7 +135,11 @@ window.PV = window.PV || {};
           return true;
         }
 
-        if (e.code === 'ArrowLeft' || e.code === 'KeyA') { menu.back(); return true; }
+        if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+          if (!open) return false;
+          menu.back();
+          return true;
+        }
         if (e.code === 'ArrowRight' || e.code === 'KeyD' ||
             e.code === 'Enter' || e.code === 'Space') {
           menu.take(null);
