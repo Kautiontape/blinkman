@@ -141,7 +141,7 @@ console.log('the copy covers the grid');
 IDS.forEach(function (id) {
   check(id + ' names its mode', /^[A-Z]+$/.test(PV.modeName(id)), PV.modeName(id));
   check(id + ' names its level', /^[A-Z]+$/.test(PV.levelName(id)), PV.levelName(id));
-  check(id + ' has a blurb', (PV.modeBlurb(id) || '').length > 0, PV.modeBlurb(id));
+  check(id + ' has a blurb', (PV.levelBlurb(id) || '').length > 0, PV.levelBlurb(id));
 });
 
 console.log('');

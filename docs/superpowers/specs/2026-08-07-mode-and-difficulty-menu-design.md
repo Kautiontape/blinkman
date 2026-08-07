@@ -182,7 +182,7 @@ Three accessors, replacing two:
 
 - `PV.modeName(id)` → `'TORCH'`
 - `PV.levelName(id)` → `'HARD'` *(new)*
-- `PV.modeBlurb(id)` → the level's blurb
+- `PV.levelBlurb(id)` → the level's blurb
 
 `js/hud.js:132` and `js/main.js:159` both compose mode and level themselves.
 `.badge-mode` in the HUD sidebar is narrow enough that `TORCH · HARD` may wrap;
