@@ -262,7 +262,11 @@ window.PV = window.PV || {};
       middle: MIDDLE_FULL,
       topRows: 8, bottomRows: 10,
       house: { c0: 10, c1: 17, r0: 12, r1: 16 },
-      minPellets: 150,
+      minPellets: 230,
+      tiers: {
+        fixed:   { top: [TOP_PIECES[0]], bottom: [BOTTOM_PIECES[0]] },
+        classic: { top: TOP_PIECES,      bottom: BOTTOM_PIECES }
+      },
       spawn: {
         pacman:  { col: 13, row: 23 },
         door:    { col: 13, row: 12 },
