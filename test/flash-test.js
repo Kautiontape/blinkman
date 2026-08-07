@@ -6,7 +6,8 @@
  */
 global.window = {};
 var path = require('path');
-['strings.js', 'maze.js', 'entities.js', 'vision.js', 'game.js'].forEach(function (f) {
+['strings.js', 'maze.js', 'entities.js', 'vision.js', 'game.js',
+  'render.js'].forEach(function (f) {
   require(path.join(__dirname, '..', 'js', f));
 });
 var PV = global.window.PV;
@@ -176,15 +177,23 @@ console.log('the opening reveal');
 console.log('');
 console.log('the house stays dark');
 
+/* A ghost in the house is drawn on the ghosts layer alone: nothing gives it a
+ * floor of its own, so a dark layer means a dark house. Flash has no torch, so
+ * the layer is the whole of the decision here. */
 (function () {
-  // A ghost in the house is drawn on the ghosts layer alone. Nothing lifts it
-  // above what the mode is showing, in any mode.
-  check('nothing reveals the house', PV.ghostReveal === undefined, PV.ghostReveal);
-
   var g = settled('flash-normal');
   var housed = g.ghosts.filter(function (gh) { return gh.state === 'house'; });
   check('someone is still in the house', housed.length > 0, housed.length);
   check('the ghosts layer is dark', g.vision.alpha.ghosts === 0, g.vision.alpha.ghosts);
+
+  var dark = PV.ghostDrawAlpha(housed[0], g.vision.alpha.ghosts, null, g.maze);
+  check('a ghost in the house draws at the layer alpha, so at nothing',
+    dark === 0, dark);
+
+  // It is the layer that decides, not the state — the same ghost on a lit
+  // layer draws in full.
+  var lit = PV.ghostDrawAlpha(housed[0], 1, null, g.maze);
+  check('the same ghost draws in full once the layer is lit', lit === 1, lit);
 })();
 
 console.log('');

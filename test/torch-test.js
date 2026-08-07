@@ -418,6 +418,29 @@ console.log('the torch ladder');
     PV.torchAlpha(hard.torchRadius + 1, 0, PV.DIRS.right, P));
 })();
 
+var OPEN_MAZE = { isWall: function () { return false; } };
+var SPILL = 700;   // px/s the lit edge travels — render.js's TORCH_SPILL
+
+/** The shortest and longest ray in a reach array. */
+function span(reach) {
+  var min = Infinity, max = 0;
+  for (var i = 0; i < reach.length; i++) {
+    if (reach[i] < min) min = reach[i];
+    if (reach[i] > max) max = reach[i];
+  }
+  return { min: min, max: max, text: min + ' .. ' + max };
+}
+
+/** A torch standing at the board's centre, shaped by a difficulty's reach. */
+function torchOf(id) {
+  var rules = PV.DIFFICULTIES[id];
+  return {
+    x: PV.center(14), y: PV.center(23),
+    radius: rules.torchRadius, coneLen: rules.coneLen, coneHalf: rules.coneHalf,
+    soft: PV.TORCH_SOFT, dir: PV.DIRS.right
+  };
+}
+
 console.log('');
 console.log('a coneless torch still reaches');
 
@@ -425,23 +448,118 @@ console.log('a coneless torch still reaches');
  * cone-lit. Both collapse a torch with no cone unless they fall back to the
  * disc, and neither is visible to torchAlpha. */
 (function () {
-  var openMaze = { isWall: function () { return false; } };
   var hard = PV.DIFFICULTIES['torch-hard'];
-  var torch = {
-    x: PV.center(14), y: PV.center(23),
-    radius: hard.torchRadius, coneLen: hard.coneLen, coneHalf: hard.coneHalf,
-    soft: PV.TORCH_SOFT, dir: PV.DIRS.right
-  };
-
-  var reach = PV.torchSpill(torch, openMaze);
-  var min = Infinity, max = 0;
-  for (var i = 0; i < reach.length; i++) {
-    if (reach[i] < min) min = reach[i];
-    if (reach[i] > max) max = reach[i];
-  }
+  var s = span(PV.torchShape(torchOf('torch-hard'), OPEN_MAZE));
   check('every ray reaches the disc edge in open space',
-    near(min, hard.torchRadius, 0.001) && near(max, hard.torchRadius, 0.001),
-    min + ' .. ' + max);
+    near(s.min, hard.torchRadius, 0.001) && near(s.max, hard.torchRadius, 0.001),
+    s.text);
+})();
+
+console.log('');
+console.log('the lit edge eases');
+
+/* The per-frame half of the same geometry. It carries the last frame's ray
+ * lengths forward so a corridor runs down rather than arriving whole, which is
+ * exactly what PV.torchShape does not do — the two cannot be collapsed into
+ * one another. */
+(function () {
+  var hard = PV.DIFFICULTIES['torch-hard'];
+  var torch = torchOf('torch-hard');
+  var mem = { facing: null, reach: null, x: 0, y: 0 };
+
+  var first = span(PV.torchEase(mem, torch, OPEN_MAZE, STEP));
+  check('the first frame cuts to the shape rather than easing up from nothing',
+    near(first.min, hard.torchRadius, 0.001) &&
+    near(first.max, hard.torchRadius, 0.001), first.text);
+  check('it remembers where it measured from',
+    mem.x === torch.x && mem.y === torch.y, mem.x + ',' + mem.y);
+
+  // Open the reach right up without moving him: the light runs out at its own
+  // speed instead of snapping to the new shape.
+  torch.radius = 400;
+  var second = span(PV.torchEase(mem, torch, OPEN_MAZE, STEP));
+  var want = hard.torchRadius + SPILL * STEP;
+  check('a way opening is eased into, not snapped to',
+    near(second.min, want, 0.001) && near(second.max, want, 0.001), second.text);
+})();
+
+console.log('');
+console.log('the light dies back down the corridor');
+
+/* The easing runs both ways: a ray the beam has swung off shortens at the same
+ * speed it lengthened. Holding each ray to the wall in front of it rather than
+ * to the shape it now wants is what leaves it room to lag — clamping to the
+ * shape would snap every trailing ray home in one frame. */
+(function () {
+  var torch = torchOf('torch-normal');
+  var mem = { facing: null, reach: null, x: 0, y: 0 };
+
+  // Ray 0 points along +x, which is straight down the cone to start with.
+  var first = PV.torchEase(mem, torch, OPEN_MAZE, STEP);
+  check('the ray down the cone runs the cone\'s whole length',
+    near(first[0], torch.coneLen, 0.001), first[0]);
+
+  torch.dir = PV.DIRS.left;
+  var second = PV.torchEase(mem, torch, OPEN_MAZE, STEP);
+  check('the beam swinging away leaves the ray to shorten a step at a time',
+    near(second[0], torch.coneLen - SPILL * STEP, 0.001), second[0]);
+})();
+
+console.log('');
+console.log('a contact fades on the distance it was found at');
+
+/* A contact is drawn where it now sits — following its ghost under
+ * pingTracks — but both its brightness and whether it reads as the ring's
+ * leading edge are clocked off `dist`, where the ring found it. Recomputing
+ * either from the contact's current position would relight a contact the ring
+ * has since caught up with. */
+(function () {
+  var origin = { x: 0, y: 0, age: 0.5 };   // the ring is 350px out
+
+  var carried = PV.blipDraw({ x: 700, y: 0, dist: 350 }, origin, RULES);
+  check('a contact carried out past the ring is still lit',
+    carried.alpha === 1, carried.alpha);
+
+  var fresh = PV.blipDraw({ x: 0, y: 0, dist: 350 }, origin, RULES);
+  check('a contact the ring has just reached is drawn as its edge',
+    fresh.edge === true, fresh.edge);
+
+  var passed = PV.blipDraw({ x: 350, y: 0, dist: 210 }, origin, RULES);
+  check('a contact the ring passed 0.2s ago is no longer its edge',
+    passed.edge === false, passed.edge);
+
+  var spent = PV.blipDraw({ x: 0, y: 0, dist: 350 }, { x: 0, y: 0, age: 3 }, RULES);
+  check('a contact past its fade is gone', spent.alpha === 0, spent.alpha);
+})();
+
+console.log('');
+console.log('what a ghost draws at');
+
+/* Ghosts are never clipped to the lit region — they take the brighter of the
+ * layer's own alpha and the torch's, so one straddling the edge shows whole
+ * rather than sliced. Those two are the whole decision. */
+(function () {
+  var torch = torchOf('torch-normal');
+  // Well down the cone, so there are whole tiles between him and it for the
+  // line-of-sight check below to find something in.
+  var inBeam = { x: torch.x + 100, y: torch.y };
+  var away = { x: torch.x - 400, y: torch.y };
+
+  check('the beam draws a ghost a dark layer would not',
+    PV.ghostDrawAlpha(inBeam, 0, torch, OPEN_MAZE) === 1,
+    PV.ghostDrawAlpha(inBeam, 0, torch, OPEN_MAZE));
+  check('a ghost the beam misses is left to its layer',
+    PV.ghostDrawAlpha(away, 0, torch, OPEN_MAZE) === 0,
+    PV.ghostDrawAlpha(away, 0, torch, OPEN_MAZE));
+  check('the layer wins wherever it is the brighter of the two',
+    PV.ghostDrawAlpha(away, 0.35, torch, OPEN_MAZE) === 0.35,
+    PV.ghostDrawAlpha(away, 0.35, torch, OPEN_MAZE));
+  check('a wall between you and a ghost keeps it dark',
+    PV.ghostDrawAlpha(inBeam, 0, torch,
+      { isWall: function () { return true; } }) === 0);
+  check('outside torch mode the layer is all there is',
+    PV.ghostDrawAlpha(inBeam, 0.35, null, OPEN_MAZE) === 0.35,
+    PV.ghostDrawAlpha(inBeam, 0.35, null, OPEN_MAZE));
 })();
 
 console.log('');

@@ -158,7 +158,7 @@ window.PV = window.PV || {};
           // The swung heading, not his own: the beam lags a turn by a frame
           // or two, and what it lights has to agree with where it points.
           torch.dir = torchSwing(torchMemory, game.pacman.dir, torch.x, torch.y, dt);
-          reach = torchEase(torchMemory, torch, game.maze, dt);
+          reach = PV.torchEase(torchMemory, torch, game.maze, dt);
         }
 
         ctx.save();
@@ -325,21 +325,30 @@ window.PV = window.PV || {};
     }
   }
 
+  /* How bright a contact of ping `p` draws, and whether it reads as the ring's
+   * leading edge. Both come off `b.dist` — where the ring found it — rather
+   * than off the distance it sits at now, so a contact that has followed its
+   * ghost keeps fading on the schedule it was found on instead of relighting
+   * when the ring catches up with its new position. */
+  PV.blipDraw = function (b, p, rules) {
+    return {
+      alpha: PV.pulseAlpha(b.dist, p.age, rules),
+      edge: justReached(b.dist, p.age)
+    };
+  };
+
   /* A contact is the ghost's own outline, so there is no doubt what the ring
-   * found. `dist` is where the ring found it and clocks the fade, whether or
-   * not the contact has since followed the ghost. blips is sparse, indexed by
-   * ghost, and forEach skips the holes. */
+   * found. blips is sparse, indexed by ghost, and forEach skips the holes. */
   function drawPulseBlips(ctx, p, rules) {
     p.blips.forEach(function (b) {
-      var a = PV.pulseAlpha(b.dist, p.age, rules);
-      if (a <= 0.001) return;
-      var edge = justReached(b.dist, p.age);
+      var d = PV.blipDraw(b, p, rules);
+      if (d.alpha <= 0.001) return;
 
       ctx.save();
-      ctx.globalAlpha = a;
+      ctx.globalAlpha = d.alpha;
       ctx.translate(b.x, b.y);
-      ctx.strokeStyle = edge ? SCAN_EDGE : SCAN;
-      ctx.lineWidth = edge ? 2.5 : 1.5;
+      ctx.strokeStyle = d.edge ? SCAN_EDGE : SCAN;
+      ctx.lineWidth = d.edge ? 2.5 : 1.5;
       ctx.lineJoin = 'round';
       ghostBodyPath(ctx, TILE * 0.46, b.wobble);
       ctx.stroke();
@@ -441,15 +450,22 @@ window.PV = window.PV || {};
     return Math.max(torch.coneLen, torch.radius);
   }
 
+  /* One ray at absolute angle `ang`: how far the walls let the light go, and
+   * how far the lit shape wants it to reach. `want` is never past `wall`, so a
+   * caller after the shape alone can take it on its own; one easing toward it
+   * needs `wall` too, as the limit a ray still catching up is held to. */
+  function torchCast(ang, torch, maze, far) {
+    var wall = torchRay(torch.x, torch.y, ang, far, maze);
+    return { wall: wall, want: Math.min(torchReach(ang, torch), wall) };
+  }
+
   /* Each ray's length against the walls, with no easing — the shape the light
    * would take if it arrived all at once. */
-  PV.torchSpill = function (torch, maze) {
+  PV.torchShape = function (torch, maze) {
     var far = torchFar(torch);
     var want = new Array(TORCH_RAYS);
     for (var i = 0; i < TORCH_RAYS; i++) {
-      var ang = i / TORCH_RAYS * Math.PI * 2;
-      var wall = torchRay(torch.x, torch.y, ang, far, maze);
-      want[i] = Math.min(torchReach(ang, torch), wall);
+      want[i] = torchCast(i / TORCH_RAYS * Math.PI * 2, torch, maze, far).want;
     }
     return want;
   };
@@ -459,8 +475,10 @@ window.PV = window.PV || {};
    * corner — the light runs down it instead. The clamp to the wall is not
    * optional: without it a lagging ray would sit inside a wall he has just
    * walked up to, and light would show through it. A jump too big to be a
-   * step (the tunnel) skips the easing rather than sweeping the board. */
-  function torchEase(mem, torch, maze, dt) {
+   * step (the tunnel) skips the easing rather than sweeping the board. A ray
+   * mid-run legitimately sits past `want` — that is the corridor arriving — so
+   * the wall, not `want`, is what it is held to. */
+  PV.torchEase = function (mem, torch, maze, dt) {
     var reach = mem.reach;
     var cut = reach === null || Math.hypot(torch.x - mem.x, torch.y - mem.y) > TORCH_JUMP;
     if (reach === null) reach = mem.reach = new Array(TORCH_RAYS);
@@ -468,16 +486,14 @@ window.PV = window.PV || {};
     var far = torchFar(torch);
     var step = TORCH_SPILL * dt;
     for (var i = 0; i < TORCH_RAYS; i++) {
-      var ang = i / TORCH_RAYS * Math.PI * 2;
-      var wall = torchRay(torch.x, torch.y, ang, far, maze);
-      var want = Math.min(torchReach(ang, torch), wall);
-      reach[i] = Math.min(cut ? want : approach(reach[i], want, step), wall);
+      var ray = torchCast(i / TORCH_RAYS * Math.PI * 2, torch, maze, far);
+      reach[i] = Math.min(cut ? ray.want : approach(reach[i], ray.want, step), ray.wall);
     }
 
     mem.x = torch.x;
     mem.y = torch.y;
     return reach;
-  }
+  };
 
   /* The lit region as one polygon. Used as a clip, so the board inside draws
    * exactly as it would anywhere else and the darkness is the absence of it
@@ -545,12 +561,20 @@ window.PV = window.PV || {};
     return PV.canSee(torch.x, torch.y, g.x, g.y, maze) ? a : 0;
   }
 
+  /* How solid a ghost draws: the brighter of the ghosts layer and whatever the
+   * torch is putting on it, and nothing else. A ghost in the house sits on the
+   * ghosts layer like any other, so a dark layer means a dark house. `torch`
+   * is null outside torch mode. */
+  PV.ghostDrawAlpha = function (g, alpha, torch, maze) {
+    return Math.max(alpha, torch ? torchGhostAlpha(g, maze, torch) : 0);
+  };
+
   function drawGhosts(ctx, game, alpha, torch) {
     var dying = game.state === 'dying';
     var rad = TILE * 0.46;
 
     game.ghosts.forEach(function (g) {
-      var a = Math.max(alpha, torch ? torchGhostAlpha(g, game.maze, torch) : 0);
+      var a = PV.ghostDrawAlpha(g, alpha, torch, game.maze);
       if (a <= 0.001) return;
 
       var eyesOnly = g.state === 'eaten' || g.state === 'entering';
