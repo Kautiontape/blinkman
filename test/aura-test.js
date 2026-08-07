@@ -246,7 +246,7 @@ console.log('the board and the aura are separate asks');
  * context tells them apart under node: aura.js is the only thing in the
  * renderer that paints with a gradient. */
 function recorder() {
-  var seen = { gradients: 0 };
+  var seen = { gradients: 0, paths: [] };
   var ctx = {
     createLinearGradient: function () {
       seen.gradients++;
@@ -254,9 +254,14 @@ function recorder() {
     }
   };
   ['save', 'restore', 'setTransform', 'translate', 'rotate', 'clip',
-    'beginPath', 'closePath', 'moveTo', 'lineTo', 'quadraticCurveTo', 'arc',
+    'closePath', 'quadraticCurveTo', 'arc',
     'ellipse', 'fill', 'stroke', 'fillRect', 'fillText'
   ].forEach(function (name) { ctx[name] = function () {}; });
+
+  // The points of each path, so the aura's four bands can be measured.
+  var path = null;
+  ctx.beginPath = function () { path = []; seen.paths.push(path); };
+  ctx.moveTo = ctx.lineTo = function (x, y) { path.push([x, y]); };
   ctx.canvas = { width: PV.WIDTH, height: PV.HEIGHT, getContext: function () { return ctx; } };
   ctx.seen = seen;
   return ctx;
@@ -320,6 +325,49 @@ function frightRound() {
   renderer.drawAura(g, STEP);
   check('and the pulse does not survive the menu', ctx.seen.gradients === 8,
     ctx.seen.gradients);
+})();
+
+console.log('');
+console.log('the four bands mitre into a frame');
+
+/* Corners are where this goes wrong: a gap between two bands is a dark hairline
+ * on the diagonal and an overlap is a bright one. Both are a question about the
+ * geometry alone, which the recording context hands over. */
+(function () {
+  var ctx = recorder();
+  var renderer = PV.createRenderer(ctx.canvas);
+  renderer.setScale(1);
+
+  renderer.drawAura(frightRound(), STEP);
+  var bands = ctx.seen.paths;
+  check('one band per edge', bands.length === 4, bands.length);
+  check('each is a quad', bands.every(function (p) { return p.length === 4; }),
+    bands.map(function (p) { return p.length; }).join(','));
+
+  /* Drawn clockwise as rim start, rim end, inner end, inner start — so each
+   * band's second half is its neighbour's first, point for point. */
+  var met = bands.every(function (p, i) {
+    var next = bands[(i + 1) % bands.length];
+    return p[1][0] === next[0][0] && p[1][1] === next[0][1] &&
+      p[2][0] === next[3][0] && p[2][1] === next[3][1];
+  });
+  check('neighbours share their mitre exactly', met);
+
+  var area = bands.reduce(function (sum, p) {
+    var a = 0;
+    for (var i = 0; i < p.length; i++) {
+      var q = p[(i + 1) % p.length];
+      a += p[i][0] * q[1] - q[0] * p[i][1];
+    }
+    return sum + Math.abs(a) / 2;
+  }, 0);
+  /* The board less the rectangle left unlit in the middle. How far the bands
+   * reach in is read off the top one's inner corner; the mitre check above
+   * already ties the other three to it. */
+  var b = bands[0][3][0];
+  var frame = PV.WIDTH * PV.HEIGHT - (PV.WIDTH - 2 * b) * (PV.HEIGHT - 2 * b);
+  check('and together cover the frame once', area === frame,
+    area + ' of ' + frame);
 })();
 
 console.log('');

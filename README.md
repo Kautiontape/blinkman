@@ -162,8 +162,9 @@ the shape of all nine cells and the exact tuning each mode's Normal is
 balanced around, so a change to it has to be deliberate; the sixth covers what
 a pick leaves behind — picks stack rather than replace, each fades on its own
 clock, what a round opens with, and how much of the house the lit board leaves
-showing; the seventh covers the board aura's schedule and its absence from the
-menu demo. None of that is visible to a layout check. The last two are bash
+showing; the seventh covers the board aura's schedule, the mitre that keeps its
+four bands from doubling up in the corners, and its absence from the menu demo.
+None of that is visible to a layout check. The last two are bash
 because what they exercise is bash; `release-test.sh` drives `tools/release.sh`
 against a throwaway repo, so nothing it does reaches GitHub.
 
