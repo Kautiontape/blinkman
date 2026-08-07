@@ -29,7 +29,11 @@ Two things surfaced while reading the code that the spec does not cover. Both ar
 
 6. **`PV.ghostReveal` has a call site in `js/render.js`** that the file-by-file migration list missed.
 
-7. **Actors capture their maze in a closure.** `game.nextLevel()` and `game.restart()` reassign `game.maze`, so the actors must be rebuilt against the new one or they reset to the old board's spawn. Task 3 adds a `newBoard()` helper in `js/game.js` for this; Task 7 must route its `createMaze(level)` change through that helper rather than adding a third creation path.
+7. **The menu demo runs the full board, always.** `--sc` is `stageWidth / boardWidth`, so a narrower board yields a *higher* scale — the menu copy would render 35% larger against a narrower stage and rewrap mid-phrase. Rather than clamp the copy, the attract demo is pinned to a full-size board so the title screen keeps one shape. `createGame` gains an optional starting `level` for this; the demo asks for a level the ladder maps to the full board with a varied pool, so the menu still shows different mazes between visits.
+
+8. **`css/style.css` carries two stale claims** — `:1-5` ("1 = the original 560x620 design size") and `:41` ("width and height are set by main.js to preserve the 28:31 aspect ratio"). Neither is true once the board resizes. Task 16 fixes them.
+
+9. **Actors capture their maze in a closure.** `game.nextLevel()` and `game.restart()` reassign `game.maze`, so the actors must be rebuilt against the new one or they reset to the old board's spawn. Task 3 adds a `newBoard()` helper in `js/game.js` for this; Task 7 must route its `createMaze(level)` change through that helper rather than adding a third creation path.
 
 ---
 
