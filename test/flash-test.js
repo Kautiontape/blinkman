@@ -6,8 +6,10 @@
  */
 global.window = {};
 var path = require('path');
-['strings.js', 'maze.js', 'entities.js', 'vision.js', 'game.js',
-  'render.js'].forEach(function (f) {
+// Mirrors index.html's relative script order, so a module-scope capture from
+// game.js would go red here exactly as it would silently break in the browser.
+['strings.js', 'maze.js', 'vision.js', 'entities.js', 'render.js',
+  'game.js'].forEach(function (f) {
   require(path.join(__dirname, '..', 'js', f));
 });
 var PV = global.window.PV;
