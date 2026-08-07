@@ -17,6 +17,12 @@ window.PV = window.PV || {};
   var INK = '#e8ecff';
   var YELLOW = '#ffd23f';
 
+  /* The art is a fixed picture, not a level: the crops, the fades and the
+   * ghost placements are all tuned against the full board and the classic
+   * piece pool. Level 5 is the first rung that draws that pair, and pinning it
+   * here keeps a preset's seed reproducing the same maze. */
+  var BOARD_LEVEL = 5;
+
   /* Fractions of width unless a field says otherwise. `exactRows` demands the
    * visible band be a whole number of tile rows: true only for the banner,
    * whose 4:1 shape happens to divide evenly and whose 2px wall strokes are
@@ -289,9 +295,11 @@ window.PV = window.PV || {};
     if (!spec) throw new Error('unknown preset: ' + name);
     if (seed === undefined) seed = spec.seed;
 
-    var maze = PV.createMaze(seed);
+    var board = PV.BOARDS.full;
+    var maze = PV.createMaze(BOARD_LEVEL, seed);
     var band = PV.bannerBand({
-      bannerW: spec.w, bannerH: spec.h, boardW: PV.WIDTH, boardH: PV.HEIGHT,
+      bannerW: spec.w, bannerH: spec.h,
+      boardW: board.cols * PV.TILE, boardH: board.rows * PV.TILE,
       tile: PV.TILE, topRow: spec.topRow, zoom: spec.zoom
     });
 

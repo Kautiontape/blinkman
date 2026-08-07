@@ -177,25 +177,95 @@ console.log('the opening reveal');
 })();
 
 console.log('');
-console.log('the house stays dark');
+console.log('the house reveal against the board');
 
-/* A ghost in the house is drawn on the ghosts layer alone: nothing gives it a
- * floor of its own, so a dark layer means a dark house. Flash has no torch, so
- * the layer is the whole of the decision here. */
+/* A ghost in the house shows through a dark ghosts layer, but only as far as
+ * the board around it is lit: the reveal is a floor multiplied by the brighter
+ * of the dots and walls layers. Flash has no torch, so those two and the
+ * ghosts layer are the whole of the decision here. */
 (function () {
+  // Layer alphas in the shape visibleAlpha() hands the renderer.
+  function layers(o) {
+    return {
+      dots: o.dots || 0, walls: o.walls || 0,
+      ghosts: o.ghosts || 0, pacman: o.pacman || 0
+    };
+  }
+
   var g = settled('flash-normal');
   var housed = g.ghosts.filter(function (gh) { return gh.state === 'house'; });
   check('someone is still in the house', housed.length > 0, housed.length);
   check('the ghosts layer is dark', g.vision.alpha.ghosts === 0, g.vision.alpha.ghosts);
+  check('the board is dark too',
+    g.vision.alpha.walls === 0 && g.vision.alpha.dots === 0,
+    g.vision.alpha.walls + '/' + g.vision.alpha.dots);
 
-  var dark = PV.ghostDrawAlpha(housed[0], g.vision.alpha.ghosts, null, g.maze);
-  check('a ghost in the house draws at the layer alpha, so at nothing',
-    dark === 0, dark);
+  var ghost = housed[0];
+  check('a dark board leaves the house dark',
+    PV.ghostDrawAlpha(ghost, g.visibleAlpha(), null, g.maze) === 0,
+    PV.ghostDrawAlpha(ghost, g.visibleAlpha(), null, g.maze));
+  check('lit walls show the house in full',
+    PV.ghostDrawAlpha(ghost, layers({ walls: 1 }), null, g.maze) === 1,
+    PV.ghostDrawAlpha(ghost, layers({ walls: 1 }), null, g.maze));
+  check('lit dots show the house too',
+    PV.ghostDrawAlpha(ghost, layers({ dots: 1 }), null, g.maze) === 1,
+    PV.ghostDrawAlpha(ghost, layers({ dots: 1 }), null, g.maze));
 
-  // It is the layer that decides, not the state — the same ghost on a lit
-  // layer draws in full.
-  var lit = PV.ghostDrawAlpha(housed[0], 1, null, g.maze);
-  check('the same ghost draws in full once the layer is lit', lit === 1, lit);
+  // The middle of the range, which a threshold would get wrong: half-lit walls
+  // draw the house at half.
+  check('a half-lit board shows the house at half',
+    near(PV.ghostDrawAlpha(ghost, layers({ walls: 0.5 }), null, g.maze), 0.5, 0.001),
+    PV.ghostDrawAlpha(ghost, layers({ walls: 0.5 }), null, g.maze));
+  check('the brighter of the two board layers wins',
+    near(PV.ghostDrawAlpha(ghost, layers({ dots: 0.8, walls: 0.3 }), null, g.maze),
+      0.8, 0.001),
+    PV.ghostDrawAlpha(ghost, layers({ dots: 0.8, walls: 0.3 }), null, g.maze));
+
+  /* Both terms of the product, at once: a ghost halfway out the door on a
+   * half-lit board draws at a quarter. Nothing but the multiply lands here. */
+  var spawn = g.maze.spawn;
+  var doorway = {
+    state: 'leaving',
+    y: (PV.center(spawn.door.row) + PV.center(spawn.outside.row)) / 2
+  };
+  check('the reveal and the board multiply',
+    near(PV.ghostDrawAlpha(doorway, layers({ walls: 0.5 }), null, g.maze), 0.25, 0.001),
+    PV.ghostDrawAlpha(doorway, layers({ walls: 0.5 }), null, g.maze));
+
+  /* Your own layer is not the board: being drawn yourself says nothing about
+   * what is waiting in the house. */
+  check('a lit pacman layer leaves the house dark',
+    PV.ghostDrawAlpha(ghost, layers({ pacman: 1 }), null, g.maze) === 0,
+    PV.ghostDrawAlpha(ghost, layers({ pacman: 1 }), null, g.maze));
+
+  // A ghost out on the board has no reveal at all, however lit the board is.
+  var out = { state: 'out', y: PV.center(spawn.pinky.row) };
+  check('a ghost loose on a lit board is left to its layer',
+    PV.ghostDrawAlpha(out, layers({ walls: 1 }), null, g.maze) === 0,
+    PV.ghostDrawAlpha(out, layers({ walls: 1 }), null, g.maze));
+  check('a lit ghosts layer draws them wherever they are',
+    PV.ghostDrawAlpha(out, layers({ ghosts: 1 }), null, g.maze) === 1,
+    PV.ghostDrawAlpha(out, layers({ ghosts: 1 }), null, g.maze));
+})();
+
+console.log('');
+console.log('the house on READY');
+
+/* READY holds the dots blink on its first frame and floors the walls, so the
+ * board is lit in every mode and the house reads with it — a round opens
+ * showing who is waiting, wherever you are, and loses them as the board goes.
+ * Torch is no exception here: the mode only stops lighting layers once you
+ * move. */
+(function () {
+  ['flash-hard', 'torch-hard', 'stare-hard'].forEach(function (id) {
+    var g = PV.createGame(id, { persist: false });
+    g.startRound();
+    g.update(STEP);
+    check(id + ' is still on READY', g.state === 'ready', g.state);
+    var housed = g.ghosts.filter(function (gh) { return gh.state === 'house'; });
+    var a = PV.ghostDrawAlpha(housed[0], g.visibleAlpha(), null, g.maze);
+    check(id + ' shows the house on READY', a === 1, a);
+  });
 })();
 
 console.log('');

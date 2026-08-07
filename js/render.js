@@ -157,16 +157,16 @@ window.PV = window.PV || {};
           };
           // The swung heading, not his own: the beam lags a turn by a frame
           // or two, and what it lights has to agree with where it points.
-          torch.dir = torchSwing(torchMemory, game.pacman.dir, torch.x, torch.y, dt);
+          torch.dir = torchSwing(torchMemory, game.pacman.dir, torch.x, torch.y, game.maze, dt);
           reach = PV.torchEase(torchMemory, torch, game.maze, dt);
         }
 
         ctx.save();
-        // Everything below is authored in the fixed 560x620 design space; this
-        // maps it onto the real canvas size so the board stays sharp.
+        // Everything below is authored in the maze's design space, 20px to a
+        // tile; this maps it onto the real canvas size so the board stays sharp.
         ctx.setTransform(scale, 0, 0, scale, 0, 0);
         ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, PV.WIDTH, PV.HEIGHT);
+        ctx.fillRect(0, 0, game.maze.width, game.maze.height);
 
         if (renderer.shake > 0) {
           var s = renderer.shake;
@@ -183,7 +183,9 @@ window.PV = window.PV || {};
         // Only drawWalls needs `scale` — see its shadowBlur.
         if (alpha.walls > 0)  drawWalls(ctx, game.maze, alpha.walls, scale);
         if (alpha.dots > 0)   drawPellets(ctx, game.maze, alpha.dots, game.time);
-        drawGhosts(ctx, game, alpha.ghosts, torch);
+        // The whole layer set, not just alpha.ghosts: the house reveal reads
+        // the board layers too.
+        drawGhosts(ctx, game, alpha, torch);
         if (alpha.pacman > 0) drawPacman(ctx, game, alpha.pacman);
 
         drawFloatingScores(ctx, game);
@@ -198,7 +200,7 @@ window.PV = window.PV || {};
         aura.update(game, dt);
         ctx.save();
         ctx.setTransform(scale, 0, 0, scale, 0, 0);
-        aura.draw(ctx);
+        aura.draw(ctx, game.maze);
         ctx.restore();
       },
 
@@ -266,7 +268,7 @@ window.PV = window.PV || {};
     ctx.save();
     pulses.forEach(function (p) {
       // Under the layer, so it never sits over a contact.
-      drawPulseFront(ctx, p);
+      drawPulseFront(ctx, game.maze, p);
       if (p.layer === 'walls') drawPulseWalls(ctx, game.maze, p, game.rules);
       else if (p.layer === 'dots') drawPulseDots(ctx, game.maze, p, game.rules);
       else if (p.layer === 'ghosts') drawPulseBlips(ctx, p, game.rules);
@@ -278,9 +280,9 @@ window.PV = window.PV || {};
    * free, as things light up; a ghosts ping has nothing to light between
    * contacts and reads as if the press did nothing. This gives every layer the
    * same running commentary, and weakens as it spreads. */
-  function drawPulseFront(ctx, p) {
+  function drawPulseFront(ctx, maze, p) {
     var reach = p.age * PV.PULSE_SPEED;
-    var spent = reach / PV.PULSE_SPAN;
+    var spent = reach / PV.pulseSpan(maze);
     if (spent >= 1) return;   // off the board; nothing left to show
 
     ctx.globalAlpha = FRONT_ALPHA * (1 - spent);
@@ -432,7 +434,7 @@ window.PV = window.PV || {};
    * whichever sweep crosses the middle of the board, which is the side with
    * more to look at. Everything downstream reads this rather than his own
    * facing, so the ghosts a beam lights are the ones it visibly covers. */
-  function torchSwing(mem, dir, x, y, dt) {
+  function torchSwing(mem, dir, x, y, maze, dt) {
     if (dir.x === 0 && dir.y === 0) dir = { x: 1, y: 0 };
     var want = Math.atan2(dir.y, dir.x);
 
@@ -441,7 +443,7 @@ window.PV = window.PV || {};
     } else {
       var d = wrapHalf(want - mem.facing);
       if (Math.PI - Math.abs(d) < 1e-3) {
-        var toMiddle = Math.atan2(PV.HEIGHT / 2 - y, PV.WIDTH / 2 - x);
+        var toMiddle = Math.atan2(maze.height / 2 - y, maze.width / 2 - x);
         d = wrapHalf(toMiddle - mem.facing) >= 0 ? Math.PI : -Math.PI;
       }
       mem.facing = wrapTurn(approach(mem.facing, mem.facing + d, TORCH_TURN * dt));
@@ -558,12 +560,18 @@ window.PV = window.PV || {};
     return PV.canSee(torch.x, torch.y, g.x, g.y, maze) ? a : 0;
   }
 
-  /* How solid a ghost draws: the brighter of the ghosts layer and whatever the
-   * torch is putting on it, and nothing else. A ghost in the house sits on the
-   * ghosts layer like any other, so a dark layer means a dark house. `torch`
-   * is null outside torch mode. */
+  /* How solid a ghost draws: the brightest of the ghosts layer, whatever the
+   * torch is putting on it, and the house reveal scaled by how lit the board
+   * around it is — so who is still waiting shows while the board is up and
+   * goes out with it, rather than glowing through a board the player has let
+   * go dark. The board is the dots and walls: a lit ghosts layer draws them in
+   * full anyway, and `pacman` is only him. `torch` is null outside torch mode,
+   * which lights no layer of its own once a round is under way, leaving the
+   * beam the whole of the decision there. */
   PV.ghostDrawAlpha = function (g, alpha, torch, maze) {
-    return Math.max(alpha, torch ? torchGhostAlpha(g, maze, torch) : 0);
+    var ambient = Math.max(alpha.dots, alpha.walls);
+    return Math.max(alpha.ghosts, PV.ghostReveal(g, maze) * ambient,
+      torch ? torchGhostAlpha(g, maze, torch) : 0);
   };
 
   function drawGhosts(ctx, game, alpha, torch) {

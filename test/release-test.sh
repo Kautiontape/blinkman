@@ -48,8 +48,12 @@ setup() {
        { version: "1.3.0", date: "2026-08-06", notes: ["It began."] }]));
   ' "$work/repo/js/changelog.js"
   (cd "$work/repo" && node tools/changelog.js >/dev/null)
-  for suite in maze opening torch attract modes flash aura changelog; do
-    printf 'process.exit(%s);\n' "$1" > "$work/repo/test/$suite-test.js"
+  # The stubs are the suites release.sh actually names, read out of the script
+  # under test, so adding one there cannot leave this fixture short a file.
+  # changelog-test.js is stubbed along with the rest: the fixture's notes are a
+  # miniature, and the real suite checks the real ones.
+  for suite in $(sed -n 's|^run_suite test/||p' "$root/tools/release.sh"); do
+    printf 'process.exit(%s);\n' "$1" > "$work/repo/test/$suite"
   done
   git -C "$work/repo" add -A
   git -C "$work/repo" commit -q -m init

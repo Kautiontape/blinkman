@@ -26,15 +26,22 @@ jobs:
 
       # The runner ships Node and the suites have no dependencies, so there is
       # no setup-node step and no version to keep bumping.
+      #
+      # The same list tools/release.sh runs, so a release cut locally and the
+      # tag's workflow gate on the same thing. The two bash suites are left to
+      # the developer: they cover the release plumbing this job is in the
+      # middle of running, not the game.
       - name: Test
         run: |
           node test/maze-test.js
+          node test/progression-test.js
           node test/opening-test.js
           node test/torch-test.js
           node test/attract-test.js
           node test/modes-test.js
           node test/flash-test.js
           node test/aura-test.js
+          node test/banner-layout-test.js
           node test/changelog-test.js
 
       # itch.io's own CDN. The URL ends in LATEST, so there is nothing to pin
