@@ -29,6 +29,7 @@ jobs:
       - name: Test
         run: |
           node test/maze-test.js
+          node test/progression-test.js
           node test/opening-test.js
           node test/torch-test.js
           node test/attract-test.js
