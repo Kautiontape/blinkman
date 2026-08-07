@@ -16,6 +16,12 @@ window.PV = window.PV || {};
   ];
 
   var FRIGHT_TIME = 7;
+
+  // The closing stretch of a fright. render.js flashes the ghosts white over
+  // it and aura.js blinks the board edge, so both read this.
+  var FRIGHT_ENDING = 2;
+  PV.FRIGHT_ENDING = FRIGHT_ENDING;
+
   var GHOST_VALUES = [200, 400, 800, 1600];
   var POWER_PELLET = 2;    // maze.eatPellet() returns 1 for a dot, 2 for a power pellet
 
@@ -253,9 +259,8 @@ window.PV = window.PV || {};
     function advanceWaves(dt) {
       if (game.frightTimer > 0) {
         game.frightTimer -= dt;
-        // fire the countdown cue once, the instant the last-two-seconds
-        // warning window opens (mirrors render.js's flash threshold)
-        if (!game.frightEndingCued && game.frightTimer > 0 && game.frightTimer < 2) {
+        // fire the countdown cue once, the instant the ending window opens
+        if (!game.frightEndingCued && game.frightTimer > 0 && game.frightTimer < FRIGHT_ENDING) {
           game.frightEndingCued = true;
           game.onEvent('frightEnding', game.frightTimer);
         }

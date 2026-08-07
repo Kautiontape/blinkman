@@ -558,8 +558,8 @@ window.PV = window.PV || {};
       var body = g.color;
 
       if (g.frightened && !eyesOnly) {
-        // flash white over the last two seconds of the power pellet
-        var ending = game.frightTimer < 2 && Math.floor(game.frightTimer * 6) % 2 === 0;
+        // flash white over the closing stretch of the power pellet
+        var ending = game.frightTimer < PV.FRIGHT_ENDING && Math.floor(game.frightTimer * 6) % 2 === 0;
         body = ending ? '#ffffff' : '#2b4bff';
       }
 

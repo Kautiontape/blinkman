@@ -212,5 +212,29 @@ console.log('a life lost');
 })();
 
 console.log('');
+console.log('the ending window is shared');
+
+/* The ghosts flash white and the aura starts blinking over the same stretch
+ * of a fright, so both read the one constant. */
+(function () {
+  check('the window is exported', PV.FRIGHT_ENDING === 2, PV.FRIGHT_ENDING);
+
+  var a = PV.createAura();
+  // Just inside the window: the blink is on, so the level is one of its two
+  // levels rather than a point on the breath's sine.
+  var inside = round({ frightTimer: PV.FRIGHT_ENDING - 0.01, time: 0 });
+  a.update(inside, STEP);
+  var atEdge = a.level;
+
+  var b = PV.createAura();
+  var outside = round({ frightTimer: PV.FRIGHT_ENDING + 0.5, time: 0 });
+  b.update(outside, STEP);
+
+  check('inside the window the aura blinks', atEdge === 0.75 || atEdge === 0.14,
+    atEdge);
+  check('outside it breathes', b.level !== 0.14, b.level);
+})();
+
+console.log('');
 console.log(failures === 0 ? 'ALL AURA CHECKS OK' : failures + ' CHECK(S) FAILED');
 process.exit(failures === 0 ? 0 : 1);

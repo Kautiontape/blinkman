@@ -18,10 +18,7 @@ window.PV = window.PV || {};
   // A fright running: a slow breath between two levels.
   var BREATH_HZ = 1.2, BREATH_LOW = 0.35, BREATH_HIGH = 0.75;
 
-  /* The last stretch of a fright: a blink that quickens. ENDING matches the
-   * window render.js already flashes the ghosts white over, so the two cues
-   * open together. */
-  var ENDING = 2;
+  // The last stretch of a fright: a blink that quickens.
   var BLINK_SLOW = 4, BLINK_FAST = 9;   // Hz at the start and end of it
   var BLINK_OFF = 0.14;                 // the dim half of the blink
 
@@ -34,12 +31,15 @@ window.PV = window.PV || {};
    * of jumping every frame the rate changes. */
   function frightLevel(left, time) {
     if (PV.wantsCalm()) return CALM;
-    if (left >= ENDING) {
+    // Read at call time, not captured at load: aura.js loads before game.js,
+    // so PV.FRIGHT_ENDING doesn't exist yet at this file's own load time.
+    var ending = PV.FRIGHT_ENDING;
+    if (left >= ending) {
       var breath = 0.5 + 0.5 * Math.sin(time * BREATH_HZ * Math.PI * 2);
       return BREATH_LOW + (BREATH_HIGH - BREATH_LOW) * breath;
     }
-    var t = ENDING - left;
-    var phase = BLINK_SLOW * t + (BLINK_FAST - BLINK_SLOW) * t * t / (2 * ENDING);
+    var t = ending - left;
+    var phase = BLINK_SLOW * t + (BLINK_FAST - BLINK_SLOW) * t * t / (2 * ending);
     return Math.floor(phase * 2) % 2 === 0 ? BREATH_HIGH : BLINK_OFF;
   }
 
