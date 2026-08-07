@@ -199,6 +199,14 @@ console.log('line of sight');
 
   check('a point can always see itself',
     PV.canSee(PV.center(5), PV.center(5), PV.center(5), PV.center(5), maze));
+
+  // A near-tangent line that clips only a thin sliver of the wall tile's
+  // corner — genuinely blocked, but close enough to the corner that a fixed
+  // sampling interval can step clean over the sliver without ever landing a
+  // sample inside it. Walking every tile the segment passes through, rather
+  // than sampling points along it, is what catches this.
+  check('a line grazing just a corner of the wall still counts as blocked',
+    !PV.canSee(42.324, 10.044, 37.576, 69.856, maze));
 })();
 
 console.log('');

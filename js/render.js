@@ -33,23 +33,45 @@ window.PV = window.PV || {};
 
   /**
    * Line-of-sight against the wall grid: true if nothing solid sits between
-   * the two points. Walls are always a full tile (20px) thick, so sampling
-   * every quarter-tile can't step clean through one. Origin and destination
-   * tiles are never tested — a caller checking visibility of a wall tile's
-   * own face passes that wall's *open* neighbour as the destination, not the
-   * wall tile itself; testing the endpoints would make a target inside or
-   * beside a wall spuriously block itself.
+   * the two points. Walks every tile the segment actually passes through
+   * (Amanatides-Woo grid traversal), rather than sampling points along it —
+   * a fixed sampling interval can step clean over a wall it clips only at a
+   * corner, however fine the interval; walking tile-by-tile can't skip one.
+   * A segment that passes exactly through a lattice corner checks both
+   * corner-adjacent tiles before stepping diagonally, so a grazing corner
+   * can't slip past unresolved. Origin and destination tiles are never
+   * tested — a caller checking visibility of a wall tile's own face passes
+   * that wall's *open* neighbour as the destination, not the wall tile
+   * itself; testing the endpoints would make a target inside or beside a
+   * wall spuriously block itself.
    */
   PV.canSee = function (x0, y0, x1, y1, maze) {
+    var c = Math.floor(x0 / TILE), r = Math.floor(y0 / TILE);
+    var c1 = Math.floor(x1 / TILE), r1 = Math.floor(y1 / TILE);
     var dx = x1 - x0, dy = y1 - y0;
-    var dist = Math.hypot(dx, dy);
-    if (dist < 1e-6) return true;
 
-    var steps = Math.max(1, Math.ceil(dist / (TILE / 4)));
-    for (var i = 1; i < steps; i++) {
-      var t = i / steps;
-      var c = Math.floor((x0 + dx * t) / TILE);
-      var r = Math.floor((y0 + dy * t) / TILE);
+    var stepC = dx > 0 ? 1 : dx < 0 ? -1 : 0;
+    var stepR = dy > 0 ? 1 : dy < 0 ? -1 : 0;
+
+    // How far (in the segment's own 0..1 span) to the next column/row line,
+    // and how much of that span one tile's width/height costs.
+    var tMaxC = stepC === 0 ? Infinity : ((stepC > 0 ? (c + 1) * TILE : c * TILE) - x0) / dx;
+    var tMaxR = stepR === 0 ? Infinity : ((stepR > 0 ? (r + 1) * TILE : r * TILE) - y0) / dy;
+    var tDeltaC = stepC === 0 ? Infinity : Math.abs(TILE / dx);
+    var tDeltaR = stepR === 0 ? Infinity : Math.abs(TILE / dy);
+
+    while (c !== c1 || r !== r1) {
+      if (tMaxC < tMaxR) {
+        c += stepC; tMaxC += tDeltaC;
+      } else if (tMaxR < tMaxC) {
+        r += stepR; tMaxR += tDeltaR;
+      } else {
+        // Exactly through a corner — either neighbour blocks the view.
+        if (maze.isWall(c + stepC, r)) return false;
+        if (maze.isWall(c, r + stepR)) return false;
+        c += stepC; r += stepR; tMaxC += tDeltaC; tMaxR += tDeltaR;
+      }
+      if (c === c1 && r === r1) break;   // destination tile is never tested
       if (maze.isWall(c, r)) return false;
     }
     return true;
