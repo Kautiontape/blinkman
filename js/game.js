@@ -310,15 +310,16 @@ window.PV = window.PV || {};
       });
     }
 
-    /* Torch mode: a ghost blips where the expanding ring first reaches it.
-     * `dist` is the distance it was found at and clocks the blip's fade —
-     * plain distance, not the tunnel-wrapped one checkCollisions uses, since
-     * the ring is drawn as a circle in board space and a wrapped distance
-     * would light a blip before the visible ring arrived. Under `pingTracks`
-     * the contact then follows its ghost, fading to the schedule it was found
-     * on rather than to wherever the ghost has wandered. Every ghost is
-     * sampled whatever its state: the ping reports where things are, and eaten
-     * ghosts show as eyes in every mode. */
+    /* Torch mode: a ghost blips where the expanding ring first reaches it and
+     * stays drawn for the rest of the ping — held at the contact, or carried
+     * along on the ghost itself under `pingTracks`. `dist` is the distance it
+     * was found at and clocks the fade either way, so a contact that follows
+     * its ghost still dims to the schedule it was found on rather than to
+     * wherever the ghost has wandered. Plain distance, not the tunnel-wrapped
+     * one checkCollisions uses, since the ring is drawn as a circle in board
+     * space and a wrapped distance would light a blip before the visible ring
+     * arrived. Every ghost is sampled whatever its state: the ping reports
+     * where things are, and eaten ghosts show as eyes in every mode. */
     function samplePulse() {
       game.vision.pulses().forEach(function (p) {
         if (p.layer !== 'ghosts') return;
@@ -326,8 +327,9 @@ window.PV = window.PV || {};
         game.ghosts.forEach(function (g, i) {
           var blip = p.blips[i];
           if (blip) {
-            // wobble too: render.js draws the contact as the ghost's own
-            // outline, and a still contact should be still mid-waddle.
+            // wobble travels with the position: render.js draws the contact as
+            // the ghost's own outline, so the waddle is part of the pose being
+            // reported, not decoration on top of it.
             if (rules.pingTracks) {
               blip.x = g.x;
               blip.y = g.y;
