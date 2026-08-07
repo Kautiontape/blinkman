@@ -243,5 +243,66 @@ else
 $suite_diff"
 fi
 
+# Same shape again: several test/*-test.js suites require() a subset of js/
+# and are hand-ordered to mirror index.html's <script> order, because a
+# module that captures a PV value at load time needs its dependency required
+# first — same as it needs that dependency's <script> tag first in the
+# browser. Nothing enforces the mirroring, so this checks each suite's
+# require list is a subsequence of index.html's script order (not
+# contiguous: a suite legitimately skips modules it doesn't need). Every
+# <script src="js/...\"> tag in index.html is on its own line and none are
+# commented out or conditional, so grepping the file directly is safe.
+require_order() {
+  perl -0777 -ne '
+    s/^\s*\/\/.*$//mg;
+    if (/\[([^\]]*)\]\s*\.forEach\(function\s*\(f\)\s*\{/) {
+      my @mods = $1 =~ /([a-z0-9-]+)\.js/g;
+      print join("\n", @mods), "\n";
+    }
+  ' "$1"
+}
+
+html_order="$(grep -oE '<script src="js/[a-z]+\.js"' "$root/index.html" |
+  sed -E 's#<script src="js/([a-z]+)\.js"#\1#')"
+
+# $1 suite name (matches test/$1-test.js).
+check_require_order() {
+  local suite="$1" file="$root/test/$1-test.js" sub mod pos
+  local prev_pos=-1 prev_name='' offending=''
+  sub="$(require_order "$file")"
+  if [ -z "$sub" ]; then
+    no "$suite-test.js's require order mirrors index.html" \
+      "could not find a require array to check in $file"
+    return
+  fi
+  while IFS= read -r mod; do
+    [ -z "$mod" ] && continue
+    pos="$(printf '%s\n' "$html_order" | grep -nx "$mod" | head -1 | cut -d: -f1)"
+    if [ -z "$pos" ]; then
+      no "$suite-test.js's require order mirrors index.html" \
+        "requires '$mod.js', which index.html never loads"
+      return
+    fi
+    if [ "$pos" -le "$prev_pos" ]; then
+      offending="requires $prev_name.js before $mod.js, but index.html loads $mod.js before (or same as) $prev_name.js"
+      break
+    fi
+    prev_pos="$pos"
+    prev_name="$mod"
+  done <<< "$sub"
+  if [ -z "$offending" ]; then
+    ok "$suite-test.js's require order mirrors index.html"
+  else
+    no "$suite-test.js's require order mirrors index.html" \
+      "$offending
+$suite-test.js: $(printf '%s' "$sub" | tr '\n' ' ')
+index.html:     $(printf '%s' "$html_order" | tr '\n' ' ')"
+  fi
+}
+
+for suite in aura torch flash opening modes attract; do
+  check_require_order "$suite"
+done
+
 printf '\n%s passed, %s failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
