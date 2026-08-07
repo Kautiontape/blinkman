@@ -102,6 +102,18 @@ expect('arcade corners', sc.corners, 30);
 expect('arcade score', sc.score, 64);
 expect('arcade pellets', sc.pellets, 242);
 
+/* Level 1: the on-ramp. Small, open, and the same every game. */
+var small = PV.BOARDS.small;
+var l1Layout = PV.assembleLayout(small, small.tiers.fixed.top[0], small.tiers.fixed.bottom[0]);
+var l1Score = PV.scoreLayout(small, l1Layout);
+expect('L1 pellets', l1Score.pellets, 128);
+expect('L1 score', l1Score.score, 36);
+expect('L1 junctions', l1Score.junctions, 28);
+expect('L1 corners', l1Score.corners, 8);
+
+var l1Problems = PV.checkLayout(small, l1Layout);
+expect('L1 valid', l1Problems.join('; '), '');
+
 // Geometry invariants every template shares — these catch a typo in the data.
 Object.keys(PV.BOARDS).forEach(function (id) {
   var b = PV.BOARDS[id];

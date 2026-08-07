@@ -171,6 +171,29 @@ window.PV = window.PV || {};
     ]}
   ];
 
+  /* The level 1 map. Deliberately the same every game — it is the one board a
+   * new player can build a mental model of, which is what makes a game about
+   * not being able to see learnable at all. */
+  var SMALL_FIXED_TOP = { id: 'S1', rows: [
+    '#........#',
+    '#.######.#',
+    '#o######.#',
+    '#........ ',
+    '#.####.###',
+    '#.####.###',
+    '#.####.###'
+  ]};
+
+  var SMALL_FIXED_BOTTOM = { id: 'S1', rows: [
+    '#.####.###',
+    '#.####.###',
+    '#o....... ',
+    '#.######.#',
+    '#.######.#',
+    '#.######.#',
+    '#........#'
+  ]};
+
   /* A board template is the shape a pair of pieces drops into: dimensions, the
    * tunnel row, the fixed middle band, the ghost-house block, and where the
    * seven actors start. `house` is the block including its walls; the sealed
@@ -186,7 +209,7 @@ window.PV = window.PV || {};
       topRows: 7, bottomRows: 7,
       house: { c0: 6, c1: 13, r0: 9, r1: 13 },
       minPellets: 110,
-      tiers: {},
+      tiers: { fixed: { top: [SMALL_FIXED_TOP], bottom: [SMALL_FIXED_BOTTOM] } },
       spawn: {
         pacman:  { col: 9, row: 17 },
         door:    { col: 9, row: 9 },
