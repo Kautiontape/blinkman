@@ -50,7 +50,7 @@ blue ring means you can switch. A shrinking red arc means wait.
 | Easy | You and your last two picks | 1s |
 | Normal | You and your last pick | 1s |
 | Hard | One of four, and you can go dark | 3s |
-| Torch | A lit circle around you. A press pings one layer outward from where you stood, and it fades behind the ring. | 1s |
+| Torch | A lit circle around you, plus a longer cone ahead — both stop at a wall. A press pings one layer outward from where you stood, and it fades behind the ring, through walls. | 1s |
 | Blink | Nothing. A press flashes one layer, which fades over 2s. | 1s |
 
 Death is the one exception to all of this. Get caught and the ghosts light up
@@ -127,9 +127,10 @@ time. `main.js` has to load last. Everything else in the script order is slack.
 
 Three test suites, all plain node scripts with nothing to install. The second
 covers the ghost release ladder, the house reveal, the dots blink and the
-wording of the layer nudge; the third covers Torch's ping — its fade curve, its
-frozen origin, and the ghost blips it leaves behind. None of that is visible to
-a layout check.
+wording of the layer nudge; the third covers Torch — its ping's fade curve and
+frozen origin, the ghost blips it leaves behind, and the line-of-sight and
+circle/cone math behind what the light itself reaches. None of that is visible
+to a layout check.
 
     node test/maze-test.js
     node test/opening-test.js
