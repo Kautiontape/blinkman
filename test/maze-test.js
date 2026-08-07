@@ -93,6 +93,15 @@ expect('maze.tunnelRow', m.tunnelRow, 14);
 expect('maze.spawn.pacman.col', m.spawn.pacman.col, 13);
 expect('maze.board', m.board, 'full');
 
+/* The complexity score the tier bands are expressed in. Pinned to the arcade
+ * layout so a change to the metric has to be deliberate. */
+var arcade = PV.assembleLayout(PV.BOARDS.full, PV.TOP_PIECES[0], PV.BOTTOM_PIECES[0]);
+var sc = PV.scoreLayout(PV.BOARDS.full, arcade);
+expect('arcade junctions', sc.junctions, 34);
+expect('arcade corners', sc.corners, 30);
+expect('arcade score', sc.score, 64);
+expect('arcade pellets', sc.pellets, 242);
+
 var failures = 0;
 var combos = 0;
 

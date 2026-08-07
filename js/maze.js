@@ -295,6 +295,48 @@ window.PV = window.PV || {};
     return problems;
   };
 
+  /* How cut-up a layout is. Junctions are tiles with three or more walkable
+   * neighbours, corners are two-neighbour tiles where the two do not face each
+   * other. Their sum is the score the tier bands are drawn against; the house
+   * interior is excluded because it is the same at every size. */
+  PV.scoreLayout = function (board, layout) {
+    var junctions = 0, corners = 0, pellets = 0, open = 0;
+
+    /* The tunnel row wraps, so a mouth reads as the straight corridor it is
+     * rather than as a corner. Wrapping here covers both the neighbour count
+     * and the facing test below. */
+    function isOpen(c, r) {
+      if (r === board.tunnelRow) {
+        if (c < 0) c = board.cols - 1;
+        else if (c >= board.cols) c = 0;
+      }
+      if (r < 0 || r >= board.rows || c < 0 || c >= board.cols) return false;
+      var ch = layout[r][c];
+      return ch !== '#' && ch !== '-';
+    }
+
+    for (var r = 0; r < board.rows; r++) {
+      for (var c = 0; c < board.cols; c++) {
+        var ch = layout[r][c];
+        if (ch === '.' || ch === 'o') pellets++;
+        if (!isOpen(c, r) || inGhostHouse(board, c, r)) continue;
+        open++;
+        var deg = 0;
+        for (var i = 0; i < NEIGHBOURS.length; i++) {
+          if (isOpen(c + NEIGHBOURS[i][0], r + NEIGHBOURS[i][1])) deg++;
+        }
+        if (deg >= 3) junctions++;
+        else if (deg === 2) {
+          var u = isOpen(c, r - 1), d = isOpen(c, r + 1);
+          var l = isOpen(c - 1, r), rt = isOpen(c + 1, r);
+          if (!((u && d) || (l && rt))) corners++;
+        }
+      }
+    }
+    return { junctions: junctions, corners: corners, score: junctions + corners,
+             pellets: pellets, open: open };
+  };
+
   var warned = {};   // so a bad piece complains once, not once per level
 
   /** Build a fresh, mutable level. The same seed always yields the same maze. */
