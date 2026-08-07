@@ -317,16 +317,17 @@ window.PV = window.PV || {};
      * visible ring arrived. Every ghost is sampled whatever its state: the ping
      * reports where things are, and eaten ghosts show as eyes in every mode. */
     function samplePulse() {
-      var p = game.vision.pulse();
-      if (!p || p.layer !== 'ghosts') return;
-      var reach = p.age * PV.PULSE_SPEED;
-      game.ghosts.forEach(function (g, i) {
-        if (p.blips[i]) return;
-        // wobble too: render.js draws the contact as the ghost's own outline,
-        // and a frozen contact should be frozen mid-waddle, not still moving.
-        if (Math.hypot(g.x - p.x, g.y - p.y) <= reach) {
-          p.blips[i] = { x: g.x, y: g.y, wobble: g.wobble };
-        }
+      game.vision.pulses().forEach(function (p) {
+        if (p.layer !== 'ghosts') return;
+        var reach = p.age * PV.PULSE_SPEED;
+        game.ghosts.forEach(function (g, i) {
+          if (p.blips[i]) return;
+          // wobble too: render.js draws the contact as the ghost's own
+          // outline, and a frozen contact should be frozen mid-waddle.
+          if (Math.hypot(g.x - p.x, g.y - p.y) <= reach) {
+            p.blips[i] = { x: g.x, y: g.y, wobble: g.wobble };
+          }
+        });
       });
     }
 

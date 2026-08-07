@@ -176,9 +176,11 @@ window.PV = window.PV || {};
         // paints in board space rather than through the layer alphas, so it
         // has to report itself.
         var shown = game.visibleAlpha();
-        var pulse = v.pulse();
+        var pulses = v.pulses();
         PV.LAYERS.forEach(function (layer) {
-          var lit = shown[layer] > 0.001 || !!(pulse && pulse.layer === layer);
+          var lit = shown[layer] > 0.001 || pulses.some(function (p) {
+            return p.layer === layer;
+          });
           if (lit === lastShown[layer]) return;
           lastShown[layer] = lit;
           chipEls[layer].classList.toggle('on', lit);

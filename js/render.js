@@ -244,15 +244,17 @@ window.PV = window.PV || {};
   /* The ping. Each element's distance from the frozen origin decides both how
    * bright it is and whether the ring has reached it at all. */
   function drawPulse(ctx, game) {
-    var p = game.vision.pulse();
-    if (!p) return;
+    var pulses = game.vision.pulses();
+    if (!pulses.length) return;
 
     ctx.save();
-    // Under the layer, so it never sits over a contact.
-    drawPulseFront(ctx, p);
-    if (p.layer === 'walls') drawPulseWalls(ctx, game.maze, p, game.rules);
-    else if (p.layer === 'dots') drawPulseDots(ctx, game.maze, p, game.rules);
-    else if (p.layer === 'ghosts') drawPulseBlips(ctx, p, game.rules);
+    pulses.forEach(function (p) {
+      // Under the layer, so it never sits over a contact.
+      drawPulseFront(ctx, p);
+      if (p.layer === 'walls') drawPulseWalls(ctx, game.maze, p, game.rules);
+      else if (p.layer === 'dots') drawPulseDots(ctx, game.maze, p, game.rules);
+      else if (p.layer === 'ghosts') drawPulseBlips(ctx, p, game.rules);
+    });
     ctx.restore();
   }
 

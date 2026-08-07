@@ -39,6 +39,13 @@ function playing() {
   return g;
 }
 
+/* The ping a check just fired, or null. The newest one rather than the first,
+ * because a round opens on a free ping that is still running here. */
+function livePulse(g) {
+  var live = g.vision.pulses();
+  return live[live.length - 1] || null;
+}
+
 console.log('');
 console.log('ping fade curve');
 
@@ -78,7 +85,7 @@ console.log('ping origin');
   var start = { x: g.pacman.x, y: g.pacman.y };
 
   check('a press opens a ping', g.selectVision('walls') === 'ok');
-  var p = g.vision.pulse();
+  var p = livePulse(g);
   check('the ping records where it was fired',
     p && near(p.x, start.x, 0.001) && near(p.y, start.y, 0.001),
     p && p.x + ',' + p.y);
@@ -99,14 +106,14 @@ console.log('ping lifetime');
   g.selectVision('walls');
 
   var life = Math.hypot(PV.WIDTH, PV.HEIGHT) / SPEED + RULES.hold + RULES.fade;
-  check('a ping is alive well before its life is up', g.vision.pulse() !== null);
+  check('a ping is alive well before its life is up', livePulse(g) !== null);
 
   for (var i = 0, n = Math.ceil((life + 0.1) / STEP); i < n; i++) g.update(STEP);
   check('the ping expires once the last element has faded',
-    g.vision.pulse() === null, g.vision.pulse());
+    livePulse(g) === null, livePulse(g));
 
-  check('flash has no ping', PV.createGame('flash-normal').vision.pulse() === null);
-  check('stare has no ping', PV.createGame('stare-normal').vision.pulse() === null);
+  check('flash has no ping', PV.createGame('flash-normal').vision.pulses().length === 0);
+  check('stare has no ping', PV.createGame('stare-normal').vision.pulses().length === 0);
 })();
 
 console.log('');
@@ -120,7 +127,7 @@ console.log('layer alpha stays dark');
   for (var j = 0; j < 12; j++) g.update(STEP);
 
   var a = g.vision.alpha;
-  check('the ping is running', g.vision.pulse() !== null);
+  check('the ping is running', livePulse(g) !== null);
   check('dots dark', a.dots === 0, a.dots);
   check('ghosts dark', a.ghosts === 0, a.ghosts);
   check('walls dark through a live ping', a.walls === 0, a.walls);
@@ -137,7 +144,7 @@ console.log('ghost blips');
   for (var i = 0; i < 100; i++) g.update(STEP);
   check('a ghost ping opens', g.selectVision('ghosts') === 'ok');
 
-  var p = g.vision.pulse();
+  var p = livePulse(g);
   var ghost = g.ghosts[0];       // blinky, out of the house by now
   check('no blip on the frame it is fired', p.blips[0] === undefined, p.blips[0]);
 
@@ -171,7 +178,7 @@ console.log('ghost blips');
   h.selectVision('walls');
   for (var n = 0; n < 40; n++) h.update(STEP);
   check('a walls ping records no blips',
-    h.vision.pulse().blips.length === 0, h.vision.pulse().blips.length);
+    livePulse(h).blips.length === 0, livePulse(h).blips.length);
 })();
 
 console.log('');

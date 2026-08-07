@@ -10,6 +10,7 @@ window.PV = window.PV || {};
 
   var DENIED_FLASH = 0.35;   // how long the HUD flinches after a rejected press
   var OLDER_PICK_ALPHA = 0.55;
+  var NO_PULSES = [];   // handed to the modes that have none, so callers can loop
 
   /* Torch mode's sonar ping. The ring expands at PULSE_SPEED and every element
    * fades on the same curve a Flash pick uses, clocked from the moment the
@@ -34,6 +35,15 @@ window.PV = window.PV || {};
   function pulseLife(rules) {
     return PULSE_SPAN / PULSE_SPEED + rules.hold + rules.fade;
   }
+
+  /* A Flash pick: full through the hold, then eased out on the same curve the
+   * ping's tail uses, so the two cues read alike. */
+  PV.flashAlpha = function (age, rules) {
+    var f = (age - rules.hold) / rules.fade;
+    if (f <= 0) return 1;
+    if (f >= 1) return 0;
+    return (1 - f) * (1 - f);
+  };
 
   /* Where a ping fires from when there is no Pac-Man to ask — the free one a
    * round opens with. Reads the spawn table at load time, as above. */
@@ -164,7 +174,7 @@ window.PV = window.PV || {};
 
   PV.createVision = function (rules) {
     var stack = [];      // stare mode: lit layers, most recent first
-    var flash = null;    // flash mode: { layer, age }
+    var flashes = [];    // flash and torch: live picks, oldest first
     var cooldown = 0;
     var denied = 0;
     var intro = 0;       // age of the opening dots blink
@@ -174,6 +184,15 @@ window.PV = window.PV || {};
     function newFlash(layer, origin) {
       var o = origin || SPAWN_CENTRE;
       return { layer: layer, age: 0, x: o.x, y: o.y, blips: [] };
+    }
+
+    /* Ages every live pick and drops the spent ones. Walking backwards keeps
+     * the indices valid as entries go. */
+    function ageFlashes(dt, life) {
+      for (var i = flashes.length - 1; i >= 0; i--) {
+        flashes[i].age += dt;
+        if (flashes[i].age > life) flashes.splice(i, 1);
+      }
     }
 
     var v = {
@@ -190,7 +209,7 @@ window.PV = window.PV || {};
       /** The layer the HUD badge shows. */
       current: function () {
         if (rules.mode === 'stare') return stack[0] || null;
-        return flash ? flash.layer : null;
+        return flashes.length ? flashes[flashes.length - 1].layer : null;
       },
 
       selectable: function (layer) { return rules.pool.indexOf(layer) !== -1; },
@@ -199,11 +218,12 @@ window.PV = window.PV || {};
       isFree: function (layer) { return rules.freeSelf && layer === 'pacman'; },
 
       /**
-       * Torch mode's live ping, or null. game.js fills `blips`, one entry per
-       * ghost the ring has reached; render.js draws from it.
-       * @returns {?{layer: string, age: number, x: number, y: number, blips: Array}}
+       * Torch mode's live pings, oldest first; an empty list in the other
+       * modes. game.js fills each ping's `blips`, one entry per ghost that
+       * ring has reached; render.js draws from them.
+       * @returns {Array<{layer: string, age: number, x: number, y: number, blips: Array}>}
        */
-      pulse: function () { return rules.mode === 'torch' ? flash : null; },
+      pulses: function () { return rules.mode === 'torch' ? flashes : NO_PULSES; },
 
       /**
        * Player pressed a vision key.
@@ -223,7 +243,7 @@ window.PV = window.PV || {};
           stack.unshift(layer);
           if (stack.length > rules.keep) stack.length = rules.keep;
         } else {
-          flash = newFlash(layer, origin);
+          flashes.push(newFlash(layer, origin));
         }
         cooldown = rules.cooldown;
         return 'ok';
@@ -237,21 +257,16 @@ window.PV = window.PV || {};
         LAYERS.forEach(function (l) { a[l] = 0; });
 
         if (rules.mode === 'torch') {
-          // No layer alpha: the ping and the torch are spatial and are drawn
+          // No layer alpha: the pings and the torch are spatial and are drawn
           // in board space by render.js.
-          if (flash) {
-            flash.age += dt;
-            if (flash.age > pulseLife(rules)) flash = null;
-          }
+          ageFlashes(dt, pulseLife(rules));
         } else if (rules.mode === 'flash') {
-          if (flash) {
-            flash.age += dt;
-            var fade = (flash.age - rules.hold) / rules.fade;
-            if (fade <= 0) a[flash.layer] = 1;
-            // eased, so the last sliver of visibility lingers
-            else if (fade < 1) a[flash.layer] = (1 - fade) * (1 - fade);
-            else flash = null;
-          }
+          ageFlashes(dt, rules.hold + rules.fade);
+          // Brightest wins, so a new pick lifts its layer rather than
+          // replacing whatever is still fading.
+          flashes.forEach(function (f) {
+            a[f.layer] = Math.max(a[f.layer], PV.flashAlpha(f.age, rules));
+          });
         } else {
           // Older picks sit dimmer, so you can tell which one you just asked for.
           stack.forEach(function (l, idx) {
@@ -271,11 +286,10 @@ window.PV = window.PV || {};
 
       reset: function () {
         stack = (rules.initial || []).slice(0, rules.keep);
-        // Flash and Torch start pitch black, so the round opens on one free
-        // flash, fired from the spawn.
-        flash = rules.mode !== 'stare' && rules.initial
-          ? newFlash(rules.initial[0], null)
-          : null;
+        // Flash and Torch start pitch black, so the round opens on the free
+        // picks `initial` names, fired from the spawn.
+        flashes = rules.mode === 'stare' ? [] : (rules.initial || [])
+          .map(function (layer) { return newFlash(layer, null); });
         cooldown = 0;
         denied = 0;
         intro = 0;
