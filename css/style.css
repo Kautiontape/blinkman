@@ -249,16 +249,86 @@ html, body {
 
 .keys { color: var(--dim); font-size: calc(11px * var(--sc, 1)); line-height: 1.9; }
 
-/* Deliberately faint: a build marker, not a thing to read. */
+/* Deliberately faint: a build marker first, and the way into the changelog
+   second. The font, padding and background below are the button defaults being
+   undone — it has to read as the marker it was, not as a control. */
 .version {
   position: absolute;
   right: calc(10px * var(--sc, 1));
   bottom: calc(6px * var(--sc, 1));
+  padding: calc(2px * var(--sc, 1)) calc(4px * var(--sc, 1));
+  background: none;
+  border: 0;
+  font-family: inherit;
   font-size: calc(8.5px * var(--sc, 1));
   letter-spacing: .12em;
   color: var(--dim);
   opacity: .4;
+  cursor: pointer;
+  transition: opacity .12s, color .12s;
 }
+.version:hover, .version:focus-visible { opacity: 1; color: var(--accent2); }
+
+/* The changelog behind the version marker. Left-aligned, unlike every other
+   panel: these are sentences, not a menu. The list scrolls inside the panel
+   because the panel is bounded by the board and the log outgrows it. */
+.panel.changelog {
+  display: flex;
+  flex-direction: column;
+  gap: calc(14px * var(--sc, 1));
+  max-height: 88%;
+  text-align: left;
+}
+/* display:flex above outranks [hidden]'s default style, which main.js toggles */
+.panel.changelog[hidden] { display: none; }
+.panel.changelog h2 {
+  margin: 0;
+  text-align: center;
+  font-size: calc(20px * var(--sc, 1));
+  letter-spacing: calc(4px * var(--sc, 1));
+  color: var(--accent);
+}
+.panel.changelog .txtbtn { flex: 0 0 auto; width: auto; align-self: center; padding: calc(7px * var(--sc, 1)) calc(20px * var(--sc, 1)); font-size: calc(10px * var(--sc, 1)); }
+
+.log {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: calc(14px * var(--sc, 1)) calc(16px * var(--sc, 1));
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: calc(7px * var(--sc, 1));
+}
+/* The log takes focus the moment it opens, so it is holding focus on the
+   pointer path too and a ring would be up every time. The border carries it
+   instead, the way the chips and the text buttons do. */
+.log:focus { outline: none; }
+.log:focus-visible { border-color: var(--accent2); }
+
+.rel + .rel { margin-top: calc(18px * var(--sc, 1)); }
+.rel h3 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: calc(10px * var(--sc, 1));
+  margin: 0 0 calc(8px * var(--sc, 1));
+  padding-bottom: calc(5px * var(--sc, 1));
+  border-bottom: 1px solid var(--line);
+  font-size: calc(12px * var(--sc, 1));
+  letter-spacing: calc(2px * var(--sc, 1));
+  color: var(--accent);
+}
+.rel-date { font-size: calc(9px * var(--sc, 1)); letter-spacing: .1em; color: var(--dim); }
+/* The bullet is the accent, so the marker carries the colour and the text
+   stays the body colour it has to be readable at this size. */
+.rel ul { margin: 0; padding-left: calc(15px * var(--sc, 1)); }
+.rel li {
+  margin: calc(6px * var(--sc, 1)) 0;
+  font-size: calc(11px * var(--sc, 1));
+  line-height: 1.65;
+  color: var(--ink);
+}
+.rel li::marker { color: var(--accent2); }
 
 kbd {
   display: inline-block;

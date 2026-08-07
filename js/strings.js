@@ -131,6 +131,14 @@ window.PV = window.PV || {};
       unavailable: '—'
     },
 
+    /* The notes themselves live in js/changelog.js, which CHANGELOG.md is
+     * generated from. Only the modal's own furniture is here. */
+    changelog: {
+      title: 'WHAT’S NEW',
+      open: 'What’s new',        // the version marker's accessible name
+      close: '← BACK'
+    },
+
     buttons: {
       soundOn: '♫ SOUND: ON',
       soundOff: '♫ SOUND: OFF',

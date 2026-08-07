@@ -70,8 +70,20 @@
             <span data-t="keys.vision" data-t-html></span></div>
           <div><kbd>P</kbd> pause &middot; <kbd>R</kbd> restart &middot; <kbd>M</kbd> mute &middot; <kbd>F</kbd> fullscreen &middot; <kbd>Esc</kbd> menu</div>
         </div>
-        <!-- filled from PV.VERSION so a deploy can be identified on sight -->
-        <div class="version" id="version"></div>
+        <!-- filled from PV.VERSION so a deploy can be identified on sight, and
+             a button because it opens the changelog -->
+        <button class="version" id="version" type="button"></button>
+      </div>
+
+      <!-- The release notes, built in js/changelog.js. A dialog but not an
+           aria-modal one: it takes the menu's place rather than covering it,
+           and the sidebar's mute and fullscreen buttons stay reachable the
+           same way their keys do. -->
+      <div class="panel changelog" id="panel-changelog" role="dialog"
+           aria-labelledby="changelog-title" hidden>
+        <h2 id="changelog-title" data-t="changelog.title"></h2>
+        <div class="log" id="changelog-log" tabindex="0"></div>
+        <button class="txtbtn" id="changelog-close" type="button" data-t="changelog.close"></button>
       </div>
 
       <div class="panel small" id="panel-message" role="status" hidden>
@@ -128,6 +140,7 @@
      render.js, whose PV.wantsCalm it reads. main.js last — it starts the
      loop. -->
 <script src="js/strings.js"></script>
+<script src="js/changelog.js"></script>
 <script src="js/maze.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/vision.js"></script>
