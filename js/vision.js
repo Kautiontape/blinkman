@@ -114,7 +114,8 @@ window.PV = window.PV || {};
       }
     },
     flash: {
-      base: { pool: LAYERS, freeSelf: false, keep: 1, initial: ['walls'] },
+      // The round opens showing the board and where you are standing on it.
+      base: { pool: LAYERS, freeSelf: false, keep: 1, initial: ['walls', 'pacman'] },
       levels: {
         // Easy draws you always, so a flash is only ever spent on the board.
         easy:   { pool: ['dots', 'ghosts', 'walls'], freeSelf: true,

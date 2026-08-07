@@ -138,5 +138,43 @@ console.log('pings stack');
 })();
 
 console.log('');
+console.log('the opening reveal');
+
+(function () {
+  ['flash-normal', 'flash-hard'].forEach(function (id) {
+    var g = PV.createGame(id, { persist: false });
+    g.startRound();
+    var a = g.vision.alpha;
+    check(id + ' opens with the walls lit', a.walls === 1, a.walls);
+    check(id + ' opens with you lit', a.pacman === 1, a.pacman);
+  });
+
+  // Easy draws you always, so the seeded pick changes nothing there.
+  var easy = PV.createGame('flash-easy', { persist: false });
+  easy.startRound();
+  check('flash-easy still draws you', easy.vision.alpha.pacman === 1,
+    easy.vision.alpha.pacman);
+
+  // The opening reveal fades out like any other pick.
+  var g = PV.createGame('flash-normal', { persist: false });
+  g.startRound();
+  g.maze.eatPellet = function () { return 0; };
+  g.invuln = Infinity;
+  g.steer(PV.DIRS.left);
+  var RULES = PV.DIFFICULTIES['flash-normal'];
+  for (var i = 0, n = Math.ceil((RULES.hold + RULES.fade) / STEP) + 2; i < n; i++) {
+    g.update(STEP);
+  }
+  check('the opening reveal fades out', g.vision.alpha.pacman === 0,
+    g.vision.alpha.pacman);
+
+  // Stare's `initial` is its stack, and must not gain a pacman entry.
+  check('stare seeds no pings', PV.DIFFICULTIES['stare-normal'].initial.join(',') === 'walls',
+    PV.DIFFICULTIES['stare-normal'].initial.join(','));
+  check('torch seeds only the walls', PV.DIFFICULTIES['torch-normal'].initial.join(',') === 'walls',
+    PV.DIFFICULTIES['torch-normal'].initial.join(','));
+})();
+
+console.log('');
 console.log(failures === 0 ? 'ALL FLASH CHECKS OK' : failures + ' CHECK(S) FAILED');
 process.exit(failures === 0 ? 0 : 1);

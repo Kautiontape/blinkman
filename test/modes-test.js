@@ -91,7 +91,7 @@ var CARRIED = {
   },
   'flash-normal': {
     mode: 'flash', pool: 'dots,ghosts,walls,pacman', keep: 1, freeSelf: false,
-    cooldown: 1, ghostSpeed: 0.86, initial: 'walls', hold: 0.4, fade: 2.0
+    cooldown: 1, ghostSpeed: 0.86, initial: 'walls,pacman', hold: 0.4, fade: 2.0
   }
 };
 
