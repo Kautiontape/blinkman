@@ -225,5 +225,23 @@ else
 fi
 teardown
 
+# Not a fixture case: this checks the real repo's files, not the throwaway
+# one setup() builds, so it needs no setup/teardown. tools/release.sh's
+# run_suite calls and .github/workflows/deploy.yml's Test step run the same
+# suites in the same order; nothing else checks that, so a suite added to one
+# and forgotten in the other would run in CI forever with no signal.
+release_suites="$(grep -oE 'run_suite test/[a-z]+-test\.js' "$root/tools/release.sh" |
+  sed -E 's#run_suite test/([a-z]+)-test\.js#\1#')"
+deploy_suites="$(grep -oE 'node test/[a-z]+-test\.js' "$root/.github/workflows/deploy.yml" |
+  sed -E 's#node test/([a-z]+)-test\.js#\1#')"
+suite_diff="$(diff <(printf '%s\n' "$release_suites") <(printf '%s\n' "$deploy_suites"))"
+if [ -z "$suite_diff" ]; then
+  ok 'release.sh and deploy.yml run the same suites in the same order'
+else
+  no 'release.sh and deploy.yml run the same suites in the same order' \
+    "tools/release.sh (<) vs .github/workflows/deploy.yml (>):
+$suite_diff"
+fi
+
 printf '\n%s passed, %s failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

@@ -134,7 +134,7 @@ is what lets `file://` work.
     js/game.js      rounds, scoring, collisions, ghost release
     js/attract.js   the autopilot demo behind the menu
     js/render.js    canvas drawing
-    js/aura.js      board-edge glow: fright running, fright ending, life lost
+    js/aura.js      board-edge glow for fright, its end, life lost
     js/hud.js       score, badge, cooldown ring, the layer nudge
     js/menu.js      the mode and difficulty picker on the title screen
     js/audio.js     synthesised sound, no audio files
