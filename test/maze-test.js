@@ -60,6 +60,39 @@ function deadEnds(layout) {
   return hits;
 }
 
+/* Board templates. The full board must describe exactly what the module
+ * constants used to hardcode, so migrating consumers onto it is a no-op. */
+var templateFailures = 0;
+function expect(label, got, want) {
+  if (got === want) return;
+  templateFailures++;
+  console.log('  TEMPLATE  ' + label + ': got ' + got + ', want ' + want);
+}
+
+var full = PV.BOARDS.full;
+expect('full.cols', full.cols, 28);
+expect('full.rows', full.rows, 31);
+expect('full.tunnelRow', full.tunnelRow, 14);
+expect('full.house.c0', full.house.c0, 10);
+expect('full.house.c1', full.house.c1, 17);
+expect('full.house.r0', full.house.r0, 12);
+expect('full.house.r1', full.house.r1, 16);
+expect('full.spawn.pacman.col', full.spawn.pacman.col, 13);
+expect('full.spawn.pacman.row', full.spawn.pacman.row, 23);
+expect('full.spawn.outside.row', full.spawn.outside.row, 11);
+expect('full.spawn.inky.col', full.spawn.inky.col, 11);
+expect('full.spawn.clyde.col', full.spawn.clyde.col, 15);
+
+// A maze carries its own board, so nothing needs the module constants.
+var m = PV.createMaze(9);
+expect('maze.cols', m.cols, 28);
+expect('maze.rows', m.rows, 31);
+expect('maze.width', m.width, 560);
+expect('maze.height', m.height, 620);
+expect('maze.tunnelRow', m.tunnelRow, 14);
+expect('maze.spawn.pacman.col', m.spawn.pacman.col, 13);
+expect('maze.board', m.board, 'full');
+
 var failures = 0;
 var combos = 0;
 
@@ -67,8 +100,8 @@ PV.TOP_PIECES.forEach(function (top) {
   PV.BOTTOM_PIECES.forEach(function (bottom) {
     combos++;
     var id = top.id + '/' + bottom.id;
-    var layout = PV.assembleLayout(top, bottom);
-    var problems = PV.checkLayout(layout);
+    var layout = PV.assembleLayout(full, top, bottom);
+    var problems = PV.checkLayout(full, layout);
     var wide = wideSpots(layout);
     var dead = deadEnds(layout);
 
@@ -111,8 +144,9 @@ console.log('seed reproducible:        ' + (reproducible ? 'PASS' : 'FAIL'));
 console.log('combinations reachable:   ' + distinct + '/' + combos +
   ' ' + (distinct === combos ? 'PASS' : 'FAIL'));
 
-var ok = failures === 0 && reproducible && distinct === combos;
+var ok = failures === 0 && reproducible && distinct === combos && templateFailures === 0;
 console.log('');
+console.log('board templates:          ' + (templateFailures === 0 ? 'PASS' : 'FAIL'));
 console.log(ok ? 'ALL ' + combos + ' MAZE COMBINATIONS VALID'
                : failures + ' COMBINATION(S) REJECTED');
 process.exit(ok ? 0 : 1);

@@ -13,10 +13,9 @@ window.PV = window.PV || {};
   var TUNNEL_ROW = 14;
 
   // Layout legend:  # wall   . pellet   o power pellet   - house door   ' ' floor
-  var BORDER = '##############';
 
   // Rows 9-19: ghost house, tunnel, and their flanking corridors.
-  var MIDDLE = [
+  var MIDDLE_FULL = [
     '######.##### #',
     '######.##### #',
     '######.##     ',
@@ -136,14 +135,44 @@ window.PV = window.PV || {};
     ]}
   ];
 
-  var SPAWN = {
-    pacman:  { col: 13, row: 23 },
-    door:    { col: 13, row: 12 },
-    outside: { col: 13, row: 11 },
-    blinky:  { col: 13, row: 13 },
-    pinky:   { col: 13, row: 14 },
-    inky:    { col: 11, row: 14 },
-    clyde:   { col: 15, row: 14 }
+  /* A board template is the shape a pair of pieces drops into: dimensions, the
+   * tunnel row, the fixed middle band, the ghost-house block, and where the
+   * seven actors start. `house` is the block including its walls; the sealed
+   * interior is that shrunk by one on every side.
+   *
+   * Scatter corners are derived from the board rather than stored — see
+   * PV.scatterCorners below. */
+  var BOARDS = {
+    full: {
+      id: 'full',
+      cols: 28, rows: 31, tunnelRow: 14,
+      middle: MIDDLE_FULL,
+      house: { c0: 10, c1: 17, r0: 12, r1: 16 },
+      minPellets: 150,
+      spawn: {
+        pacman:  { col: 13, row: 23 },
+        door:    { col: 13, row: 12 },
+        outside: { col: 13, row: 11 },
+        blinky:  { col: 13, row: 13 },
+        pinky:   { col: 13, row: 14 },
+        inky:    { col: 11, row: 14 },
+        clyde:   { col: 15, row: 14 }
+      }
+    }
+  };
+
+  PV.BOARDS = BOARDS;
+
+  /* The four corners a ghost retreats to in scatter, as offsets from the board
+   * rather than fixed tiles, so they land inside every template. The two-in
+   * inset on the top pair is the arcade's. */
+  PV.scatterCorners = function (board) {
+    return {
+      blinky: { col: board.cols - 3, row: 0 },
+      pinky:  { col: 2,              row: 0 },
+      inky:   { col: board.cols - 1, row: board.rows - 1 },
+      clyde:  { col: 0,              row: board.rows - 1 }
+    };
   };
 
   var GHOST_NAMES = ['blinky', 'pinky', 'inky', 'clyde'];
@@ -152,7 +181,7 @@ window.PV = window.PV || {};
   PV.COLS = COLS;
   PV.ROWS = ROWS;
   PV.TUNNEL_ROW = TUNNEL_ROW;
-  PV.SPAWN = SPAWN;
+  PV.SPAWN = BOARDS.full.spawn;   // removed in Task 8
   PV.WIDTH = COLS * TILE;
   PV.HEIGHT = ROWS * TILE;
   PV.TOP_PIECES = TOP_PIECES;
@@ -175,39 +204,43 @@ window.PV = window.PV || {};
     return half + half.split('').reverse().join('');
   }
 
-  // The sealed interior of the ghost house.
-  function inGhostHouse(c, r) {
-    return r >= 13 && r <= 15 && c >= 11 && c <= 16;
+  // The sealed interior of the ghost house: the block minus its walls.
+  function inGhostHouse(board, c, r) {
+    var h = board.house;
+    return r > h.r0 && r < h.r1 && c > h.c0 && c < h.c1;
   }
 
-  PV.assembleLayout = function (topPiece, bottomPiece) {
-    return [BORDER]
+  PV.assembleLayout = function (board, topPiece, bottomPiece) {
+    var border = new Array(board.cols / 2 + 1).join('#');
+    return [border]
       .concat(topPiece.rows)
-      .concat(MIDDLE)
+      .concat(board.middle)
       .concat(bottomPiece.rows)
-      .concat([BORDER])
+      .concat([border])
       .map(mirror);
   };
 
   var NEIGHBOURS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
   /** Validate an assembled layout. Returns a list of problems; empty means ok. */
-  PV.checkLayout = function (layout) {
+  PV.checkLayout = function (board, layout) {
     var problems = [];
 
-    if (layout.length !== ROWS) problems.push('expected ' + ROWS + ' rows, got ' + layout.length);
+    if (layout.length !== board.rows) {
+      problems.push('expected ' + board.rows + ' rows, got ' + layout.length);
+    }
     layout.forEach(function (row, i) {
-      if (row.length !== COLS) problems.push('row ' + i + ' is ' + row.length + ' wide');
+      if (row.length !== board.cols) problems.push('row ' + i + ' is ' + row.length + ' wide');
     });
     if (problems.length) return problems;
 
     function open(c, r) {
-      if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return false;
+      if (r < 0 || r >= board.rows || c < 0 || c >= board.cols) return false;
       var ch = layout[r][c];
       return ch !== '#' && ch !== '-';
     }
 
-    var start = SPAWN.pacman;
+    var start = board.spawn.pacman;
     if (!open(start.col, start.row)) return ['Pac-Man spawns inside a wall'];
 
     var seen = {};
@@ -218,9 +251,9 @@ window.PV = window.PV || {};
       var cur = queue.pop();
       for (var i = 0; i < NEIGHBOURS.length; i++) {
         var nc = cur[0] + NEIGHBOURS[i][0], nr = cur[1] + NEIGHBOURS[i][1];
-        if (nr === TUNNEL_ROW) {                 // the tunnel joins the two edges
-          if (nc < 0) nc = COLS - 1;
-          else if (nc >= COLS) nc = 0;
+        if (nr === board.tunnelRow) {             // the tunnel joins the two edges
+          if (nc < 0) nc = board.cols - 1;
+          else if (nc >= board.cols) nc = 0;
         }
         if (!open(nc, nr)) continue;
         var key = nc + ',' + nr;
@@ -233,24 +266,28 @@ window.PV = window.PV || {};
     // Walkable tiles the fill missed make the level unwinnable; the house
     // interior is meant to be sealed off, so it is exempt.
     var strayFloor = 0, strayPellets = 0, power = 0, pellets = 0;
-    for (var r = 0; r < ROWS; r++) {
-      for (var c = 0; c < COLS; c++) {
+    for (var r = 0; r < board.rows; r++) {
+      for (var c = 0; c < board.cols; c++) {
         var ch = layout[r][c];
         if (ch === 'o') power++;
         if (ch === 'o' || ch === '.') pellets++;
-        if (!open(c, r) || seen[c + ',' + r] || inGhostHouse(c, r)) continue;
+        if (!open(c, r) || seen[c + ',' + r] || inGhostHouse(board, c, r)) continue;
         if (ch === '.' || ch === 'o') strayPellets++; else strayFloor++;
       }
     }
     if (strayPellets) problems.push(strayPellets + ' unreachable pellet(s)');
     if (strayFloor) problems.push(strayFloor + ' unreachable floor tile(s)');
     if (power !== 4) problems.push('expected 4 power pellets, got ' + power);
-    if (pellets < 150) problems.push('only ' + pellets + ' pellets — too sparse');
+    if (pellets < board.minPellets) {
+      problems.push('only ' + pellets + ' pellets — below this board\'s floor of ' + board.minPellets);
+    }
 
     GHOST_NAMES.forEach(function (n) {
-      if (layout[SPAWN[n].row][SPAWN[n].col] === '#') problems.push(n + ' spawns inside a wall');
+      var s = board.spawn[n];
+      if (layout[s.row][s.col] === '#') problems.push(n + ' spawns inside a wall');
     });
-    if (layout[SPAWN.door.row][SPAWN.door.col] !== '-') problems.push('house door missing');
+    var door = board.spawn.door;
+    if (layout[door.row][door.col] !== '-') problems.push('house door missing');
 
     return problems;
   };
@@ -261,16 +298,17 @@ window.PV = window.PV || {};
   PV.createMaze = function (seed) {
     if (seed == null) seed = (Math.random() * 0xffffffff) >>> 0;
     var rand = mulberry32(seed);
+    var board = BOARDS.full;
 
     var top = TOP_PIECES[Math.floor(rand() * TOP_PIECES.length)];
     var bottom = BOTTOM_PIECES[Math.floor(rand() * BOTTOM_PIECES.length)];
-    var layout = PV.assembleLayout(top, bottom);
+    var layout = PV.assembleLayout(board, top, bottom);
 
     // test/maze-test.js covers every shipped combination; this is the net for
     // an edit that hasn't been run through it.
-    var problems = PV.checkLayout(layout);
+    var problems = PV.checkLayout(board, layout);
     if (problems.length) {
-      var key = top.id + '/' + bottom.id;
+      var key = board.id + ' ' + top.id + '/' + bottom.id;
       if (!warned[key]) {
         warned[key] = true;
         console.error('maze: layout ' + key + ' rejected (' + problems.join('; ') +
@@ -278,15 +316,20 @@ window.PV = window.PV || {};
       }
       top = TOP_PIECES[0];
       bottom = BOTTOM_PIECES[0];
-      layout = PV.assembleLayout(top, bottom);
+      layout = PV.assembleLayout(board, top, bottom);
     }
 
+    return buildMaze(board, layout, seed, top.id + '/' + bottom.id);
+  };
+
+  // Turn a validated layout into the mutable level the game plays on.
+  function buildMaze(board, layout, seed, recipe) {
     var walls = [], doors = [], pellets = [];
     var pelletsLeft = 0;
 
-    for (var r = 0; r < ROWS; r++) {
+    for (var r = 0; r < board.rows; r++) {
       walls[r] = []; doors[r] = []; pellets[r] = [];
-      for (var c = 0; c < COLS; c++) {
+      for (var c = 0; c < board.cols; c++) {
         var ch = layout[r][c];
         walls[r][c] = ch === '#';
         doors[r][c] = ch === '-';
@@ -296,27 +339,34 @@ window.PV = window.PV || {};
     }
 
     function isWall(c, r) {
-      if (r < 0 || r >= ROWS) return true;
-      if (c < 0 || c >= COLS) return r !== TUNNEL_ROW;   // the tunnel runs off both edges
+      if (r < 0 || r >= board.rows) return true;
+      // the tunnel runs off both edges
+      if (c < 0 || c >= board.cols) return r !== board.tunnelRow;
       return walls[r][c];
     }
 
     function isDoor(c, r) {
-      if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return false;
+      if (r < 0 || r >= board.rows || c < 0 || c >= board.cols) return false;
       return doors[r][c];
     }
 
     function pelletAt(c, r) {
-      if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return 0;
+      if (r < 0 || r >= board.rows || c < 0 || c >= board.cols) return 0;
       return pellets[r][c];
     }
 
     var maze = {
-      cols: COLS, rows: ROWS, tile: TILE,
+      board: board.id,
+      cols: board.cols, rows: board.rows, tile: TILE,
+      width: board.cols * TILE, height: board.rows * TILE,
+      tunnelRow: board.tunnelRow,
+      spawn: board.spawn,
+      scatter: PV.scatterCorners(board),
+      house: board.house,
       walls: walls, doors: doors, pellets: pellets,
       totalPellets: pelletsLeft,
       seed: seed,
-      recipe: top.id + '/' + bottom.id,
+      recipe: recipe,
 
       get pelletsLeft() { return pelletsLeft; },
 
@@ -340,16 +390,16 @@ window.PV = window.PV || {};
       }
     };
 
-    maze.edges = buildEdges(isWall);
+    maze.edges = buildEdges(board, isWall);
     return maze;
-  };
+  }
 
   // One segment per wall face that touches open space, precomputed so the
   // renderer can stroke the whole outline as a single path.
-  function buildEdges(isWall) {
+  function buildEdges(board, isWall) {
     var segs = [];
-    for (var r = 0; r < ROWS; r++) {
-      for (var c = 0; c < COLS; c++) {
+    for (var r = 0; r < board.rows; r++) {
+      for (var c = 0; c < board.cols; c++) {
         if (!isWall(c, r)) continue;
         var x = c * TILE, y = r * TILE;
         if (!isWall(c, r - 1)) segs.push([x, y, x + TILE, y]);
