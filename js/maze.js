@@ -29,6 +29,42 @@ window.PV = window.PV || {};
     '######.## ####'
   ];
 
+  /* Rows 8-14 of the small board. The house is the full 8x5 block with a 6x3
+   * interior at every size; what shrinks is the playfield beside it. The band's
+   * top and bottom rows double as the maze's horizontal corridors rather than
+   * being a dedicated moat, which is what makes a full house fit. */
+  var MIDDLE_SMALL = [
+    '#....     ',
+    '#.### ###-',
+    '#.### #   ',
+    '      #   ',   // tunnel
+    '#.### #   ',
+    '#.### ####',
+    '#....     '
+  ];
+
+  // Rows 9-15 of the mid board.
+  var MIDDLE_MID = [
+    '#.....     ',
+    '#.##.# ###-',
+    '#.##.# #   ',
+    '       #   ',   // tunnel
+    '#.##.# #   ',
+    '#.##.# ####',
+    '#.....     '
+  ];
+
+  // Rows 10-16 of the large board.
+  var MIDDLE_LARGE = [
+    '#.....      ',
+    '#.###.# ###-',
+    '#.###.# #   ',
+    '        #   ',   // tunnel
+    '#.###.# #   ',
+    '#.###.# ####',
+    '#.....      '
+  ];
+
   /* Rows 1-8. Every variant leaves rows 1, 5 and 8 plus columns 1 and 6 open.
    *
    * Authoring rules, enforced by test/maze-test.js: a two-row band (6-7) may
@@ -143,10 +179,65 @@ window.PV = window.PV || {};
    * Scatter corners are derived from the board rather than stored — see
    * PV.scatterCorners below. */
   var BOARDS = {
+    small: {
+      id: 'small',
+      cols: 20, rows: 23, tunnelRow: 11,
+      middle: MIDDLE_SMALL,
+      topRows: 7, bottomRows: 7,
+      house: { c0: 6, c1: 13, r0: 9, r1: 13 },
+      minPellets: 110,
+      tiers: {},
+      spawn: {
+        pacman:  { col: 9, row: 17 },
+        door:    { col: 9, row: 9 },
+        outside: { col: 9, row: 8 },
+        blinky:  { col: 9, row: 10 },
+        pinky:   { col: 9, row: 11 },
+        inky:    { col: 7, row: 11 },
+        clyde:   { col: 11, row: 11 }
+      }
+    },
+    mid: {
+      id: 'mid',
+      cols: 22, rows: 25, tunnelRow: 12,
+      middle: MIDDLE_MID,
+      topRows: 8, bottomRows: 8,
+      house: { c0: 7, c1: 14, r0: 10, r1: 14 },
+      minPellets: 130,
+      tiers: {},
+      spawn: {
+        pacman:  { col: 10, row: 19 },
+        door:    { col: 10, row: 10 },
+        outside: { col: 10, row: 9 },
+        blinky:  { col: 10, row: 11 },
+        pinky:   { col: 10, row: 12 },
+        inky:    { col: 8, row: 12 },
+        clyde:   { col: 12, row: 12 }
+      }
+    },
+    large: {
+      id: 'large',
+      cols: 24, rows: 27, tunnelRow: 13,
+      middle: MIDDLE_LARGE,
+      topRows: 9, bottomRows: 9,
+      house: { c0: 8, c1: 15, r0: 11, r1: 15 },
+      minPellets: 160,
+      tiers: {},
+      spawn: {
+        pacman:  { col: 11, row: 20 },
+        door:    { col: 11, row: 11 },
+        outside: { col: 11, row: 10 },
+        blinky:  { col: 11, row: 12 },
+        pinky:   { col: 11, row: 13 },
+        inky:    { col: 9, row: 13 },
+        clyde:   { col: 13, row: 13 }
+      }
+    },
     full: {
       id: 'full',
       cols: 28, rows: 31, tunnelRow: 14,
       middle: MIDDLE_FULL,
+      topRows: 8, bottomRows: 10,
       house: { c0: 10, c1: 17, r0: 12, r1: 16 },
       minPellets: 150,
       spawn: {

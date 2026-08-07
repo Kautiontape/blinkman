@@ -102,6 +102,25 @@ expect('arcade corners', sc.corners, 30);
 expect('arcade score', sc.score, 64);
 expect('arcade pellets', sc.pellets, 242);
 
+// Geometry invariants every template shares — these catch a typo in the data.
+Object.keys(PV.BOARDS).forEach(function (id) {
+  var b = PV.BOARDS[id];
+  expect(id + ' mirrors evenly', b.cols % 2, 0);
+  expect(id + ' rows add up', 1 + b.topRows + b.middle.length + b.bottomRows + 1, b.rows);
+  expect(id + ' house interior is 6 wide', b.house.c1 - b.house.c0 - 1, 6);
+  expect(id + ' house interior is 3 tall', b.house.r1 - b.house.r0 - 1, 3);
+  expect(id + ' tunnel runs through the house',
+    b.tunnelRow > b.house.r0 && b.tunnelRow < b.house.r1, true);
+  expect(id + ' middle band is authored half-width', b.middle[0].length, b.cols / 2);
+  expect(id + ' has a pellet floor', typeof b.minPellets, 'number');
+  var corners = PV.scatterCorners(b);
+  Object.keys(corners).forEach(function (n) {
+    var t = corners[n];
+    expect(id + ' ' + n + ' scatters onto the board',
+      t.col >= 0 && t.col < b.cols && t.row >= 0 && t.row < b.rows, true);
+  });
+});
+
 var failures = 0;
 var combos = 0;
 
