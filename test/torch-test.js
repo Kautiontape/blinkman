@@ -6,7 +6,9 @@
  */
 global.window = {};
 var path = require('path');
-['maze.js', 'entities.js', 'vision.js', 'game.js', 'render.js'].forEach(function (f) {
+// Mirrors index.html's relative script order, so a module-scope capture from
+// game.js would go red here exactly as it would silently break in the browser.
+['maze.js', 'vision.js', 'entities.js', 'render.js', 'game.js'].forEach(function (f) {
   require(path.join(__dirname, '..', 'js', f));
 });
 var PV = global.window.PV;
@@ -37,6 +39,13 @@ function playing() {
   g.invuln = Infinity;
   g.steer(PV.DIRS.left);
   return g;
+}
+
+/* The ping a check just fired, or null. The newest one rather than the first,
+ * because a round opens on a free ping that is still running here. */
+function livePulse(g) {
+  var live = g.vision.pulses();
+  return live[live.length - 1] || null;
 }
 
 console.log('');
@@ -78,7 +87,7 @@ console.log('ping origin');
   var start = { x: g.pacman.x, y: g.pacman.y };
 
   check('a press opens a ping', g.selectVision('walls') === 'ok');
-  var p = g.vision.pulse();
+  var p = livePulse(g);
   check('the ping records where it was fired',
     p && near(p.x, start.x, 0.001) && near(p.y, start.y, 0.001),
     p && p.x + ',' + p.y);
@@ -99,14 +108,14 @@ console.log('ping lifetime');
   g.selectVision('walls');
 
   var life = Math.hypot(PV.WIDTH, PV.HEIGHT) / SPEED + RULES.hold + RULES.fade;
-  check('a ping is alive well before its life is up', g.vision.pulse() !== null);
+  check('a ping is alive well before its life is up', livePulse(g) !== null);
 
   for (var i = 0, n = Math.ceil((life + 0.1) / STEP); i < n; i++) g.update(STEP);
   check('the ping expires once the last element has faded',
-    g.vision.pulse() === null, g.vision.pulse());
+    livePulse(g) === null, livePulse(g));
 
-  check('flash has no ping', PV.createGame('flash-normal').vision.pulse() === null);
-  check('stare has no ping', PV.createGame('stare-normal').vision.pulse() === null);
+  check('flash has no ping', PV.createGame('flash-normal').vision.pulses().length === 0);
+  check('stare has no ping', PV.createGame('stare-normal').vision.pulses().length === 0);
 })();
 
 console.log('');
@@ -120,7 +129,7 @@ console.log('layer alpha stays dark');
   for (var j = 0; j < 12; j++) g.update(STEP);
 
   var a = g.vision.alpha;
-  check('the ping is running', g.vision.pulse() !== null);
+  check('the ping is running', livePulse(g) !== null);
   check('dots dark', a.dots === 0, a.dots);
   check('ghosts dark', a.ghosts === 0, a.ghosts);
   check('walls dark through a live ping', a.walls === 0, a.walls);
@@ -137,7 +146,7 @@ console.log('ghost blips');
   for (var i = 0; i < 100; i++) g.update(STEP);
   check('a ghost ping opens', g.selectVision('ghosts') === 'ok');
 
-  var p = g.vision.pulse();
+  var p = livePulse(g);
   var ghost = g.ghosts[0];       // blinky, out of the house by now
   check('no blip on the frame it is fired', p.blips[0] === undefined, p.blips[0]);
 
@@ -153,6 +162,9 @@ console.log('ghost blips');
     p.blips[0].x + ',' + p.blips[0].y);
 
   var frozen = { x: p.blips[0].x, y: p.blips[0].y, wobble: p.blips[0].wobble };
+  check('the contact records the distance the ring found it at',
+    near(p.blips[0].dist,
+      Math.hypot(frozen.x - p.x, frozen.y - p.y), 0.001), p.blips[0].dist);
   check('the blip freezes the waddle too, so the outline holds still',
     frozen.wobble === ghost.wobble, frozen.wobble);
 
@@ -171,7 +183,90 @@ console.log('ghost blips');
   h.selectVision('walls');
   for (var n = 0; n < 40; n++) h.update(STEP);
   check('a walls ping records no blips',
-    h.vision.pulse().blips.length === 0, h.vision.pulse().blips.length);
+    livePulse(h).blips.length === 0, livePulse(h).blips.length);
+})();
+
+console.log('');
+console.log('tracked blips');
+
+(function () {
+  var g = PV.createGame('torch-easy');
+  g.startRound();
+  g.maze.eatPellet = function () { return 0; };
+  g.invuln = Infinity;
+  g.steer(PV.DIRS.left);
+  for (var i = 0; i < 100; i++) g.update(STEP);
+  check('a ghost ping opens', g.selectVision('ghosts') === 'ok');
+
+  var p = livePulse(g);
+  var ghost = g.ghosts[0];
+  for (var f = 0; f < 60 && !p.blips[0]; f++) g.update(STEP);
+  check('the ring reaches it', !!p.blips[0]);
+
+  var dist = p.blips[0].dist;
+  check('the contact distance is recorded', dist > 0, dist);
+
+  var at = { x: p.blips[0].x, y: p.blips[0].y };
+  for (var k = 0; k < 20; k++) g.update(STEP);
+
+  check('the ghost moved on', Math.hypot(ghost.x - at.x, ghost.y - at.y) > 4,
+    Math.hypot(ghost.x - at.x, ghost.y - at.y).toFixed(1));
+  check('the blip followed it',
+    near(p.blips[0].x, ghost.x, 0.001) && near(p.blips[0].y, ghost.y, 0.001),
+    p.blips[0].x + ',' + p.blips[0].y);
+  check('the blip keeps waddling', p.blips[0].wobble === ghost.wobble,
+    p.blips[0].wobble);
+  check('the fade still runs off the contact distance',
+    p.blips[0].dist === dist, p.blips[0].dist);
+
+  // Normal and Hard leave a contact where they found it.
+  check('normal does not track', !PV.DIFFICULTIES['torch-normal'].pingTracks);
+  check('hard does not track', !PV.DIFFICULTIES['torch-hard'].pingTracks);
+  check('easy tracks', PV.DIFFICULTIES['torch-easy'].pingTracks === true);
+})();
+
+console.log('');
+console.log('two pings at once');
+
+/* Picks stack, so two ghosts pings run together. Each carries its own
+ * contacts: they fired from different places, so the same ghost sits a
+ * different distance from each and their fades run on separate clocks. */
+(function () {
+  var g = PV.createGame('torch-easy');
+  g.startRound();
+  g.maze.eatPellet = function () { return 0; };
+  g.invuln = Infinity;
+  g.steer(PV.DIRS.left);
+  for (var i = 0; i < 100; i++) g.update(STEP);
+
+  check('the first ghost ping opens', g.selectVision('ghosts') === 'ok');
+  var first = livePulse(g);
+  for (var f = 0; f < 60 && !first.blips[0]; f++) g.update(STEP);
+  check('the first ping has a contact', !!first.blips[0]);
+
+  // He is against a wall by now, so turn him up the corridor: the second ping
+  // has to fire from somewhere the first did not. 70 frames clears the 1s
+  // cooldown and leaves the first ping well inside its life.
+  g.steer(PV.DIRS.up);
+  for (var c = 0; c < 70; c++) g.update(STEP);
+  check('the second ghost ping opens', g.selectVision('ghosts') === 'ok');
+  var second = livePulse(g);
+  check('the two pings fired from different places',
+    Math.hypot(second.x - first.x, second.y - first.y) > 4,
+    Math.hypot(second.x - first.x, second.y - first.y).toFixed(1));
+
+  for (var s = 0; s < 60 && !second.blips[0]; s++) g.update(STEP);
+  check('the second ping has a contact too', !!second.blips[0]);
+
+  var live = g.vision.pulses();
+  check('both pings are still running',
+    live.indexOf(first) !== -1 && live.indexOf(second) !== -1, live.length);
+  check('each ping owns its own contacts', first.blips !== second.blips);
+  check('one ghost, two rings, two contacts',
+    first.blips[0] !== second.blips[0]);
+  check('the same ghost is a different distance from each ring',
+    Math.abs(first.blips[0].dist - second.blips[0].dist) > 1,
+    first.blips[0].dist + ' vs ' + second.blips[0].dist);
 })();
 
 console.log('');
@@ -307,6 +402,177 @@ console.log('the torch ladder');
   }
   check('a wide cone reaches what a narrow one misses',
     lit(easy) > 0 && lit(hard) === 0, lit(easy) + ' / ' + lit(hard));
+
+  // Hard is a bare pool of light: no cone, so nothing reaches past the disc.
+  check('hard has no cone at all',
+    hard.coneLen === 0 && hard.coneHalf === 0,
+    hard.coneLen + ' / ' + hard.coneHalf);
+
+  var P = {
+    radius: hard.torchRadius, coneLen: hard.coneLen,
+    coneHalf: hard.coneHalf, soft: PV.TORCH_SOFT
+  };
+  check('hard lights every direction the same',
+    PV.torchAlpha(hard.torchRadius - 20, 0, PV.DIRS.right, P) ===
+    PV.torchAlpha(-(hard.torchRadius - 20), 0, PV.DIRS.right, P));
+  check('hard lights nothing past its own radius',
+    PV.torchAlpha(hard.torchRadius + 1, 0, PV.DIRS.right, P) === 0,
+    PV.torchAlpha(hard.torchRadius + 1, 0, PV.DIRS.right, P));
+})();
+
+var OPEN_MAZE = { isWall: function () { return false; } };
+var SPILL = 700;   // px/s the lit edge travels — render.js's TORCH_SPILL
+
+/** The shortest and longest ray in a reach array. */
+function span(reach) {
+  var min = Infinity, max = 0;
+  for (var i = 0; i < reach.length; i++) {
+    if (reach[i] < min) min = reach[i];
+    if (reach[i] > max) max = reach[i];
+  }
+  return { min: min, max: max, text: min + ' .. ' + max };
+}
+
+/** A torch standing at the board's centre, shaped by a difficulty's reach. */
+function torchOf(id) {
+  var rules = PV.DIFFICULTIES[id];
+  return {
+    x: PV.center(14), y: PV.center(23),
+    radius: rules.torchRadius, coneLen: rules.coneLen, coneHalf: rules.coneHalf,
+    soft: PV.TORCH_SOFT, dir: PV.DIRS.right
+  };
+}
+
+console.log('');
+console.log('a coneless torch still reaches');
+
+/* Hard has no cone at all, which is the case the ray code can silently lose:
+ * torchEase caps every ray at the furthest the light can go, and reads an
+ * on-axis ray as cone-lit. Either one collapses a coneless torch to nothing
+ * unless it falls back to the disc, and neither is visible to torchAlpha.
+ *
+ * A mem carrying no rays yet has nothing to ease from, so this frame is the
+ * bare geometry with the easing standing aside — which is why the fixture
+ * below asserts the mem really is empty before measuring anything. The second
+ * frame is here so the reading cannot be a first-frame artifact: the disc is
+ * where the easing settles, not just where it starts. */
+(function () {
+  var hard = PV.DIFFICULTIES['torch-hard'];
+  var torch = torchOf('torch-hard');
+  var mem = { facing: null, reach: null, x: 0, y: 0 };
+  check('the fixture has no rays to ease from', mem.reach === null, mem.reach);
+
+  var first = span(PV.torchEase(mem, torch, OPEN_MAZE, STEP));
+  check('every ray reaches the disc edge in open space',
+    near(first.min, hard.torchRadius, 0.001) &&
+    near(first.max, hard.torchRadius, 0.001), first.text);
+
+  var again = span(PV.torchEase(mem, torch, OPEN_MAZE, STEP));
+  check('and a settled frame reads the same disc',
+    near(again.min, hard.torchRadius, 0.001) &&
+    near(again.max, hard.torchRadius, 0.001), again.text);
+})();
+
+console.log('');
+console.log('the lit edge eases');
+
+/* Ray lengths are carried between frames, so a corridor runs down rather than
+ * arriving whole the instant he clears the corner. */
+(function () {
+  var hard = PV.DIFFICULTIES['torch-hard'];
+  var torch = torchOf('torch-hard');
+  var mem = { facing: null, reach: null, x: 0, y: 0 };
+
+  PV.torchEase(mem, torch, OPEN_MAZE, STEP);   // settles every ray on the disc
+  check('it remembers where it measured from',
+    mem.x === torch.x && mem.y === torch.y, mem.x + ',' + mem.y);
+
+  // Open the reach right up without moving him: the light runs out at its own
+  // speed instead of snapping to the new shape.
+  torch.radius = 400;
+  var second = span(PV.torchEase(mem, torch, OPEN_MAZE, STEP));
+  var want = hard.torchRadius + SPILL * STEP;
+  check('a way opening is eased into, not snapped to',
+    near(second.min, want, 0.001) && near(second.max, want, 0.001), second.text);
+})();
+
+console.log('');
+console.log('the light dies back down the corridor');
+
+/* The easing runs both ways: a ray the beam has swung off shortens at the same
+ * speed it lengthened. Holding each ray to the wall in front of it rather than
+ * to the shape it now wants is what leaves it room to lag — clamping to the
+ * shape would snap every trailing ray home in one frame. */
+(function () {
+  var torch = torchOf('torch-normal');
+  var mem = { facing: null, reach: null, x: 0, y: 0 };
+
+  // Ray 0 points along +x, which is straight down the cone to start with.
+  var first = PV.torchEase(mem, torch, OPEN_MAZE, STEP);
+  check('the ray down the cone runs the cone\'s whole length',
+    near(first[0], torch.coneLen, 0.001), first[0]);
+
+  torch.dir = PV.DIRS.left;
+  var second = PV.torchEase(mem, torch, OPEN_MAZE, STEP);
+  check('the beam swinging away leaves the ray to shorten a step at a time',
+    near(second[0], torch.coneLen - SPILL * STEP, 0.001), second[0]);
+})();
+
+console.log('');
+console.log('a contact fades on the distance it was found at');
+
+/* A contact is drawn where it now sits — following its ghost under
+ * pingTracks — but both its brightness and whether it reads as the ring's
+ * leading edge are clocked off `dist`, where the ring found it. Recomputing
+ * either from the contact's current position would relight a contact the ring
+ * has since caught up with. */
+(function () {
+  var origin = { x: 0, y: 0, age: 0.5 };   // the ring is 350px out
+
+  var carried = PV.blipDraw({ x: 700, y: 0, dist: 350 }, origin, RULES);
+  check('a contact carried out past the ring is still lit',
+    carried.alpha === 1, carried.alpha);
+
+  var fresh = PV.blipDraw({ x: 0, y: 0, dist: 350 }, origin, RULES);
+  check('a contact the ring has just reached is drawn as its edge',
+    fresh.edge === true, fresh.edge);
+
+  var passed = PV.blipDraw({ x: 350, y: 0, dist: 210 }, origin, RULES);
+  check('a contact the ring passed 0.2s ago is no longer its edge',
+    passed.edge === false, passed.edge);
+
+  var spent = PV.blipDraw({ x: 0, y: 0, dist: 350 }, { x: 0, y: 0, age: 3 }, RULES);
+  check('a contact past its fade is gone', spent.alpha === 0, spent.alpha);
+})();
+
+console.log('');
+console.log('what a ghost draws at');
+
+/* Ghosts are never clipped to the lit region — they take the brighter of the
+ * layer's own alpha and the torch's, so one straddling the edge shows whole
+ * rather than sliced. Those two are the whole decision. */
+(function () {
+  var torch = torchOf('torch-normal');
+  // Well down the cone, so there are whole tiles between him and it for the
+  // line-of-sight check below to find something in.
+  var inBeam = { x: torch.x + 100, y: torch.y };
+  var away = { x: torch.x - 400, y: torch.y };
+
+  check('the beam draws a ghost a dark layer would not',
+    PV.ghostDrawAlpha(inBeam, 0, torch, OPEN_MAZE) === 1,
+    PV.ghostDrawAlpha(inBeam, 0, torch, OPEN_MAZE));
+  check('a ghost the beam misses is left to its layer',
+    PV.ghostDrawAlpha(away, 0, torch, OPEN_MAZE) === 0,
+    PV.ghostDrawAlpha(away, 0, torch, OPEN_MAZE));
+  check('the layer wins wherever it is the brighter of the two',
+    PV.ghostDrawAlpha(away, 0.35, torch, OPEN_MAZE) === 0.35,
+    PV.ghostDrawAlpha(away, 0.35, torch, OPEN_MAZE));
+  check('a wall between you and a ghost keeps it dark',
+    PV.ghostDrawAlpha(inBeam, 0, torch,
+      { isWall: function () { return true; } }) === 0);
+  check('outside torch mode the layer is all there is',
+    PV.ghostDrawAlpha(inBeam, 0.35, null, OPEN_MAZE) === 0.35,
+    PV.ghostDrawAlpha(inBeam, 0.35, null, OPEN_MAZE));
 })();
 
 console.log('');

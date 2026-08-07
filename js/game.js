@@ -16,6 +16,12 @@ window.PV = window.PV || {};
   ];
 
   var FRIGHT_TIME = 7;
+
+  // The closing stretch of a fright. render.js flashes the ghosts white over
+  // it and aura.js blinks the board edge, so both read this.
+  var FRIGHT_ENDING = 2;
+  PV.FRIGHT_ENDING = FRIGHT_ENDING;
+
   var GHOST_VALUES = [200, 400, 800, 1600];
   var POWER_PELLET = 2;    // maze.eatPellet() returns 1 for a dot, 2 for a power pellet
 
@@ -24,6 +30,9 @@ window.PV = window.PV || {};
   var DEATH_ANIM = 1.15;
   PV.DEATH_REVEAL = DEATH_REVEAL;   // render.js times the death animation off these
   PV.DEATH_ANIM = DEATH_ANIM;
+
+  // How much of the maze READY shows, whatever the mode would.
+  var READY_WALLS = 0.55;
 
   // Chrome refuses localStorage on file:// origins, and opening index.html by
   // double-clicking is a supported way to play this. Degrade to a no-op.
@@ -162,12 +171,19 @@ window.PV = window.PV || {};
     };
 
     /**
-     * The player's chosen layers, except while dying — then ghosts and Pac-Man
-     * are forced on. Renderer and HUD both read this, so the layer chips stay
+     * The player's chosen layers, with two exceptions. READY floors the walls,
+     * since it is the one moment to study the maze. Dying forces ghosts and
+     * Pac-Man on. Renderer and HUD both read this, so the layer chips stay
      * honest about what's on screen.
      */
     game.visibleAlpha = function () {
       var a = game.vision.alpha;
+      if (game.state === 'ready') {
+        return {
+          dots: a.dots, walls: Math.max(a.walls, READY_WALLS),
+          ghosts: a.ghosts, pacman: a.pacman
+        };
+      }
       if (game.state !== 'dying') return a;
       return { dots: a.dots, walls: a.walls, ghosts: 1, pacman: 1 };
     };
@@ -196,9 +212,9 @@ window.PV = window.PV || {};
       updatePops(dt);
 
       if (game.state === 'ready') {
-        // Returning before vision.update() freezes the cooldown and Flash's
-        // opening flash while the board is still behind the curtain.
-        if (game.stateTime > 1.8) beginPlay();
+        // Returning before vision.update() freezes the cooldown and the
+        // opening picks while the board is still behind the curtain. steer()
+        // is the only way out of here.
         return;
       }
 
@@ -243,9 +259,8 @@ window.PV = window.PV || {};
     function advanceWaves(dt) {
       if (game.frightTimer > 0) {
         game.frightTimer -= dt;
-        // fire the countdown cue once, the instant the last-two-seconds
-        // warning window opens (mirrors render.js's flash threshold)
-        if (!game.frightEndingCued && game.frightTimer > 0 && game.frightTimer < 2) {
+        // fire the countdown cue once, the instant the ending window opens
+        if (!game.frightEndingCued && game.frightTimer > 0 && game.frightTimer < FRIGHT_ENDING) {
           game.frightEndingCued = true;
           game.onEvent('frightEnding', game.frightTimer);
         }
@@ -310,23 +325,38 @@ window.PV = window.PV || {};
       });
     }
 
-    /* Torch mode: a ghost blips where the expanding ring first reaches it, and
-     * stays drawn there for the rest of the ping. Plain distance, not the
-     * tunnel-wrapped one checkCollisions uses — the ring is drawn as a circle
-     * in board space, so a wrapped distance would light a blip before the
-     * visible ring arrived. Every ghost is sampled whatever its state: the ping
-     * reports where things are, and eaten ghosts show as eyes in every mode. */
+    /* Torch mode: a ghost blips where the expanding ring first reaches it and
+     * stays drawn for the rest of the ping — held at the contact, or carried
+     * along on the ghost itself under `pingTracks`. `dist` is the distance it
+     * was found at and clocks the fade either way, so a contact that follows
+     * its ghost still dims to the schedule it was found on rather than to
+     * wherever the ghost has wandered. Plain distance, not the tunnel-wrapped
+     * one checkCollisions uses, since the ring is drawn as a circle in board
+     * space and a wrapped distance would light a blip before the visible ring
+     * arrived. Every ghost is sampled whatever its state: the ping reports
+     * where things are, and eaten ghosts show as eyes in every mode. */
     function samplePulse() {
-      var p = game.vision.pulse();
-      if (!p || p.layer !== 'ghosts') return;
-      var reach = p.age * PV.PULSE_SPEED;
-      game.ghosts.forEach(function (g, i) {
-        if (p.blips[i]) return;
-        // wobble too: render.js draws the contact as the ghost's own outline,
-        // and a frozen contact should be frozen mid-waddle, not still moving.
-        if (Math.hypot(g.x - p.x, g.y - p.y) <= reach) {
-          p.blips[i] = { x: g.x, y: g.y, wobble: g.wobble };
-        }
+      game.vision.pulses().forEach(function (p) {
+        if (p.layer !== 'ghosts') return;
+        var reach = p.age * PV.PULSE_SPEED;
+        game.ghosts.forEach(function (g, i) {
+          var blip = p.blips[i];
+          if (blip) {
+            // wobble travels with the position: render.js draws the contact as
+            // the ghost's own outline, so the waddle is part of the pose being
+            // reported, not decoration on top of it.
+            if (rules.pingTracks) {
+              blip.x = g.x;
+              blip.y = g.y;
+              blip.wobble = g.wobble;
+            }
+            return;
+          }
+          var d = Math.hypot(g.x - p.x, g.y - p.y);
+          if (d <= reach) {
+            p.blips[i] = { x: g.x, y: g.y, wobble: g.wobble, dist: d };
+          }
+        });
       });
     }
 

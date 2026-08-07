@@ -5,7 +5,9 @@
  */
 global.window = {};
 var path = require('path');
-['strings.js', 'maze.js', 'entities.js', 'vision.js', 'game.js'].forEach(function (f) {
+// Mirrors index.html's relative script order, so a module-scope capture from
+// game.js would go red here exactly as it would silently break in the browser.
+['strings.js', 'maze.js', 'vision.js', 'entities.js', 'game.js'].forEach(function (f) {
   require(path.join(__dirname, '..', 'js', f));
 });
 var PV = global.window.PV;
@@ -91,7 +93,7 @@ var CARRIED = {
   },
   'flash-normal': {
     mode: 'flash', pool: 'dots,ghosts,walls,pacman', keep: 1, freeSelf: false,
-    cooldown: 1, ghostSpeed: 0.86, initial: 'walls', hold: 0.4, fade: 2.0
+    cooldown: 1, ghostSpeed: 0.86, initial: 'pacman,walls', hold: 0.4, fade: 2.0
   }
 };
 
@@ -112,7 +114,6 @@ IDS.forEach(function (id) {
   var r = PV.DIFFICULTIES[id];
   check(id + ' names its mode', /^[A-Z]+$/.test(PV.modeName(id)), PV.modeName(id));
   check(id + ' names its level', /^[A-Z]+$/.test(PV.levelName(id)), PV.levelName(id));
-  check(id + ' has a blurb', (PV.levelBlurb(id) || '').length > 0, PV.levelBlurb(id));
 
   var copy = PV.TEXT.modes[r.mode].levels[r.level];
   check(id + ' has a menu line', !!copy && (copy.menu || '').length > 0, copy && copy.menu);
@@ -124,6 +125,23 @@ PV.MODE_IDS.forEach(function (mode) {
   check(mode + ' has a menu line', !!copy && (copy.menu || '').length > 0, copy && copy.menu);
   check(mode + ' menu has one bold run', (copy.menu.match(/<b>/g) || []).length === 1, copy.menu);
 });
+
+console.log('');
+console.log('READY carries no blurb');
+
+/* The overlay names the mode and the level and nothing else, so the per-level
+ * blurbs and the accessor that read them are gone. */
+check('no levelBlurb accessor', PV.levelBlurb === undefined, PV.levelBlurb);
+
+IDS.forEach(function (id) {
+  var r = PV.DIFFICULTIES[id];
+  check(id + ' has no blurb',
+    PV.TEXT.modes[r.mode].levels[r.level].blurb === undefined,
+    PV.TEXT.modes[r.mode].levels[r.level].blurb);
+});
+
+check('the ready hint names no maze',
+  PV.TEXT.overlay.readyHint.indexOf('%MAZE%') === -1, PV.TEXT.overlay.readyHint);
 
 console.log('');
 console.log('best-score migration');

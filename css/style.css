@@ -78,7 +78,22 @@ html, body {
   opacity: 0;
   transition: opacity .6s;
 }
-#hint.on { opacity: .55; }
+/* Breathing rather than flat: it competes with a lit maze behind it, and the
+   movement is what carries across a board the player is reading. .65 is the
+   midpoint the breath swings either side of, .35 to .95. The animation waits
+   out the fade-in transition above and starts and ends each loop on that
+   midpoint, the value the fade lands on, so it never snaps. */
+#hint.on {
+  opacity: .65;
+  animation: hint-breathe 3.6s ease-in-out .6s infinite;
+}
+
+@keyframes hint-breathe {
+  0%, 100% { opacity: .65; }
+  25%      { opacity: .95; }
+  50%      { opacity: .65; }
+  75%      { opacity: .35; }
+}
 
 .overlay {
   position: absolute;
@@ -346,6 +361,7 @@ kbd {
   /* The border colour above still marks a refusal without the movement. */
   .badge-wrap.denied .badge { animation: none; }
   .mrow.is-cursor { transform: none; }
+  #hint.on { animation: none; }
   * { transition-duration: .01ms !important; }
 }
 .badge-icon { width: 4.9em; height: 4.9em; display: block; }
