@@ -33,6 +33,10 @@ window.PV = window.PV || {};
   };
 
   var MOVE = { ArrowUp: -1, KeyW: -1, ArrowDown: 1, KeyS: 1 };
+
+  /* The digits address whichever list is drawn — the modes, or the open mode's
+   * difficulties — so one mapping serves both. They reach three: a fourth mode
+   * would want a fourth key here as well as a place in the list. */
   var DIGIT = { Digit1: 0, Digit2: 1, Digit3: 2, Numpad1: 0, Numpad2: 1, Numpad3: 2 };
 
   /**
@@ -48,10 +52,20 @@ window.PV = window.PV || {};
     function cellId() { return modeId() + '-' + PV.LEVELS[level]; }
 
     /* `num` is omitted for rows the number keys do not address — a collapsed
-     * mode, or the open one, which is a heading rather than a choice. */
+     * mode, or the open one, which is a heading rather than a choice.
+     *
+     * Exactly one row is the `cursor`, and it is the only one in the tab order:
+     * Tab lands on wherever the cursor sits and the arrows move it from there.
+     * `expanded` belongs to the mode rows, which are the controls that reveal
+     * the difficulties. A collapsed row keeps its name and drops everything
+     * else, and that name is the whole accessible name — enough to tell the
+     * three modes apart. */
     function row(o) {
-      return '<button class="mrow' + (o.cls ? ' ' + o.cls : '') + '" type="button"' +
-        ' tabindex="-1" data-act="' + o.act + '" data-i="' + o.i + '">' +
+      return '<button class="mrow' + (o.cls ? ' ' + o.cls : '') +
+        (o.cursor ? ' is-cursor' : '') + '" type="button"' +
+        ' tabindex="' + (o.cursor ? '0' : '-1') + '"' +
+        (o.expanded === undefined ? '' : ' aria-expanded="' + o.expanded + '"') +
+        ' data-act="' + o.act + '" data-i="' + o.i + '">' +
         (o.icon ? '<span class="mico">' + o.icon + '</span>' : '') +
         '<span class="mbody"><span class="mname">' + o.name + '</span>' +
         (o.desc ? '<span class="mdesc">' + o.desc + '</span>' : '') + '</span>' +
@@ -64,28 +78,39 @@ window.PV = window.PV || {};
       return '<div class="mlevels">' + PV.LEVELS.map(function (lv, i) {
         return row({
           act: 'level', i: i, name: PV.TEXT.levels[lv], desc: copy[lv].menu,
-          num: true, cls: level === i ? 'is-cursor' : ''
+          num: true, cursor: level === i
         });
       }).join('') + '</div>';
     }
 
-    function render() {
+    /* `refocus` puts real focus on the cursor row, so the ring is drawn and a
+     * screen reader announces it. Only the keyboard paths ask for it: a render
+     * the pointer caused has no business moving focus. */
+    function render(refocus) {
       root.innerHTML = PV.MODE_IDS.map(function (id, i) {
         var copy = PV.TEXT.modes[id];
         if (!open) {
           return row({
             act: 'mode', i: i, name: copy.name, desc: copy.menu, icon: ICONS[id],
-            num: true, cls: mode === i ? 'is-cursor' : ''
+            num: true, cursor: mode === i, expanded: false
           });
         }
         if (i === mode) {
           return row({
             act: 'mode', i: i, name: copy.name, desc: copy.menu,
-            icon: ICONS[id], cls: 'is-open'
+            icon: ICONS[id], cls: 'is-open', expanded: true
           }) + levelRows();
         }
-        return row({ act: 'mode', i: i, name: copy.name, icon: ICONS[id], cls: 'is-collapsed' });
+        return row({
+          act: 'mode', i: i, name: copy.name, icon: ICONS[id],
+          cls: 'is-collapsed', expanded: false
+        });
       }).join('');
+
+      if (refocus) {
+        var cursor = root.querySelector('.mrow[tabindex="0"]');
+        if (cursor) cursor.focus();
+      }
     }
 
     var menu = {
@@ -94,7 +119,7 @@ window.PV = window.PV || {};
         open = false;
         mode = 0;
         level = 1;
-        render();
+        render(true);
       },
 
       /** @returns true if the key was the menu's to handle */
@@ -102,9 +127,11 @@ window.PV = window.PV || {};
         if (e.ctrlKey || e.metaKey || e.altKey) return false;
 
         if (MOVE[e.code] !== undefined) {
+          // Three difficulties is the design, so that axis wraps on a literal.
+          // The mode axis follows however many modes are configured.
           if (open) level = (level + MOVE[e.code] + 3) % 3;
-          else mode = (mode + MOVE[e.code] + 3) % 3;
-          render();
+          else mode = (mode + MOVE[e.code] + PV.MODE_IDS.length) % PV.MODE_IDS.length;
+          render(true);
           return true;
         }
 
@@ -114,7 +141,13 @@ window.PV = window.PV || {};
           menu.take(null);
           return true;
         }
-        if (e.code === 'Escape') { menu.back(); return true; }
+        /* Escape belongs to the menu only when there is a step to leave. At the
+         * mode list it is the page's, and main.js is free to act on it. */
+        if (e.code === 'Escape') {
+          if (!open) return false;
+          menu.back();
+          return true;
+        }
 
         if (DIGIT[e.code] !== undefined) { menu.take(DIGIT[e.code]); return true; }
         return false;
@@ -128,14 +161,14 @@ window.PV = window.PV || {};
         } else {
           if (i !== null) mode = i;
           open = true;
-          render();
+          render(true);
         }
       },
 
       back: function () {
         if (!open) return;
         open = false;
-        render();
+        render(true);
       }
     };
 
@@ -153,15 +186,26 @@ window.PV = window.PV || {};
     });
 
     /* Hover and the keyboard share one cursor, so there is a single "here" on
-     * screen. Mode rows are exempt while a mode is open: the cursor belongs to
-     * the difficulties then, and sliding past a collapsed label must not drag
-     * it out of the list 1/2/3 address. */
-    root.addEventListener('mouseover', function (e) {
+     * screen. The coordinate guard is what makes that safe: re-rendering the
+     * list moves fresh nodes under a stationary pointer, and the mouseover that
+     * fires as a result would otherwise drag the cursor back to wherever the
+     * mouse happens to rest. Mode rows are exempt while a mode is open — the
+     * cursor belongs to the difficulties then. */
+    var lastX = null, lastY = null;
+    root.addEventListener('mousemove', function (e) {
+      if (e.clientX === lastX && e.clientY === lastY) return;
+      lastX = e.clientX;
+      lastY = e.clientY;
       var btn = e.target.closest('.mrow');
       if (!btn) return;
       var i = Number(btn.dataset.i);
-      if (btn.dataset.act === 'level') { level = i; render(); return; }
-      if (open) return;
+      if (btn.dataset.act === 'level') {
+        if (level === i) return;
+        level = i;
+        render();
+        return;
+      }
+      if (open || mode === i) return;
       mode = i;
       render();
     });
