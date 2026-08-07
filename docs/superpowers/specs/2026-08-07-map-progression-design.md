@@ -151,16 +151,24 @@ existing four and four serve levels 5-6 unchanged. One new fixed map, for level
 
 Pieces are written by parallel agents, one per tier, each given its board
 template and a target band. The score is `junctions + corners`, measured over
-the assembled layout excluding the house interior. The existing pool spans 82
-(`T1/B1`) to 102 (`T2/B2`) and anchors the middle of the scale:
+the assembled layout with the house interior excluded and the tunnel row
+wrapped. Excluding the house matters: its interior is a 6x3 open room worth
+about fourteen junctions at every board size and every tier, so counting it
+adds a constant and drowns the signal. The existing pool spans 64 (`T1/B1`,
+the arcade map) to 84 (`T2/B2`) and anchors the middle of the scale:
 
-| Tier | Band |
-|---|---|
-| gentle (L2) | 45-60 |
-| medium (L3) | 65-80 |
-| existing (L5-6) | 82-102 |
-| dense (L7-8) | 105-125 |
-| densest (L9+) | 125+ |
+| Tier | Score | Pellets |
+|---|---|---|
+| L1 fixed map | 36 | 128 |
+| gentle (L2) | 42-52 | 150-175 |
+| medium (L3) | 54-62 | 185-215 |
+| existing (L5-6) | 64-84 | 242-282 |
+| dense (L7-8) | 88-104 | 250-300 |
+| densest (L9+) | 106-130 | 250-310 |
+
+Pellets climb only while the board grows. Once it fixes at 28x31 from level 4
+on, the escalation is density alone — pushing length up as well would compound
+two difficulty axes at once.
 
 Agents do not self-assess. Every returned piece runs through the validator, and
 anything failing reachability, the no-2x2 rule, the no-dead-ends rule, or its

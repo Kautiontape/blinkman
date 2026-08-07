@@ -269,9 +269,9 @@ Append to `test/maze-test.js` after the template block from Task 1:
  * layout so a change to the metric has to be deliberate. */
 var arcade = PV.assembleLayout(PV.BOARDS.full, PV.TOP_PIECES[0], PV.BOTTOM_PIECES[0]);
 var sc = PV.scoreLayout(PV.BOARDS.full, arcade);
-expect('arcade junctions', sc.junctions, 48);
-expect('arcade corners', sc.corners, 34);
-expect('arcade score', sc.score, 82);
+expect('arcade junctions', sc.junctions, 34);
+expect('arcade corners', sc.corners, 30);
+expect('arcade score', sc.score, 64);
 expect('arcade pellets', sc.pellets, 242);
 ```
 
@@ -291,11 +291,20 @@ Add to `js/maze.js`, after `PV.checkLayout`:
    * interior is excluded because it is the same at every size. */
   PV.scoreLayout = function (board, layout) {
     var junctions = 0, corners = 0, pellets = 0, open = 0;
+
+    /* The tunnel row wraps, so a mouth reads as the straight corridor it is
+     * rather than as a corner. Wrapping here covers both the neighbour count
+     * and the facing test below. */
     function isOpen(c, r) {
+      if (r === board.tunnelRow) {
+        if (c < 0) c = board.cols - 1;
+        else if (c >= board.cols) c = 0;
+      }
       if (r < 0 || r >= board.rows || c < 0 || c >= board.cols) return false;
       var ch = layout[r][c];
       return ch !== '#' && ch !== '-';
     }
+
     for (var r = 0; r < board.rows; r++) {
       for (var c = 0; c < board.cols; c++) {
         var ch = layout[r][c];
@@ -304,12 +313,7 @@ Add to `js/maze.js`, after `PV.checkLayout`:
         open++;
         var deg = 0;
         for (var i = 0; i < NEIGHBOURS.length; i++) {
-          var nc = c + NEIGHBOURS[i][0], nr = r + NEIGHBOURS[i][1];
-          if (nr === board.tunnelRow) {
-            if (nc < 0) nc = board.cols - 1;
-            else if (nc >= board.cols) nc = 0;
-          }
-          if (isOpen(nc, nr)) deg++;
+          if (isOpen(c + NEIGHBOURS[i][0], r + NEIGHBOURS[i][1])) deg++;
         }
         if (deg >= 3) junctions++;
         else if (deg === 2) {
@@ -1099,7 +1103,7 @@ expect('L1 fixed across seeds', l1Same, true);
 var l1Layout = PV.assembleLayout(PV.BOARDS.small,
   PV.BOARDS.small.tiers.fixed.top[0], PV.BOARDS.small.tiers.fixed.bottom[0]);
 var l1Score = PV.scoreLayout(PV.BOARDS.small, l1Layout);
-expect('L1 score', l1Score.score, 38);
+expect('L1 score', l1Score.score, 36);
 if (PV.checkLayout(PV.BOARDS.small, l1Layout).length) {
   templateFailures++;
   console.log('  L1 BROKEN: ' + PV.checkLayout(PV.BOARDS.small, l1Layout).join('; '));
@@ -1332,10 +1336,10 @@ var board = PV.BOARDS[boardId];
 if (!board) { console.error('unknown board ' + boardId); process.exit(2); }
 
 var BANDS = {
-  gentle:  { score: [45, 60],   pellets: [140, 165] },
-  medium:  { score: [65, 80],   pellets: [170, 200] },
-  dense:   { score: [105, 125], pellets: [250, 300] },
-  densest: { score: [125, 999], pellets: [250, 320] }
+  gentle:  { score: [42, 52],   pellets: [150, 175] },
+  medium:  { score: [54, 62],   pellets: [185, 215] },
+  dense:   { score: [88, 104],  pellets: [250, 300] },
+  densest: { score: [106, 130], pellets: [250, 310] }
 };
 var band = BANDS[tierId];
 if (!band) { console.error('unknown tier ' + tierId); process.exit(2); }
@@ -1543,9 +1547,14 @@ var rows = LEVELS.map(function (lv) {
 });
 
 console.log('');
-/* The ceiling has to rise and the floor must never drop. Not "the floor clears
- * the previous ceiling" — level 4 is the arcade map and levels 5-6 draw from a
- * pool that contains it, so those two legitimately touch at 82 and 242. */
+/* Score climbs the whole way: the ceiling has to rise and the floor must never
+ * drop. Not "the floor clears the previous ceiling" — level 4 is the arcade map
+ * and levels 5-6 draw from a pool that contains it, so those two legitimately
+ * touch at 64 and 242.
+ *
+ * Pellets climb only while the board grows. From level 4 the board is fixed at
+ * 28x31 and the escalation is density alone; making levels longer as well would
+ * compound two difficulty axes at once. */
 console.log('monotonicity');
 for (var i = 1; i < rows.length; i++) {
   var prev = rows[i - 1], cur = rows[i];
@@ -1555,12 +1564,15 @@ for (var i = 1; i < rows.length; i++) {
   check('L' + LEVELS[i] + ' floor holds against L' + LEVELS[i - 1] + ' (score)',
     cur.minScore >= prev.minScore,
     'L' + LEVELS[i] + ' floor ' + cur.minScore + ' vs L' + LEVELS[i - 1] + ' floor ' + prev.minScore);
-  check('L' + LEVELS[i] + ' ceiling rises above L' + LEVELS[i - 1] + ' (pellets)',
-    cur.maxPellets > prev.maxPellets,
-    'L' + LEVELS[i] + ' ceiling ' + cur.maxPellets + ' vs L' + LEVELS[i - 1] + ' ceiling ' + prev.maxPellets);
-  check('L' + LEVELS[i] + ' floor holds against L' + LEVELS[i - 1] + ' (pellets)',
-    cur.minPellets >= prev.minPellets,
-    'L' + LEVELS[i] + ' floor ' + cur.minPellets + ' vs L' + LEVELS[i - 1] + ' floor ' + prev.minPellets);
+
+  if (cur.board !== prev.board) {
+    check('L' + LEVELS[i] + ' ceiling rises above L' + LEVELS[i - 1] + ' (pellets)',
+      cur.maxPellets > prev.maxPellets,
+      'L' + LEVELS[i] + ' ceiling ' + cur.maxPellets + ' vs L' + LEVELS[i - 1] + ' ceiling ' + prev.maxPellets);
+    check('L' + LEVELS[i] + ' floor holds against L' + LEVELS[i - 1] + ' (pellets)',
+      cur.minPellets >= prev.minPellets,
+      'L' + LEVELS[i] + ' floor ' + cur.minPellets + ' vs L' + LEVELS[i - 1] + ' floor ' + prev.minPellets);
+  }
 }
 
 console.log('');
