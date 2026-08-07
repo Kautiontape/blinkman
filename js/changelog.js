@@ -26,13 +26,14 @@ window.PV = window.PV || {};
       version: 'Unreleased',
       date: '',
       notes: [
-        'Picks stack now. A second flash or ping no longer wipes out the first — they pile up, and each one fades on its own clock.',
-        'A Flash round opens by showing you where you are. The walls and you light up together, then fade.',
-        'The ghost house is as dark as everything else. Ghosts waiting inside it no longer glow through the black in any mode.',
-        'Torch Hard lost its cone. It is the pool of light you stand in and nothing more, widened a little to make up for the beam.',
-        'Torch Easy pings follow. A contact waddles along with the ghost it found instead of marking the spot that ghost has already left.',
-        'The board edge lights up. White while a power pellet runs, blinking faster as it runs out, closing on one yellow pulse — and red when a ghost gets you.',
-        'READY waits for you. The round holds until you move, with the maze up dimly the whole time, and the panel cut back to the mode and the level.'
+        'Level progression! Maps now start off simple and familiar, and slowly ramp up how dense they are as you beat levels.',
+        'Added this changelog feature!',
+        'Flash and Torch will now be able to stack on each other when picked in succession.',
+        'All rounds now open by showing you where you are before fading away.',
+        'Torch Hard lost its cone. Bringing back the original mode’s charm!',
+        'Torch Easy now follows ghosts during a ping so it’s easier to figure out their movement.',
+        'The board edge lights up to indicate more clearly things that used to rely on audible cues.',
+        'The rounds no longer immediately kick off automatically; you have to move to start them.'
       ]
     },
     {
@@ -43,7 +44,7 @@ window.PV = window.PV || {};
         'Torch now shines the way forward. So it’s more "torch" in the British "flashlight" sense than medieval "flame stick" variety. This should help see ghosts before they run up on you, giving you time to react.',
         'Improved Torch light to fill around corners so you can’t see through walls anymore.',
         'Added a small nudge to people who haven’t hit the number keys to change layers or send a ping. Helpful for anyone who hops in without reading anything (although who knows if they’ll read the prompt).',
-        'Toned down the constant siren a bit, and added in a audio cue when your ghost vulnerability is ending.'
+        'Toned down the audible siren a bit, and added in a audio cue when your ghost vulnerability is ending.'
       ]
     },
     {
