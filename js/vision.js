@@ -14,12 +14,19 @@ window.PV = window.PV || {};
   /* Torch mode's sonar ping. The ring expands at PULSE_SPEED and every element
    * fades on the same curve a Flash pick uses, clocked from the moment the
    * ring reached it — so near walls are already dimming while far ones are
-   * still lighting up. PV.WIDTH and PV.HEIGHT are read at load time, which is
-   * why maze.js has to load first. */
-  var PULSE_SPEED = 700;                              // px/s
-  var PULSE_SPAN = Math.hypot(PV.WIDTH, PV.HEIGHT);   // worst-case corner origin
+   * still lighting up. Everything the ring covers is measured off the board it
+   * is fired on, so a smaller board is swept sooner. */
+  var PULSE_SPEED = 700;   // px/s
   PV.PULSE_SPEED = PULSE_SPEED;
-  PV.PULSE_SPAN = PULSE_SPAN;
+
+  /* The worst case a ping has to cross: a corner origin to the far corner. */
+  PV.pulseSpan = function (maze) { return Math.hypot(maze.width, maze.height); };
+
+  /* Where a ping fires from when there is no Pac-Man to ask — the free one a
+   * round opens with. */
+  PV.pulseOrigin = function (maze) {
+    return { x: PV.center(maze.spawn.pacman.col), y: PV.center(maze.spawn.pacman.row) };
+  };
 
   PV.pulseAlpha = function (dist, age, rules) {
     var t = age - dist / PULSE_SPEED;   // seconds since the ring passed
@@ -31,16 +38,9 @@ window.PV = window.PV || {};
   };
 
   /** How long a ping lives: the ring clearing the board, then the last fade. */
-  function pulseLife(rules) {
-    return PULSE_SPAN / PULSE_SPEED + rules.hold + rules.fade;
+  function pulseLife(maze, rules) {
+    return PV.pulseSpan(maze) / PULSE_SPEED + rules.hold + rules.fade;
   }
-
-  /* Where a ping fires from when there is no Pac-Man to ask — the free one a
-   * round opens with. Reads the spawn table at load time, as above. */
-  var SPAWN_CENTRE = {
-    x: PV.center(PV.SPAWN.pacman.col),
-    y: PV.center(PV.SPAWN.pacman.row)
-  };
 
   /* The opening dots cue: three blinks, then an eased fade out. It runs as a
    * floor under whatever the mode would show, so the dots get introduced even
@@ -172,8 +172,17 @@ window.PV = window.PV || {};
     /* Flash ignores the origin; Torch expands from it. Copied, not referenced,
      * so walking away doesn't drag the ring's centre along. */
     function newFlash(layer, origin) {
-      var o = origin || SPAWN_CENTRE;
-      return { layer: layer, age: 0, x: o.x, y: o.y, blips: [] };
+      return { layer: layer, age: 0, x: origin.x, y: origin.y, blips: [] };
+    }
+
+    /* The state a round opens on, minus the board: reset() adds the opening
+     * ping, which is fired across one. */
+    function clear() {
+      stack = (rules.initial || []).slice(0, rules.keep);
+      flash = null;
+      cooldown = 0;
+      denied = 0;
+      intro = 0;
     }
 
     var v = {
@@ -229,7 +238,8 @@ window.PV = window.PV || {};
         return 'ok';
       },
 
-      update: function (dt) {
+      /** @param maze  the board a live ping is sweeping. */
+      update: function (dt, maze) {
         cooldown = Math.max(0, cooldown - dt);
         denied = Math.max(0, denied - dt);
 
@@ -241,7 +251,7 @@ window.PV = window.PV || {};
           // in board space by render.js.
           if (flash) {
             flash.age += dt;
-            if (flash.age > pulseLife(rules)) flash = null;
+            if (flash.age > pulseLife(maze, rules)) flash = null;
           }
         } else if (rules.mode === 'flash') {
           if (flash) {
@@ -269,21 +279,21 @@ window.PV = window.PV || {};
 
       isLit: function (layer) { return v.alpha[layer] > 0.001; },
 
-      reset: function () {
-        stack = (rules.initial || []).slice(0, rules.keep);
+      /** @param maze  the board the round opens on. */
+      reset: function (maze) {
+        clear();
         // Flash and Torch start pitch black, so the round opens on one free
-        // flash, fired from the spawn.
-        flash = rules.mode !== 'stare' && rules.initial
-          ? newFlash(rules.initial[0], null)
-          : null;
-        cooldown = 0;
-        denied = 0;
-        intro = 0;
-        v.update(0);
+        // flash, fired from the board's own spawn.
+        if (rules.mode !== 'stare' && rules.initial) {
+          flash = newFlash(rules.initial[0], PV.pulseOrigin(maze));
+        }
+        v.update(0, maze);
       }
     };
 
-    v.reset();
+    // A vision exists before it is placed on a board; reset() places it.
+    clear();
+    v.update(0);
     return v;
   };
 

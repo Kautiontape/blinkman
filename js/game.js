@@ -125,7 +125,7 @@ window.PV = window.PV || {};
         g.reset();
         g.speedScale = rules.ghostSpeed * (1 + (game.level - 1) * 0.06);
       });
-      game.vision.reset();
+      game.vision.reset(game.maze);
       game.frightTimer = 0;
       game.frightEndingCued = false;
       game.ghostCombo = 0;
@@ -212,7 +212,7 @@ window.PV = window.PV || {};
         return;
       }
 
-      game.vision.update(dt);
+      game.vision.update(dt, game.maze);
       if (game.state === 'dying') { updateDying(); return; }
       if (game.state === 'levelclear') {
         if (game.stateTime > 2.0) game.nextLevel();

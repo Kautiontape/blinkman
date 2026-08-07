@@ -249,7 +249,7 @@ window.PV = window.PV || {};
 
     ctx.save();
     // Under the layer, so it never sits over a contact.
-    drawPulseFront(ctx, p);
+    drawPulseFront(ctx, game.maze, p);
     if (p.layer === 'walls') drawPulseWalls(ctx, game.maze, p, game.rules);
     else if (p.layer === 'dots') drawPulseDots(ctx, game.maze, p, game.rules);
     else if (p.layer === 'ghosts') drawPulseBlips(ctx, p, game.rules);
@@ -260,9 +260,9 @@ window.PV = window.PV || {};
    * free, as things light up; a ghosts ping has nothing to light between
    * contacts and reads as if the press did nothing. This gives every layer the
    * same running commentary, and weakens as it spreads. */
-  function drawPulseFront(ctx, p) {
+  function drawPulseFront(ctx, maze, p) {
     var reach = p.age * PV.PULSE_SPEED;
-    var spent = reach / PV.PULSE_SPAN;
+    var spent = reach / PV.pulseSpan(maze);
     if (spent >= 1) return;   // off the board; nothing left to show
 
     ctx.globalAlpha = FRONT_ALPHA * (1 - spent);

@@ -98,7 +98,7 @@ console.log('ping lifetime');
   g.update(STEP);
   g.selectVision('walls');
 
-  var life = Math.hypot(PV.WIDTH, PV.HEIGHT) / SPEED + RULES.hold + RULES.fade;
+  var life = PV.pulseSpan(g.maze) / SPEED + RULES.hold + RULES.fade;
   check('a ping is alive well before its life is up', g.vision.pulse() !== null);
 
   for (var i = 0, n = Math.ceil((life + 0.1) / STEP); i < n; i++) g.update(STEP);
@@ -307,6 +307,62 @@ console.log('the torch ladder');
   }
   check('a wide cone reaches what a narrow one misses',
     lit(easy) > 0 && lit(hard) === 0, lit(easy) + ' / ' + lit(hard));
+})();
+
+console.log('');
+console.log('the ping spans its own board');
+
+/* A board no template produces: smaller, with its spawn on its own row. maze.js
+ * hands out one size, so a ping measured against a module constant would still
+ * sweep every real board correctly — a second size is what tells the two apart.
+ * It carries only what a ping reads off a board. */
+function standInMaze() {
+  var cols = 20, rows = 23;
+  return {
+    cols: cols, rows: rows,
+    width: cols * PV.TILE, height: rows * PV.TILE,
+    spawn: { pacman: { col: 9, row: 17 } }
+  };
+}
+
+(function () {
+  var full = PV.createMaze(3);
+  var small = standInMaze();
+
+  check('the full board spans corner to corner',
+    near(PV.pulseSpan(full), Math.hypot(560, 620), 1e-9), PV.pulseSpan(full));
+  check('a smaller board spans less',
+    near(PV.pulseSpan(small), Math.hypot(400, 460), 1e-9), PV.pulseSpan(small));
+
+  [full, small].forEach(function (maze) {
+    var on = maze.cols + 'x' + maze.rows + ' ';
+    var o = PV.pulseOrigin(maze);
+    check(on + 'fires the free ping from its own spawn',
+      o.x === PV.center(maze.spawn.pacman.col) &&
+      o.y === PV.center(maze.spawn.pacman.row), o.x + ',' + o.y);
+  });
+
+  /* Stepped to expiry rather than read off a constant: the ring has to be
+   * clocked by the board it is crossing, not by the widest one there is. */
+  function pingLife(maze) {
+    var v = PV.createVision(RULES);
+    v.reset(maze);
+    check(maze.cols + 'x' + maze.rows + ' takes a press',
+      v.select('walls', PV.pulseOrigin(maze)) === 'ok');
+    var t = 0;
+    while (v.pulse() && t < 20) { v.update(STEP, maze); t += STEP; }
+    return t;
+  }
+
+  function expected(w, h) { return Math.hypot(w, h) / SPEED + RULES.hold + RULES.fade; }
+
+  var fullLife = pingLife(full), smallLife = pingLife(small);
+  check('the full board ping runs its own span',
+    near(fullLife, expected(560, 620), 0.05), fullLife);
+  check('the smaller board ping runs its own, shorter span',
+    near(smallLife, expected(400, 460), 0.05), smallLife);
+  check('a ping is spent sooner on a smaller board', smallLife < fullLife - 0.1,
+    smallLife.toFixed(3) + ' vs ' + fullLife.toFixed(3));
 })();
 
 console.log('');
