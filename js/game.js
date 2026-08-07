@@ -85,14 +85,17 @@ window.PV = window.PV || {};
     // The menu demo scores like any other round; persisting that would
     // overwrite the player's own best.
     var persist = !opts || opts.persist !== false;
+    // The level the game opens on and returns to on restart. The menu demo
+    // asks for one; a played game starts at 1.
+    var startLevel = opts && opts.level != null ? opts.level : 1;
     var deathSounded = false;
 
     var game = {
       difficulty: difficultyId,
       rules: rules,
-      maze: PV.createMaze(),
-      pacman: PV.createPacman(),
-      ghosts: PV.createGhosts(),
+      maze: null,          // newBoard() below fills the board and its actors in
+      pacman: null,
+      ghosts: null,
       vision: PV.createVision(rules),
 
       state: 'ready',      // ready | playing | dying | levelclear | gameover
@@ -101,7 +104,7 @@ window.PV = window.PV || {};
 
       score: 0,
       best: readBest(bestKey),
-      level: 1,
+      level: startLevel,
       lives: 3,
 
       invuln: 0,
@@ -118,13 +121,23 @@ window.PV = window.PV || {};
       onEvent: function () {}
     };
 
+    /* The only place a board is built. Each actor holds the maze it was made
+     * against and reads its spawn, its scatter corner and the tunnel width from
+     * it, so a new board means new actors — a reset alone would place them on
+     * the old one. Every caller reads game.pacman and game.ghosts per frame. */
+    function newBoard() {
+      game.maze = PV.createMaze(game.level);
+      game.pacman = PV.createPacman(game.maze);
+      game.ghosts = PV.createGhosts(game.maze);
+    }
+
     function resetActors() {
       game.pacman.reset();
       game.ghosts.forEach(function (g) {
         g.reset();
         g.speedScale = rules.ghostSpeed * (1 + (game.level - 1) * 0.06);
       });
-      game.vision.reset();
+      game.vision.reset(game.maze);
       game.frightTimer = 0;
       game.frightEndingCued = false;
       game.ghostCombo = 0;
@@ -142,15 +155,16 @@ window.PV = window.PV || {};
 
     game.nextLevel = function () {
       game.level++;
-      game.maze = PV.createMaze();
+      newBoard();
       game.dotsEaten = 0;
       game.startRound();
     };
 
     game.restart = function () {
-      game.maze = PV.createMaze();
+      // The level comes first: newBoard() reads it to pick the board.
+      game.level = startLevel;
+      newBoard();
       game.score = 0;
-      game.level = 1;
       game.lives = 3;
       game.dotsEaten = 0;
       game.pops = [];
@@ -218,7 +232,7 @@ window.PV = window.PV || {};
         return;
       }
 
-      game.vision.update(dt);
+      game.vision.update(dt, game.maze);
       if (game.state === 'dying') { updateDying(); return; }
       if (game.state === 'levelclear') {
         if (game.stateTime > 2.0) game.nextLevel();
@@ -320,7 +334,7 @@ window.PV = window.PV || {};
       var mode = game.frightTimer > 0 ? 'chase' : WAVES[game.waveIndex].mode;
       var blinky = game.ghosts[0];
       game.ghosts.forEach(function (g) {
-        var target = PV.ghostTarget(g, mode, game.pacman, blinky);
+        var target = PV.ghostTarget(g, mode, game.pacman, blinky, game.maze);
         PV.updateGhost(g, dt, game.maze, target);
       });
     }
@@ -385,7 +399,7 @@ window.PV = window.PV || {};
 
         // tunnel wrap means the raw dx can be a whole board wide
         var dx = Math.abs(p.x - g.x);
-        dx = Math.min(dx, PV.WIDTH - dx);
+        dx = Math.min(dx, game.maze.width - dx);
         var dy = Math.abs(p.y - g.y);
         if (Math.hypot(dx, dy) > TILE * 0.7) continue;
 
@@ -434,6 +448,7 @@ window.PV = window.PV || {};
       }
     }
 
+    newBoard();
     resetActors();
     return game;
   };

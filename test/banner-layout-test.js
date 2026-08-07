@@ -6,7 +6,7 @@
 global.window = {};
 var join = require('path').join;
 require(join(__dirname, '..', 'tools', 'banner-layout.js'));
-/* js/maze.js for the board's real dimensions and the real ghost-house row, and
+/* js/maze.js for the full board's real dimensions and ghost-house row, and
  * tools/banner-draw.js for the presets themselves — both only touch `document`
  * from inside a draw call, so requiring them outside a browser is safe and
  * beats restating their numbers here where they could drift. */
@@ -99,10 +99,15 @@ check('source x is an integer so the blit does not resample',
  * The ghost house door is the one piece of board that reads as a defect in a
  * link card: a short red bar landing near the tagline. The social crop is
  * chosen to stop above it, and nothing about the image says so — this is the
- * only thing standing between a retuned zoom and a red smear on every card. */
+ * only thing standing between a retuned zoom and a red smear on every card.
+ *
+ * The promo art is fixed marketing rather than a level, so it draws on the full
+ * board at every size: these dimensions come from that template, not a maze. */
+var full = PV.BOARDS.full;
 var social = PV.PRESETS.social;
 var socialBand = PV.bannerBand({
-  bannerW: social.w, bannerH: social.h, boardW: PV.WIDTH, boardH: PV.HEIGHT,
+  bannerW: social.w, bannerH: social.h,
+  boardW: full.cols * PV.TILE, boardH: full.rows * PV.TILE,
   tile: PV.TILE, topRow: social.topRow, zoom: social.zoom
 });
 
@@ -111,9 +116,9 @@ check('the social crop is a whole number of tile rows', socialBand.exact === tru
 check('the social preset demands that exactness of itself',
   social.exactRows === true, 'exactRows=' + social.exactRows);
 check('the social crop stops above the ghost house door',
-  social.topRow + socialBand.bandRows <= PV.SPAWN.door.row,
+  social.topRow + socialBand.bandRows <= full.spawn.door.row,
   'lastRow=' + (social.topRow + socialBand.bandRows) +
-  ' doorRow=' + PV.SPAWN.door.row);
+  ' doorRow=' + full.spawn.door.row);
 check('the social crop still fits the board', socialBand.fits === true,
   'fits=' + socialBand.fits);
 

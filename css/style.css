@@ -1,6 +1,6 @@
 /* Sizing model:
  *   main.js measures the viewport and sets #stage's pixel size plus a --sc
- *   scale factor (1 = the original 560x620 design size). Everything drawn on
+ *   scale factor (1 = 20 screen pixels per board tile). Everything drawn on
  *   the board scales through the canvas transform; everything around it scales
  *   off --sc or the HUD's own font-size, so the whole UI grows together. */
 :root {
@@ -41,7 +41,8 @@ html, body {
 #stage {
   position: relative;
   flex: 0 0 auto;
-  /* width and height are set by main.js to preserve the 28:31 aspect ratio */
+  /* width and height are set by main.js to the current board's aspect ratio,
+     which changes with the level */
 }
 
 #board {

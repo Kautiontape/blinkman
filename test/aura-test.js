@@ -267,7 +267,12 @@ function recorder() {
   var path = null;
   ctx.beginPath = function () { path = []; seen.paths.push(path); };
   ctx.moveTo = ctx.lineTo = function (x, y) { path.push([x, y]); };
-  ctx.canvas = { width: PV.WIDTH, height: PV.HEIGHT, getContext: function () { return ctx; } };
+  // The full board, the largest the ladder reaches, so every round fits it.
+  var full = PV.BOARDS.full;
+  ctx.canvas = {
+    width: full.cols * PV.TILE, height: full.rows * PV.TILE,
+    getContext: function () { return ctx; }
+  };
   ctx.seen = seen;
   return ctx;
 }
@@ -343,7 +348,8 @@ console.log('the four bands mitre into a frame');
   var renderer = PV.createRenderer(ctx.canvas);
   renderer.setScale(1);
 
-  renderer.drawAura(frightRound(), STEP);
+  var g = frightRound();
+  renderer.drawAura(g, STEP);
   var bands = ctx.seen.paths;
   check('one band per edge', bands.length === 4, bands.length);
   check('each is a quad', bands.every(function (p) { return p.length === 4; }),
@@ -366,11 +372,13 @@ console.log('the four bands mitre into a frame');
     }
     return sum + Math.abs(a) / 2;
   }, 0);
-  /* The board less the rectangle left unlit in the middle. How far the bands
-   * reach in is read off the top one's inner corner; the mitre check above
-   * already ties the other three to it. */
+  /* The round's own board less the rectangle left unlit in the middle — the
+   * frame is pinned to the maze, which is smaller than the full one at level
+   * 1. How far the bands reach in is read off the top one's inner corner; the
+   * mitre check above already ties the other three to it. */
+  var W = g.maze.width, H = g.maze.height;
   var b = bands[0][3][0];
-  var frame = PV.WIDTH * PV.HEIGHT - (PV.WIDTH - 2 * b) * (PV.HEIGHT - 2 * b);
+  var frame = W * H - (W - 2 * b) * (H - 2 * b);
   check('and together cover the frame once', area === frame,
     area + ' of ' + frame);
 })();

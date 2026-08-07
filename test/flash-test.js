@@ -223,9 +223,10 @@ console.log('the house reveal against the board');
 
   /* Both terms of the product, at once: a ghost halfway out the door on a
    * half-lit board draws at a quarter. Nothing but the multiply lands here. */
+  var spawn = g.maze.spawn;
   var doorway = {
     state: 'leaving',
-    y: (PV.center(PV.SPAWN.door.row) + PV.center(PV.SPAWN.outside.row)) / 2
+    y: (PV.center(spawn.door.row) + PV.center(spawn.outside.row)) / 2
   };
   check('the reveal and the board multiply',
     near(PV.ghostDrawAlpha(doorway, layers({ walls: 0.5 }), null, g.maze), 0.25, 0.001),
@@ -238,7 +239,7 @@ console.log('the house reveal against the board');
     PV.ghostDrawAlpha(ghost, layers({ pacman: 1 }), null, g.maze));
 
   // A ghost out on the board has no reveal at all, however lit the board is.
-  var out = { state: 'out', y: PV.center(PV.SPAWN.pinky.row) };
+  var out = { state: 'out', y: PV.center(spawn.pinky.row) };
   check('a ghost loose on a lit board is left to its layer',
     PV.ghostDrawAlpha(out, layers({ walls: 1 }), null, g.maze) === 0,
     PV.ghostDrawAlpha(out, layers({ walls: 1 }), null, g.maze));

@@ -121,10 +121,11 @@ window.PV = window.PV || {};
       },
 
       /* Four bands, one per edge, each fading from the rim inward. Every rim
-       * run goes clockwise, which is what puts the mitres the right way up. */
-      draw: function (ctx) {
+       * run goes clockwise, which is what puts the mitres the right way up.
+       * The rim is the maze's own, so the frame fits every board size. */
+      draw: function (ctx, maze) {
         if (!aura.tint || aura.level <= 0.001) return;
-        var W = PV.WIDTH, H = PV.HEIGHT;
+        var W = maze.width, H = maze.height;
 
         ctx.save();
         band(ctx, 0, 0, W, 0, 0, 1);    // top, fading down

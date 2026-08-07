@@ -27,6 +27,7 @@
   var paused = false;
   var prevTs = 0;
   var overlayKey = '';
+  var boardKey = '';       // re-lays out when the level changes the board size
 
   function layout() {
     var styles = getComputedStyle(appEl);
@@ -37,22 +38,36 @@
     var availW = appEl.clientWidth - padX - hudEl.offsetWidth - gap;
     var availH = appEl.clientHeight - padY;
 
-    // largest 28:31 rectangle that fits beside the HUD
-    var fit = Math.max(0.35, Math.min(availW / PV.WIDTH, availH / PV.HEIGHT));
-    var w = Math.floor(PV.WIDTH * fit);
-    var h = Math.floor(PV.HEIGHT * fit);
+    // The live board, or the full one behind the menu.
+    var src = (game || attract && attract.game || {}).maze;
+    var bw = src ? src.width : PV.BOARDS.full.cols * PV.TILE;
+    var bh = src ? src.height : PV.BOARDS.full.rows * PV.TILE;
+
+    // largest board-shaped rectangle that fits beside the HUD
+    var fit = Math.max(0.35, Math.min(availW / bw, availH / bh));
+    var w = Math.floor(bw * fit);
+    var h = Math.floor(bh * fit);
 
     stage.style.width = w + 'px';
     stage.style.height = h + 'px';
-    stage.style.setProperty('--sc', (w / PV.WIDTH).toFixed(4));
+    stage.style.setProperty('--sc', (w / bw).toFixed(4));
 
     // Backing store at device resolution, capped at 2x.
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
-    renderer.setScale(canvas.width / PV.WIDTH);
+    renderer.setScale(canvas.width / bw);
 
     if (!game) renderer.clear();   // menu screen has nothing to redraw
+  }
+
+  /* The board on screen only changes shape between rounds, so the frame loop
+   * asks after each update rather than layout() measuring the maze every frame. */
+  function syncBoard(live) {
+    var key = live ? live.maze.cols + 'x' + live.maze.rows : '';
+    if (key === boardKey) return;
+    boardKey = key;
+    layout();
   }
 
   window.addEventListener('resize', layout);
@@ -322,10 +337,9 @@
     prevTs = ts;
 
     if (!game) {
-      if (attract) {
-        attract.update(dt);
-        renderer.draw(attract.game, dt);
-      }
+      if (attract) attract.update(dt);
+      syncBoard(attract && attract.game);
+      if (attract) renderer.draw(attract.game, dt);
       return;
     }
 
@@ -334,6 +348,7 @@
       syncAmbient();
     }
 
+    syncBoard(game);
     // Real dt even while paused: the shake decays on wall-clock time, not on
     // game time.
     renderer.draw(game, dt);

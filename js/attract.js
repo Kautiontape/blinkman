@@ -5,9 +5,6 @@ window.PV = window.PV || {};
 (function (PV) {
   'use strict';
 
-  var COLS = PV.COLS, ROWS = PV.ROWS;
-  var CELLS = COLS * ROWS;
-
   // The layers the rotation walks, and how long each one holds.
   var ROTATION = ['walls', 'dots', 'ghosts'];
   var HOLD = 4;
@@ -18,32 +15,51 @@ window.PV = window.PV || {};
   var STEPS = [PV.DIRS.up, PV.DIRS.left, PV.DIRS.down, PV.DIRS.right];
 
   PV.createAttract = function () {
-    // persist:false — a demo round scores like any other, and the write would
-    // land on the player's own Stare Normal best.
-    var game = PV.createGame('stare-normal', { persist: false });
+    /* persist:false — a demo round scores like any other, and the write would
+     * land on the player's own Stare Normal best.
+     *
+     * level 5 — the ladder's first full-size board with a pool behind it, so
+     * the demo shows a different maze between visits at one fixed shape. The
+     * menu's --sc is stageWidth / boardWidth, so a narrower board scales the
+     * copy up by a third and rewraps it mid-phrase. What is pinned is the
+     * level, not a board id: the ladder stays the only place that maps one to
+     * the other. */
+    var game = PV.createGame('stare-normal', { persist: false, level: 5 });
 
     /* Reused across frames so the searches allocate nothing. The `seen` arrays
      * hold a generation number rather than a flag, which saves clearing them. */
-    var dangerSeen = new Int32Array(CELLS);
-    var dangerDist = new Int16Array(CELLS);
-    var routeSeen = new Int32Array(CELLS);
-    var routeFirst = new Int8Array(CELLS);
-    var queue = new Int32Array(CELLS);
+    var cols = 0, rows = 0;
+    var dangerSeen, dangerDist, routeSeen, routeFirst, queue;
     var dangerGen = 0;
     var routeGen = 0;
     var rotateTimer = 0;
 
-    function idx(col, row) { return row * COLS + col; }
+    // The board the searches run on. A board of a different shape gets buffers
+    // of its own.
+    function sizeTo(maze) {
+      if (maze.cols === cols && maze.rows === rows) return;
+      cols = maze.cols; rows = maze.rows;
+      var cells = cols * rows;
+      dangerSeen = new Int32Array(cells);
+      dangerDist = new Int16Array(cells);
+      routeSeen = new Int32Array(cells);
+      routeFirst = new Int8Array(cells);
+      queue = new Int32Array(cells);
+    }
+
+    sizeTo(game.maze);
+
+    function idx(col, row) { return row * cols + col; }
 
     /* A column outside the board maps to the opposite edge, which makes the
      * tunnel an ordinary search edge. Off-board tiles are floor only on the
      * tunnel row, so anywhere else this resolves to the border wall. */
     function wrapCol(col) {
-      return col < 0 ? col + COLS : col >= COLS ? col - COLS : col;
+      return col < 0 ? col + cols : col >= cols ? col - cols : col;
     }
 
-    function open(col, row) {
-      return row >= 0 && row < ROWS && game.maze.passable(col, row, false);
+    function walkable(col, row) {
+      return row >= 0 && row < rows && game.maze.passable(col, row, false);
     }
 
     /** Step distance from each tile to the nearest loose, unfrightened ghost. */
@@ -66,10 +82,10 @@ window.PV = window.PV || {};
         var cur = queue[head++];
         var d = dangerDist[cur];
         if (d >= DANGER) continue;        // nothing past the buffer is consulted
-        var col = cur % COLS, row = (cur / COLS) | 0;
+        var col = cur % cols, row = (cur / cols) | 0;
         for (var k = 0; k < STEPS.length; k++) {
           var nc = wrapCol(col + STEPS[k].x), nr = row + STEPS[k].y;
-          if (!open(nc, nr)) continue;
+          if (!walkable(nc, nr)) continue;
           var n = idx(nc, nr);
           if (dangerSeen[n] === dangerGen) continue;
           dangerSeen[n] = dangerGen;
@@ -111,7 +127,7 @@ window.PV = window.PV || {};
 
       while (head < tail) {
         var cur = queue[head++];
-        var col = cur % COLS, row = (cur / COLS) | 0;
+        var col = cur % cols, row = (cur / cols) | 0;
 
         // The root is skipped: it has no first step to report, and Pac-Man is
         // already on his way across it.
@@ -119,7 +135,7 @@ window.PV = window.PV || {};
 
         for (var k = 0; k < STEPS.length; k++) {
           var nc = wrapCol(col + STEPS[k].x), nr = row + STEPS[k].y;
-          if (!open(nc, nr)) continue;
+          if (!walkable(nc, nr)) continue;
           var n = idx(nc, nr);
           if (routeSeen[n] === routeGen) continue;
           if (avoid && dangerous(n)) continue;
@@ -138,7 +154,7 @@ window.PV = window.PV || {};
       var back = PV.reverseOf(game.pacman.dir);
       var reverse = null;
       for (var k = 0; k < STEPS.length; k++) {
-        if (!open(wrapCol(t.col + STEPS[k].x), t.row + STEPS[k].y)) continue;
+        if (!walkable(wrapCol(t.col + STEPS[k].x), t.row + STEPS[k].y)) continue;
         if (STEPS[k] === back) { reverse = STEPS[k]; continue; }
         return STEPS[k];
       }
@@ -170,6 +186,8 @@ window.PV = window.PV || {};
         // 'levelclear' advances itself and 'dying' restarts the round; only
         // 'gameover' is terminal.
         if (game.state === 'gameover') game.restart();
+        // After the restart, which may have laid out a board of another shape.
+        sizeTo(game.maze);
         if (game.state === 'ready' || game.state === 'playing') steer();
         // Held outside 'playing': selectVision() refuses there, and a death
         // would otherwise burn cycle time behind a frozen board.

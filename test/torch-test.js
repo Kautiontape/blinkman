@@ -107,7 +107,7 @@ console.log('ping lifetime');
   g.update(STEP);
   g.selectVision('walls');
 
-  var life = Math.hypot(PV.WIDTH, PV.HEIGHT) / SPEED + RULES.hold + RULES.fade;
+  var life = PV.pulseSpan(g.maze) / SPEED + RULES.hold + RULES.fade;
   check('a ping is alive well before its life is up', livePulse(g) !== null);
 
   for (var i = 0, n = Math.ceil((life + 0.1) / STEP); i < n; i++) g.update(STEP);
@@ -420,7 +420,13 @@ console.log('the torch ladder');
     PV.torchAlpha(hard.torchRadius + 1, 0, PV.DIRS.right, P));
 })();
 
-var OPEN_MAZE = { isWall: function () { return false; } };
+/* The full board with every wall taken out, so a ray reaches as far as the
+ * torch shape alone allows. It keeps the real spawn table: the house reveal is
+ * measured off the door line, and torchOf below stands on this board's centre. */
+var OPEN_MAZE = {
+  isWall: function () { return false; },
+  spawn: PV.BOARDS.full.spawn
+};
 var SPILL = 700;   // px/s the lit edge travels — render.js's TORCH_SPILL
 
 /** The shortest and longest ray in a reach array. */
@@ -598,6 +604,66 @@ console.log('what a ghost draws at');
     near(PV.ghostDrawAlpha(housedAway, layers({ walls: 0.55 }), torch, OPEN_MAZE),
       0.55, 0.001),
     PV.ghostDrawAlpha(housedAway, layers({ walls: 0.55 }), torch, OPEN_MAZE));
+})();
+
+console.log('');
+console.log('the ping spans its own board');
+
+/* Two boards, sized whole rather than derived, so the spans below are pinned
+ * geometry and not the same arithmetic run twice. Each carries only what a ping
+ * reads off a board: its size, and the spawn the free one fires from. A ping
+ * sized to the widest board there is sweeps that one correctly either way —
+ * the second size is what tells the two apart. */
+var FULL = { cols: 28, rows: 31, width: 560, height: 620,
+             spawn: { pacman: { col: 13, row: 23 } } };
+var SMALL = { cols: 20, rows: 23, width: 400, height: 460,
+              spawn: { pacman: { col: 9, row: 17 } } };
+
+(function () {
+  check('the full board spans corner to corner',
+    near(PV.pulseSpan(FULL), Math.hypot(560, 620), 1e-9), PV.pulseSpan(FULL));
+  check('a smaller board spans less',
+    near(PV.pulseSpan(SMALL), Math.hypot(400, 460), 1e-9), PV.pulseSpan(SMALL));
+
+  /* The stand-ins are the shape a real maze reports, whatever size it is built
+   * at. Level 1 for the small board: a ping sized to the widest board there is
+   * would pass on a full one and fail here. */
+  var real = PV.createMaze(1);
+  check('a real maze spans its own tiles',
+    near(PV.pulseSpan(real),
+      Math.hypot(real.cols * PV.TILE, real.rows * PV.TILE), 1e-9), PV.pulseSpan(real));
+
+  var lives = [FULL, SMALL].map(function (maze) {
+    var on = maze.cols + 'x' + maze.rows + ' ';
+
+    var o = PV.pulseOrigin(maze);
+    check(on + 'fires a free ping from its own spawn',
+      o.x === PV.center(maze.spawn.pacman.col) &&
+      o.y === PV.center(maze.spawn.pacman.row), o.x + ',' + o.y);
+
+    /* The round's own opening ping, not one this test fires: reset() is where
+     * a board's spawn reaches the free ping every round starts with. */
+    var v = PV.createVision(RULES);
+    v.reset(maze);
+    var open = v.pulses();
+    check(on + 'opens the round on a ping from that spawn',
+      open.length > 0 && open.every(function (p) {
+        return p.x === PV.center(maze.spawn.pacman.col) &&
+          p.y === PV.center(maze.spawn.pacman.row);
+      }), open.map(function (p) { return p.x + ',' + p.y; }).join(' '));
+
+    /* Stepped to expiry rather than read off a constant: the ring has to be
+     * clocked by the board it is crossing, not by the widest one there is. */
+    var t = 0;
+    while (v.pulses().length && t < 20) { v.update(STEP, maze); t += STEP; }
+    check(on + 'ping is spent once it has crossed that board',
+      near(t, Math.hypot(maze.width, maze.height) / SPEED + RULES.hold + RULES.fade,
+        0.05), t);
+    return t;
+  });
+
+  check('a ping is spent sooner on a smaller board', lives[1] < lives[0] - 0.1,
+    lives[1].toFixed(3) + ' vs ' + lives[0].toFixed(3));
 })();
 
 console.log('');
