@@ -139,6 +139,31 @@ if (require.main === module) {
     });
   });
 
+  /* A recipe is top.id + '/' + bottom.id and the HUD shows it, so an id has to
+   * name one piece across every board and tier — tools/piece-check.js only sees
+   * a single pool and cannot catch a clash between two of them. The two sides
+   * are separate namespaces, since a recipe's position says which is which:
+   * level 1 is 'S1/S1'. Sharing one piece object across tiers is legitimate —
+   * full.tiers.fixed holds the first classic pair — so pieces are compared by
+   * identity rather than by id. */
+  ['top', 'bottom'].forEach(function (side) {
+    var owner = {};
+    Object.keys(PV.BOARDS).forEach(function (boardId) {
+      var board = PV.BOARDS[boardId];
+      Object.keys(board.tiers).forEach(function (tierId) {
+        board.tiers[tierId][side].forEach(function (piece) {
+          var where = boardId + '/' + tierId;
+          var prev = owner[piece.id];
+          if (!prev) { owner[piece.id] = { piece: piece, where: where }; return; }
+          if (prev.piece === piece) return;
+          templateFailures++;
+          console.log('  TEMPLATE  ' + side + ' id "' + piece.id + '" names two ' +
+            'different pieces: ' + prev.where + ' and ' + where);
+        });
+      });
+    });
+  });
+
   var failures = 0;
   var combos = 0;
 
