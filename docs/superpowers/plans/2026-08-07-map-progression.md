@@ -19,6 +19,18 @@ Two things surfaced while reading the code that the spec does not cover. Both ar
 1. **Ghost scatter tiles are hardcoded to 28x31.** `js/entities.js:154-163` sets scatter corners `{col:25,row:0}`, `{col:2,row:0}`, `{col:27,row:30}`, `{col:0,row:30}`. On a 20x23 board those are off the maze. Task 3 makes them board-relative.
 2. **Dot count does not follow from board size.** A 24x27 board with dense pieces measured 252 pellets, more than the arcade's 242 on a larger board. Tier briefs therefore carry a dot target as a hard constraint alongside the score band, and Task 12 enforces monotonicity.
 
+## Corrections found during execution
+
+3. **The score metric was specified twice, incompatibly.** The pinned arcade values started as `48/34/82`, measured before the house exclusion and tunnel wrap existed. Under the metric actually specified they are `34/30/64`. Every band in this plan is now on the corrected scale, and the arcade map sits at the floor of the classic pool.
+
+4. **Pellets cannot climb forever.** Once the board fixes at 28x31 from level 4, forcing pellet counts up as well as density compounds two difficulty axes. Task 14 applies the pellet monotonicity rule only across board-size changes.
+
+5. **A test that passes on the full board proves nothing.** Because `PV.scatterCorners` reproduces the old hardcoded corners exactly at 28x31, a board-relative assertion is vacuous until it runs against a differently-sized board. Any task asserting board-relative behaviour must parametrise over a small stand-in board, not just `PV.createMaze()`.
+
+6. **`PV.ghostReveal` has a call site in `js/render.js`** that the file-by-file migration list missed.
+
+7. **Actors capture their maze in a closure.** `game.nextLevel()` and `game.restart()` reassign `game.maze`, so the actors must be rebuilt against the new one or they reset to the old board's spawn. Task 3 adds a `newBoard()` helper in `js/game.js` for this; Task 7 must route its `createMaze(level)` change through that helper rather than adding a third creation path.
+
 ---
 
 ## File structure
@@ -859,23 +871,25 @@ Give the `full` template its pools, reusing the existing arrays:
 
 - [ ] **Step 5: Update game.js**
 
-`js/game.js:84`, `:135-136` and `:141-144`. Note the ordering bug in `restart`: it currently builds the maze before resetting `level` to 1, which would give a restart the wrong board.
+Task 3 added a `newBoard()` helper that rebuilds `game.maze` and the actors together. Route the level through it rather than adding a third creation path — read the helper as it stands before editing. Note the ordering trap in `restart`: `level` must be reset to 1 *before* the maze is built, since the maze now reads it.
 
 ```javascript
-    var maze = PV.createMaze(1);
-
-    // ... inside the game object, unchanged: maze: maze,
+    function newBoard() {
+      game.maze = PV.createMaze(game.level);
+      game.pacman = PV.createPacman(game.maze);
+      game.ghosts = PV.createGhosts(game.maze);
+    }
 
     game.nextLevel = function () {
       game.level++;
-      game.maze = PV.createMaze(game.level);
+      newBoard();
       game.dotsEaten = 0;
       game.startRound();
     };
 
     game.restart = function () {
-      game.level = 1;                       // before the maze, which reads it
-      game.maze = PV.createMaze(game.level);
+      game.level = 1;                       // before the board, which reads it
+      newBoard();
       game.score = 0;
       game.lives = 3;
       game.dotsEaten = 0;
@@ -883,6 +897,8 @@ Give the `full` template its pools, reusing the existing arrays:
       game.startRound();
     };
 ```
+
+The initial construction in the `game` object literal must agree with `newBoard()` — level 1's board, built from `game.level`'s initial value. If that leaves a dead `var maze` hoist, collapse it.
 
 - [ ] **Step 6: Run tests**
 
@@ -921,7 +937,7 @@ Keep `PV.TILE`, `PV.TOP_PIECES`, `PV.BOTTOM_PIECES`, `PV.center` and `PV.tileOf`
 - [ ] **Step 2: Find every straggler**
 
 Run: `grep -rn "PV\.COLS\|PV\.ROWS\|PV\.WIDTH\|PV\.HEIGHT\|PV\.SPAWN\|PV\.TUNNEL_ROW" js/ test/`
-Expected: two hits remain — `js/game.js:358` and `test/maze-test.js`'s `wideSpots`/`deadEnds`. Fix `game.js:358`, which measures tunnel-aware distance:
+Expected hits: `js/game.js:358`, `test/maze-test.js`'s `wideSpots`/`deadEnds`, and `test/opening-test.js` around line 126, which passes `PV.SPAWN.outside` as a target to `updateGhost` — switch that to the maze it already has in scope. Fix `game.js:358`, which measures tunnel-aware distance:
 
 ```javascript
         dx = Math.min(dx, game.maze.width - dx);
