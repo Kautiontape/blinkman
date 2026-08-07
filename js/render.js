@@ -124,6 +124,8 @@ window.PV = window.PV || {};
      * stood when it measured them. Null until the first Torch frame. */
     var torchMemory = { facing: null, reach: null, x: 0, y: 0 };
 
+    var aura = PV.createAura();
+
     var renderer = {
       shake: 0,
 
@@ -185,6 +187,14 @@ window.PV = window.PV || {};
         if (alpha.pacman > 0) drawPacman(ctx, game, alpha.pacman);
 
         drawFloatingScores(ctx, game);
+        ctx.restore();
+
+        // Outside the shake: a band pinned to the board's edge must not slide
+        // off it.
+        aura.update(game, dt);
+        ctx.save();
+        ctx.setTransform(scale, 0, 0, scale, 0, 0);
+        aura.draw(ctx);
         ctx.restore();
       }
     };

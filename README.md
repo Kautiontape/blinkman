@@ -67,6 +67,10 @@ Death is the one exception to all of this. Get caught and the ghosts light up
 for 0.6s before the death animation, with a red ring on whichever one got you,
 so a death always has a visible cause.
 
+A power pellet lights the board's edge white, breathing while it lasts and
+blinking faster as it runs out, then closing on one yellow pulse. A life lost
+turns the same edge red.
+
 The menu runs a demo behind it: a Stare Normal round on autopilot, with the lit
 layer rotating every four seconds. `prefers-reduced-motion` turns it off.
 
