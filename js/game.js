@@ -43,6 +43,33 @@ window.PV = window.PV || {};
     return isFinite(n) && n > 0 ? n : 0;
   }
 
+  /* The ids carry a mode prefix, so a score stored under a bare difficulty name
+   * belongs to that mode's Normal. Copies each old key to its new one, skipping
+   * any the player has already scored under, so running it twice cannot cost a
+   * score. */
+  var OLD_BEST_KEYS = {
+    'pv-best-easy': 'pv-best-stare-easy',
+    'pv-best-normal': 'pv-best-stare-normal',
+    'pv-best-hard': 'pv-best-stare-hard',
+    'pv-best-torch': 'pv-best-torch-normal',
+    'pv-best-blink': 'pv-best-flash-normal'
+  };
+
+  PV.migrateBests = function (target) {
+    // `target` mirrors the browser's localStorage (getItem/setItem); the page
+    // itself reaches that through `store`, whose get/set wrap it in a try/catch.
+    var get = target ? target.getItem.bind(target) : store.get;
+    var set = target ? target.setItem.bind(target) : store.set;
+
+    Object.keys(OLD_BEST_KEYS).forEach(function (from) {
+      var value = get(from);
+      if (value == null) return;
+      var to = OLD_BEST_KEYS[from];
+      if (get(to) != null) return;
+      set(to, value);
+    });
+  };
+
   PV.createGame = function (difficultyId, opts) {
     var rules = PV.DIFFICULTIES[difficultyId];
     var bestKey = 'pv-best-' + difficultyId;
@@ -150,11 +177,11 @@ window.PV = window.PV || {};
       // cooldown on nothing.
       if (game.state !== 'playing') return 'ignored';
       // Torch expands its ping from wherever Pac-Man is standing; the other
-      // styles ignore the origin.
+      // modes ignore the origin.
       var res = game.vision.select(layer, game.pacman);
       if (res === 'ok') {
         // Torch is a flash on a delay, so it takes the flash sound too.
-        game.onEvent(rules.style === 'persist' ? 'visionSwitch' : 'blink');
+        game.onEvent(rules.mode === 'stare' ? 'visionSwitch' : 'blink');
       } else if (res !== 'same' && res !== 'ignored') {
         // 'cooldown' and 'unavailable' are refusals and get the denied sound;
         // 'same' is silent — you already have that layer.
@@ -169,7 +196,7 @@ window.PV = window.PV || {};
       updatePops(dt);
 
       if (game.state === 'ready') {
-        // Returning before vision.update() freezes the cooldown and Blink's
+        // Returning before vision.update() freezes the cooldown and Flash's
         // opening flash while the board is still behind the curtain.
         if (game.stateTime > 1.8) beginPlay();
         return;

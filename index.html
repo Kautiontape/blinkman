@@ -59,28 +59,9 @@
         <p class="tag" id="splash"></p>
         <noscript><p class="tag">JavaScript is required to play.</p></noscript>
 
-        <div class="diffs" id="diffs" role="group" aria-label="Difficulty">
-          <button class="diff" type="button" data-diff="easy" aria-keyshortcuts="1">
-            <span class="dname" data-t="modes.easy.name"></span>
-            <span class="ddesc" data-t="modes.easy.menu" data-t-html></span>
-          </button>
-          <button class="diff" type="button" data-diff="normal" aria-keyshortcuts="2">
-            <span class="dname" data-t="modes.normal.name"></span>
-            <span class="ddesc" data-t="modes.normal.menu" data-t-html></span>
-          </button>
-          <button class="diff" type="button" data-diff="hard" aria-keyshortcuts="3">
-            <span class="dname" data-t="modes.hard.name"></span>
-            <span class="ddesc" data-t="modes.hard.menu" data-t-html></span>
-          </button>
-          <button class="diff" type="button" data-diff="torch" aria-keyshortcuts="4">
-            <span class="dname" data-t="modes.torch.name"></span>
-            <span class="ddesc" data-t="modes.torch.menu" data-t-html></span>
-          </button>
-          <button class="diff" type="button" data-diff="blink" aria-keyshortcuts="5">
-            <span class="dname" data-t="modes.blink.name"></span>
-            <span class="ddesc" data-t="modes.blink.menu" data-t-html></span>
-          </button>
-        </div>
+        <!-- built in js/menu.js: the rows expand and collapse, so they are not
+             pinned here -->
+        <div class="modes" id="modes" role="group" aria-label="Mode and difficulty"></div>
 
         <div class="keys">
           <div><kbd>&larr;</kbd><kbd>&darr;</kbd><kbd>&uarr;</kbd><kbd>&rarr;</kbd> or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
@@ -152,6 +133,7 @@
 <script src="js/entities.js"></script>
 <script src="js/render.js"></script>
 <script src="js/hud.js"></script>
+<script src="js/menu.js"></script>
 <script src="js/game.js"></script>
 <script src="js/attract.js"></script>
 <script src="js/main.js"></script>

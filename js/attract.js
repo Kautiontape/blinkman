@@ -19,8 +19,8 @@ window.PV = window.PV || {};
 
   PV.createAttract = function () {
     // persist:false — a demo round scores like any other, and the write would
-    // land on the player's own Normal best.
-    var game = PV.createGame('normal', { persist: false });
+    // land on the player's own Stare Normal best.
+    var game = PV.createGame('stare-normal', { persist: false });
 
     /* Reused across frames so the searches allocate nothing. The `seen` arrays
      * hold a generation number rather than a flag, which saves clearing them. */

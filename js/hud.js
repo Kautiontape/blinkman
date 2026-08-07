@@ -110,7 +110,7 @@ window.PV = window.PV || {};
     var hud = {
       /** Neutral state for the menu screen, so the panels aren't just empty. */
       showIdle: function () {
-        buildChips(PV.createVision(PV.DIFFICULTIES.normal), false);
+        buildChips(PV.createVision(PV.DIFFICULTIES['stare-normal']), false);
         el.badgeIcon.innerHTML = ICONS.none;
         el.badgeName.textContent = PV.TEXT.hud.idleBadge;
         el.badgeMode.textContent = PV.TEXT.hud.idleMode;
@@ -129,7 +129,7 @@ window.PV = window.PV || {};
 
       rebuild: function (game) {
         buildChips(game.vision, true);
-        el.badgeMode.textContent = PV.modeName(game.difficulty);
+        el.badgeMode.textContent = PV.modeName(game.difficulty) + ' · ' + PV.levelName(game.difficulty);
         lastIcon = null;
         lastLives = -1;
         lastStats = '';

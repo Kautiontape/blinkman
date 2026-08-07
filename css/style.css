@@ -138,22 +138,21 @@ html, body {
   margin-top: calc(14px * var(--sc, 1));
 }
 
-/* Three rows filled column-first, so DOM order — and therefore tab order and
-   the 1-5 keys — puts the standard modes on the left and the dark ones right. */
-.diffs {
-  display: grid;
-  grid-auto-flow: column;
-  grid-template-rows: repeat(3, auto);
-  grid-auto-columns: 1fr;
+/* One column, and the mode rows keep their position through both steps: the
+   list never reflows under the pointer, so changing your mind is one click on
+   a row that has not moved. */
+.modes {
+  display: flex;
+  flex-direction: column;
   gap: calc(8px * var(--sc, 1));
   margin-bottom: calc(22px * var(--sc, 1));
 }
 
-.diff {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: calc(3px * var(--sc, 1));
+.mrow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: calc(12px * var(--sc, 1));
   width: 100%;
   padding: calc(11px * var(--sc, 1)) calc(14px * var(--sc, 1));
   background: var(--panel);
@@ -164,23 +163,74 @@ html, body {
   font-family: inherit;
   cursor: pointer;
   text-align: left;
-  transition: border-color .12s, background .12s, transform .08s;
+  transition: border-color .12s, background .12s, transform .08s, opacity .12s;
 }
-.diff:hover, .diff:focus-visible {
+
+/* Keyboard cursor and mouse hover land on the same look, so there is exactly
+   one "where am I" signal on screen whichever device put it there. */
+.mrow.is-cursor {
   background: #131a30;
   border-color: var(--accent2);
   border-left-color: var(--accent);
-  outline: none;
   transform: translateX(2px);
 }
-.diff .dname {
-  text-transform: uppercase;   /* strings.js stores mode names in normal case */
+
+.mico { display: block; width: calc(26px * var(--sc, 1)); height: calc(26px * var(--sc, 1)); color: var(--accent); }
+.mico svg { display: block; width: 100%; height: 100%; }
+
+.mbody { display: flex; flex-direction: column; gap: calc(3px * var(--sc, 1)); min-width: 0; }
+.mname {
+  text-transform: uppercase;   /* strings.js stores names in normal case */
   font-size: calc(14px * var(--sc, 1));
   letter-spacing: calc(3px * var(--sc, 1));
   color: var(--accent);
 }
-.diff .ddesc { font-size: calc(11px * var(--sc, 1)); color: var(--dim); }
-.diff .ddesc b { color: var(--ink); font-weight: 600; }
+.mdesc { font-size: calc(11px * var(--sc, 1)); color: var(--dim); }
+.mdesc b { color: var(--ink); font-weight: 600; }
+
+.mnum {
+  align-self: start;
+  min-width: calc(16px * var(--sc, 1));
+  padding: calc(2px * var(--sc, 1)) 0;
+  text-align: center;
+  font-size: calc(10px * var(--sc, 1));
+  color: var(--dim);
+  border: 1px solid var(--line);
+  border-radius: calc(4px * var(--sc, 1));
+}
+.mrow.is-cursor .mnum { color: var(--accent); border-color: var(--accent); }
+
+/* A mode that is not the open one shrinks to a label. It keeps its place and
+   stays clickable, and it carries no digit: the digits belong to whichever list
+   is addressable, and while a mode is open that is its difficulties. */
+.mrow.is-collapsed {
+  grid-template-columns: auto 1fr;
+  padding: calc(5px * var(--sc, 1)) calc(14px * var(--sc, 1));
+  background: transparent;
+  border-color: #151a2e;
+  border-left-color: #151a2e;
+  opacity: .5;
+}
+.mrow.is-collapsed .mico { width: calc(15px * var(--sc, 1)); height: calc(15px * var(--sc, 1)); color: var(--dim); }
+.mrow.is-collapsed .mname { font-size: calc(11px * var(--sc, 1)); letter-spacing: calc(2px * var(--sc, 1)); color: var(--dim); }
+.mrow.is-collapsed:hover { opacity: .9; border-color: var(--line); border-left-color: var(--accent2); }
+
+/* The open mode is a heading rather than a choice, so it carries no digit. */
+.mrow.is-open {
+  grid-template-columns: auto 1fr;
+  background: #131a30;
+  border-color: var(--line);
+  border-left-color: var(--accent);
+}
+
+.mlevels {
+  display: flex;
+  flex-direction: column;
+  gap: calc(6px * var(--sc, 1));
+  padding: calc(6px * var(--sc, 1)) 0 calc(2px * var(--sc, 1)) calc(30px * var(--sc, 1));
+}
+.mlevels .mrow { grid-template-columns: 1fr auto; padding: calc(8px * var(--sc, 1)) calc(14px * var(--sc, 1)); }
+.mlevels .mname { font-size: calc(12px * var(--sc, 1)); letter-spacing: calc(2px * var(--sc, 1)); }
 
 .keys { color: var(--dim); font-size: calc(11px * var(--sc, 1)); line-height: 1.9; }
 
@@ -295,7 +345,7 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   /* The border colour above still marks a refusal without the movement. */
   .badge-wrap.denied .badge { animation: none; }
-  .diff:hover, .diff:focus-visible { transform: none; }
+  .mrow.is-cursor { transform: none; }
   * { transition-duration: .01ms !important; }
 }
 .badge-icon { width: 4.9em; height: 4.9em; display: block; }
@@ -315,7 +365,7 @@ kbd {
 }
 
 .badge-name { font-size: 1.36em; letter-spacing: .27em; color: var(--accent); }
-.badge-mode { font-size: .87em; letter-spacing: .27em; color: var(--dim); margin-top: .3em; }
+.badge-mode { font-size: .87em; letter-spacing: .27em; color: var(--dim); margin-top: .3em; text-wrap: balance; }
 
 .chips { display: grid; gap: .55em; }
 

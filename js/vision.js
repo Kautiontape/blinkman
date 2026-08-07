@@ -12,7 +12,7 @@ window.PV = window.PV || {};
   var OLDER_PICK_ALPHA = 0.55;
 
   /* Torch mode's sonar ping. The ring expands at PULSE_SPEED and every element
-   * fades on the same curve a Blink flash uses, clocked from the moment the
+   * fades on the same curve a Flash pick uses, clocked from the moment the
    * ring reached it — so near walls are already dimming while far ones are
    * still lighting up. PV.WIDTH and PV.HEIGHT are read at load time, which is
    * why maze.js has to load first. */
@@ -52,59 +52,103 @@ window.PV = window.PV || {};
   PV.introAlpha = function (age) {
     if (age >= INTRO_TIME) return 0;
     if (age < INTRO_BLINK_TIME) return (age % (INTRO_ON + INTRO_OFF)) < INTRO_ON ? 1 : 0;
-    // the eased falloff a Blink flash uses, so the two cues read alike
+    // the eased falloff a Flash pick uses, so the two cues read alike
     var t = (age - INTRO_BLINK_TIME) / INTRO_FADE;
     return (1 - t) * (1 - t);
   };
 
-  /* Behaviour only — the name and blurb of each mode live in strings.js.
+  /* Behaviour only — every word the player reads lives in strings.js.
    *
-   * style 'persist' — your last `keep` picks stay lit until you pick again.
-   * style 'blink'   — a pick flashes at full alpha, holds, then fades out.
-   * style 'torch'   — a pick pings outward from you; render.js paints it in
-   *                   board space, so the layer alphas stay dark.
-   * freeSelf        — your own layer is always drawn and costs no pick. */
-  PV.DIFFICULTIES = {
-    easy: {
-      id: 'easy',
-      pool: ['dots', 'ghosts', 'walls'],
-      style: 'persist', keep: 2, freeSelf: true,
-      cooldown: 1.0,
-      ghostSpeed: 0.80, initial: ['walls', 'dots']
-    },
-    normal: {
-      id: 'normal',
-      pool: ['dots', 'ghosts', 'walls'],
-      style: 'persist', keep: 1, freeSelf: true,
-      cooldown: 1.0,
-      ghostSpeed: 0.92, initial: ['walls']
-    },
-    hard: {
-      id: 'hard',
-      pool: LAYERS,
-      style: 'persist', keep: 1, freeSelf: false,
-      cooldown: 3.0,
-      ghostSpeed: 1.0, initial: ['walls']
-    },
-    blink: {
-      id: 'blink',
-      pool: LAYERS,
-      style: 'blink', keep: 1, freeSelf: false,
-      cooldown: 1.0, hold: 0.4, fade: 2.0,
-      ghostSpeed: 0.86, initial: ['walls']
+   * mode 'stare' — your last `keep` picks stay lit until you pick again.
+   * mode 'flash' — a pick flashes at full alpha, holds, then fades out.
+   * mode 'torch' — a lit circle and a forward cone travel with you, and a
+   *                pick pings outward from you; render.js paints all three
+   *                in board space, so the layer alphas stay dark.
+   * freeSelf     — your own layer is always drawn and costs no pick.
+   *
+   * `base` is what a mode's three levels share; a level merges over it.
+   * Nesting is authoring convenience only — PV.DIFFICULTIES below is the flat
+   * table every consumer reads, so this stays a local. */
+  var MODES = {
+    stare: {
+      base: {
+        pool: ['dots', 'ghosts', 'walls'],
+        freeSelf: true, initial: ['walls']
+      },
+      levels: {
+        easy:   { keep: 2, cooldown: 1.0, ghostSpeed: 0.80, initial: ['walls', 'dots'] },
+        normal: { keep: 1, cooldown: 1.0, ghostSpeed: 0.92 },
+        hard:   { keep: 1, cooldown: 3.0, ghostSpeed: 1.00, pool: LAYERS, freeSelf: false }
+      }
     },
     torch: {
-      id: 'torch',
-      pool: ['dots', 'ghosts', 'walls'],
-      style: 'torch', keep: 1, freeSelf: true,
-      cooldown: 1.0, hold: 0.25, fade: 1.1,
-      ghostSpeed: 0.90, initial: ['walls']
+      base: {
+        pool: ['dots', 'ghosts', 'walls'],
+        freeSelf: true, keep: 1, initial: ['walls']
+      },
+      levels: {
+        easy: {
+          torchRadius: 60, coneLen: 150, coneHalf: Math.PI / 3,
+          hold: 0.35, fade: 1.8, cooldown: 1.0, ghostSpeed: 0.78
+        },
+        normal: {
+          // 46px = 2.3 tiles radius, 120px = 6-tile cone, coneHalf 45 deg
+          // either side of facing (90 deg FOV) — easy and hard scale from this.
+          torchRadius: 46, coneLen: 120, coneHalf: Math.PI / 4,
+          hold: 0.25, fade: 1.1, cooldown: 1.0, ghostSpeed: 0.90
+        },
+        hard: {
+          torchRadius: 32, coneLen: 96, coneHalf: Math.PI / 6,
+          hold: 0.15, fade: 0.7, cooldown: 2.0, ghostSpeed: 1.00
+        }
+      }
+    },
+    flash: {
+      base: { pool: LAYERS, freeSelf: false, keep: 1, initial: ['walls'] },
+      levels: {
+        // Easy draws you always, so a flash is only ever spent on the board.
+        easy:   { pool: ['dots', 'ghosts', 'walls'], freeSelf: true,
+                  hold: 0.6, fade: 3.5, cooldown: 1.0, ghostSpeed: 0.74 },
+        normal: { hold: 0.4, fade: 2.0, cooldown: 1.0, ghostSpeed: 0.86 },
+        hard:   { hold: 0.25, fade: 1.0, cooldown: 2.0, ghostSpeed: 0.96 }
+      }
     }
   };
 
-  /** Display name for a mode, from strings.js. */
-  PV.modeName = function (id) { return PV.TEXT.modes[id].name.toUpperCase(); };
-  PV.modeBlurb = function (id) { return PV.TEXT.modes[id].blurb; };
+  // Authored insertion order; a fourth mode would need no separate list.
+  var MODE_IDS = Object.keys(MODES);
+  var LEVELS = ['easy', 'normal', 'hard'];
+  PV.MODE_IDS = MODE_IDS;
+  PV.LEVELS = LEVELS;
+
+  /* One flat table keyed 'mode-level'. createGame, the best-score key and the
+   * menu all address a cell by that id. */
+  PV.DIFFICULTIES = {};
+  MODE_IDS.forEach(function (mode) {
+    LEVELS.forEach(function (level) {
+      var rules = { id: mode + '-' + level, mode: mode, level: level };
+      [MODES[mode].base, MODES[mode].levels[level]].forEach(function (part) {
+        Object.keys(part).forEach(function (k) { rules[k] = part[k]; });
+      });
+      PV.DIFFICULTIES[rules.id] = rules;
+    });
+  });
+
+  /** Display name for a cell's mode. */
+  PV.modeName = function (id) {
+    return PV.TEXT.modes[PV.DIFFICULTIES[id].mode].name.toUpperCase();
+  };
+
+  /** Display name for a cell's level. */
+  PV.levelName = function (id) {
+    return PV.TEXT.levels[PV.DIFFICULTIES[id].level].toUpperCase();
+  };
+
+  /** The level's one-liner, shown on the READY overlay. */
+  PV.levelBlurb = function (id) {
+    var r = PV.DIFFICULTIES[id];
+    return PV.TEXT.modes[r.mode].levels[r.level].blurb;
+  };
 
   /* The board nudge for a player who hasn't used the number keys. Only the
    * digits the mode answers to are named: a freeSelf mode never spends a pick
@@ -115,17 +159,17 @@ window.PV = window.PV || {};
     var keys = LAYERS.filter(function (l) { return rules.pool.indexOf(l) !== -1; })
       .map(function (l) { return PV.LAYER_KEYS[l].split(' / ')[0]; })
       .join('/');
-    return PV.t(PV.TEXT.hint.press, { KEYS: keys, VERB: PV.TEXT.hint[rules.style] });
+    return PV.t(PV.TEXT.hint.press, { KEYS: keys, VERB: PV.TEXT.hint[rules.mode] });
   };
 
   PV.createVision = function (rules) {
-    var stack = [];      // persist mode: lit layers, most recent first
-    var flash = null;    // blink mode: { layer, age }
+    var stack = [];      // stare mode: lit layers, most recent first
+    var flash = null;    // flash mode: { layer, age }
     var cooldown = 0;
     var denied = 0;
     var intro = 0;       // age of the opening dots blink
 
-    /* Blink ignores the origin; Torch expands from it. Copied, not referenced,
+    /* Flash ignores the origin; Torch expands from it. Copied, not referenced,
      * so walking away doesn't drag the ring's centre along. */
     function newFlash(layer, origin) {
       var o = origin || SPAWN_CENTRE;
@@ -145,7 +189,7 @@ window.PV = window.PV || {};
 
       /** The layer the HUD badge shows. */
       current: function () {
-        if (rules.style === 'persist') return stack[0] || null;
+        if (rules.mode === 'stare') return stack[0] || null;
         return flash ? flash.layer : null;
       },
 
@@ -159,18 +203,18 @@ window.PV = window.PV || {};
        * ghost the ring has reached; render.js draws from it.
        * @returns {?{layer: string, age: number, x: number, y: number, blips: Array}}
        */
-      pulse: function () { return rules.style === 'torch' ? flash : null; },
+      pulse: function () { return rules.mode === 'torch' ? flash : null; },
 
       /**
        * Player pressed a vision key.
-       * @param origin  where a Torch ping expands from; ignored by other styles
+       * @param origin  where a Torch ping expands from; ignored by other modes
        * @returns {'ok'|'cooldown'|'unavailable'|'same'}
        */
       select: function (layer, origin) {
         if (!v.selectable(layer)) { denied = DENIED_FLASH; return 'unavailable'; }
         if (cooldown > 0) { denied = DENIED_FLASH; return 'cooldown'; }
 
-        if (rules.style === 'persist') {
+        if (rules.mode === 'stare') {
           var i = stack.indexOf(layer);
           // Re-picking the layer already on top changes nothing, so it costs no
           // cooldown. Promoting an older one from the stack still does.
@@ -192,14 +236,14 @@ window.PV = window.PV || {};
         var a = v.alpha;
         LAYERS.forEach(function (l) { a[l] = 0; });
 
-        if (rules.style === 'torch') {
+        if (rules.mode === 'torch') {
           // No layer alpha: the ping and the torch are spatial and are drawn
           // in board space by render.js.
           if (flash) {
             flash.age += dt;
             if (flash.age > pulseLife(rules)) flash = null;
           }
-        } else if (rules.style === 'blink') {
+        } else if (rules.mode === 'flash') {
           if (flash) {
             flash.age += dt;
             var fade = (flash.age - rules.hold) / rules.fade;
@@ -227,9 +271,9 @@ window.PV = window.PV || {};
 
       reset: function () {
         stack = (rules.initial || []).slice(0, rules.keep);
-        // Blink and Torch start pitch black, so the round opens on one free
+        // Flash and Torch start pitch black, so the round opens on one free
         // flash, fired from the spawn.
-        flash = rules.style !== 'persist' && rules.initial
+        flash = rules.mode !== 'stare' && rules.initial
           ? newFlash(rules.initial[0], null)
           : null;
         cooldown = 0;

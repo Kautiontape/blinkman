@@ -24,14 +24,14 @@ function near(actual, expected, tol) {
 }
 
 var STEP = 1 / 60;
-var RULES = PV.DIFFICULTIES.torch;
+var RULES = PV.DIFFICULTIES['torch-normal'];
 var SPEED = PV.PULSE_SPEED;
 
 /* The same seam opening-test.js uses: pellets frozen so nothing under test
  * depends on what Pac-Man wanders into, and invuln held so a ghost can't end
  * the round mid-measurement. steer() is what moves a round out of 'ready'. */
 function playing() {
-  var g = PV.createGame('torch');
+  var g = PV.createGame('torch-normal');
   g.startRound();
   g.maze.eatPellet = function () { return 0; };
   g.invuln = Infinity;
@@ -105,8 +105,8 @@ console.log('ping lifetime');
   check('the ping expires once the last element has faded',
     g.vision.pulse() === null, g.vision.pulse());
 
-  check('blink has no ping', PV.createGame('blink').vision.pulse() === null);
-  check('normal has no ping', PV.createGame('normal').vision.pulse() === null);
+  check('flash has no ping', PV.createGame('flash-normal').vision.pulse() === null);
+  check('stare has no ping', PV.createGame('stare-normal').vision.pulse() === null);
 })();
 
 console.log('');
@@ -264,6 +264,49 @@ console.log('cone + circle shape');
   var coneSide = PV.torchAlpha(46.5, 37.9, right, P); // ~39 deg off-axis, dist 60
   check('the cone side edge is a fade, not a hard line',
     coneSide > 0 && coneSide < 1, coneSide);
+})();
+
+console.log('');
+console.log('the torch ladder');
+
+(function () {
+  var easy = PV.DIFFICULTIES['torch-easy'];
+  var normal = PV.DIFFICULTIES['torch-normal'];
+  var hard = PV.DIFFICULTIES['torch-hard'];
+
+  // The reach is a per-cell knob, so render.js holds no single value for it.
+  check('the reach is not a module constant',
+    PV.TORCH_R === undefined && PV.TORCH_CONE_LEN === undefined &&
+    PV.TORCH_CONE_HALF === undefined,
+    [PV.TORCH_R, PV.TORCH_CONE_LEN, PV.TORCH_CONE_HALF].join(' '));
+
+  check('normal keeps the shipped reach',
+    normal.torchRadius === 46 && normal.coneLen === 120 &&
+    near(normal.coneHalf, Math.PI / 4, 1e-9),
+    normal.torchRadius + ' / ' + normal.coneLen + ' / ' + normal.coneHalf);
+
+  check('the circle shrinks down the ladder',
+    easy.torchRadius > normal.torchRadius && normal.torchRadius > hard.torchRadius,
+    [easy.torchRadius, normal.torchRadius, hard.torchRadius].join(' '));
+
+  check('the cone shortens down the ladder',
+    easy.coneLen > normal.coneLen && normal.coneLen > hard.coneLen,
+    [easy.coneLen, normal.coneLen, hard.coneLen].join(' '));
+
+  check('the cone narrows down the ladder',
+    easy.coneHalf > normal.coneHalf && normal.coneHalf > hard.coneHalf,
+    [easy.coneHalf, normal.coneHalf, hard.coneHalf].join(' '));
+
+  // A wider cone must light a spot a narrower one cannot, or the knob is inert.
+  var right = PV.DIRS.right;
+  function lit(rules) {
+    return PV.torchAlpha(40, 60, right, {
+      radius: rules.torchRadius, coneLen: rules.coneLen,
+      coneHalf: rules.coneHalf, soft: PV.TORCH_SOFT
+    });
+  }
+  check('a wide cone reaches what a narrow one misses',
+    lit(easy) > 0 && lit(hard) === 0, lit(easy) + ' / ' + lit(hard));
 })();
 
 console.log('');
