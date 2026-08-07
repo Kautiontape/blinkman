@@ -112,10 +112,10 @@ console.log('tunnel routing');
   for (var r = 0; r < m.rows; r++) {
     for (var c = 0; c < m.cols; c++) m.pellets[r][c] = 0;
   }
-  m.pellets[PV.TUNNEL_ROW][m.cols - 2] = 1;
+  m.pellets[m.tunnelRow][m.cols - 2] = 1;
 
   a.game.pacman.x = PV.center(0);
-  a.game.pacman.y = PV.center(PV.TUNNEL_ROW);
+  a.game.pacman.y = PV.center(m.tunnelRow);
   a.game.pacman.dir = PV.DIRS.right;
   a.update(STEP);
 
@@ -226,6 +226,256 @@ console.log('recovery from game over');
   check('and comes out on a fresh round', b.game.state === 'playing' && b.game.lives === 3,
     b.game.state + ' with ' + b.game.lives + ' lives');
 })();
+
+console.log('');
+console.log('a board that is not 28x31');
+
+/* Every board PV.createMaze hands out is the full one, so the sizes the
+ * autopilot derives from its maze are only exercised against a stand-in.
+ *
+ * The shape is a lattice: a wall pillar on every even row and column, a sealed
+ * house astride the tunnel row, and a pellet on the rest. The house, the
+ * tunnel and Pac-Man's spawn sit on odd rows and columns, which is where the
+ * corridors run. */
+function buildStandIn(cols, rows) {
+  var tunnelRow = ((rows / 2) | 0) | 1;
+  var houseCol = (((cols / 2) | 0) - 1) | 1;
+  var house = { c0: houseCol - 3, c1: houseCol + 3, r0: tunnelRow - 2, r1: tunnelRow + 1 };
+  var spawn = {
+    pacman:  { col: houseCol,     row: house.r1 + 5 },
+    door:    { col: houseCol,     row: house.r0 },
+    outside: { col: houseCol,     row: house.r0 - 1 },
+    blinky:  { col: houseCol,     row: house.r0 + 1 },
+    pinky:   { col: houseCol,     row: tunnelRow },
+    inky:    { col: houseCol - 2, row: tunnelRow },
+    clyde:   { col: houseCol + 2, row: tunnelRow }
+  };
+
+  var walls = [], doors = [], pellets = [], left = 0;
+  for (var r = 0; r < rows; r++) {
+    walls[r] = []; doors[r] = []; pellets[r] = [];
+    for (var c = 0; c < cols; c++) {
+      var border = r === 0 || r === rows - 1 ||
+        ((c === 0 || c === cols - 1) && r !== tunnelRow);
+      var pillar = r % 2 === 0 && c % 2 === 0;
+      var onHouse = r >= house.r0 && r <= house.r1 && c >= house.c0 && c <= house.c1;
+      var inHouse = r > house.r0 && r < house.r1 && c > house.c0 && c < house.c1;
+      var isDoorTile = r === spawn.door.row && c === spawn.door.col;
+
+      doors[r][c] = isDoorTile;
+      walls[r][c] = isDoorTile ? false : onHouse ? !inHouse : border || pillar;
+      var bare = walls[r][c] || isDoorTile || inHouse ||
+        (r === spawn.pacman.row && c === spawn.pacman.col);
+      pellets[r][c] = bare ? 0 : 1;
+      if (pellets[r][c]) left++;
+    }
+  }
+
+  function isWall(c, r) {
+    if (r < 0 || r >= rows) return true;
+    if (c < 0 || c >= cols) return r !== tunnelRow;
+    return walls[r][c];
+  }
+
+  function inside(c, r) { return r >= 0 && r < rows && c >= 0 && c < cols; }
+
+  function isDoor(c, r) { return inside(c, r) && doors[r][c]; }
+
+  function pelletAt(c, r) { return inside(c, r) ? pellets[r][c] : 0; }
+
+  return {
+    cols: cols, rows: rows,
+    width: cols * PV.TILE, height: rows * PV.TILE,
+    tunnelRow: tunnelRow,
+    spawn: spawn,
+    scatter: PV.scatterCorners({ cols: cols, rows: rows }),
+    house: house,
+    walls: walls, doors: doors, pellets: pellets,
+
+    get pelletsLeft() { return left; },
+
+    isWall: isWall,
+    isDoor: isDoor,
+    pelletAt: pelletAt,
+    passable: function (c, r, throughDoor) {
+      if (isWall(c, r)) return false;
+      if (isDoor(c, r) && !throughDoor) return false;
+      return true;
+    },
+    eatPellet: function (c, r) {
+      var v = pelletAt(c, r);
+      if (v) { pellets[r][c] = 0; left--; }
+      return v;
+    }
+  };
+}
+
+/* Runs `fn` with PV.createMaze handing out the given shapes in order, the last
+ * one repeating. That is the seam a demo board arrives through: createGame
+ * calls it once at construction and again on every restart. */
+function onStandIn(shapes, fn) {
+  var real = PV.createMaze;
+  var made = 0;
+  PV.createMaze = function () {
+    var s = shapes[Math.min(made++, shapes.length - 1)];
+    return buildStandIn(s[0], s[1]);
+  };
+  try { fn(); } finally { PV.createMaze = real; }
+}
+
+/* The buffers are private to the demo, so their lengths are read where they
+ * are made: the typed-array constructors, wrapped for what they are handed.
+ * attract.js is the only file that allocates one. */
+function allocsDuring(fn) {
+  var names = ['Int32Array', 'Int16Array', 'Int8Array'];
+  var reals = {}, lengths = [];
+  names.forEach(function (n) {
+    var real = global[n];
+    reals[n] = real;
+    global[n] = function (len) { lengths.push(len); return new real(len); };
+  });
+  try { fn(); } finally {
+    names.forEach(function (n) { global[n] = reals[n]; });
+  }
+  return lengths;
+}
+
+(function () {
+  onStandIn([[20, 23]], function () {
+    var a;
+    var lengths = allocsDuring(function () {
+      a = PV.createAttract();
+      a.update(STEP);
+    });
+    check('the demo is steering on the stand-in board',
+      a.game.maze.cols === 20 && a.game.maze.rows === 23,
+      a.game.maze.cols + 'x' + a.game.maze.rows);
+    check('five buffers, each of the board\'s own cols * rows',
+      lengths.join(',') === '460,460,460,460,460', lengths.join(','));
+  });
+
+  /* A restart is where a demo board is replaced. Each shape below differs from
+   * the one before in one span only, so buffers cut for either are the wrong
+   * size for the board that follows. */
+  onStandIn([[20, 23], [24, 23], [24, 27]], function () {
+    var a = PV.createAttract();
+    a.update(STEP);
+
+    function afterRestart() {
+      return allocsDuring(function () {
+        a.game.state = 'gameover';
+        a.update(STEP);
+      }).join(',');
+    }
+
+    var wider = afterRestart();
+    check('a wider board gets buffers of its own',
+      wider === '552,552,552,552,552', wider);
+
+    var taller = afterRestart();
+    check('a taller board gets buffers of its own',
+      taller === '648,648,648,648,648', taller);
+
+    check('the demo is steering on the third board',
+      a.game.maze.cols === 24 && a.game.maze.rows === 27,
+      a.game.maze.cols + 'x' + a.game.maze.rows);
+
+    var again = allocsDuring(function () { a.update(STEP); });
+    check('a board it is already sized to allocates nothing',
+      again.length === 0, again.join(','));
+  });
+})();
+
+/* The steering invariant of the run above, on a board whose width the module
+ * constants do not describe. `col` may be one outside the board and `row` may
+ * not: the tunnel is the only edge that leads anywhere. */
+onStandIn([[20, 23]], function () {
+  var a = PV.createAttract();
+  a.game.invuln = Infinity;
+  var m = a.game.maze;
+  var illegal = 0, offBoard = 0, samples = 0, blocked = 0, first = '';
+
+  for (var i = 0; i < 60 * 20; i++) {
+    var p = a.game.pacman;
+    var was = p.tile();
+    var state = a.game.state;
+    a.update(STEP);
+
+    if (state !== 'ready' && state !== 'playing') continue;
+    samples++;
+    if (p.blocked) blocked++;
+    var col = was.col + p.want.x, row = was.row + p.want.y;
+    if (row < 0 || row >= m.rows || col < -1 || col > m.cols) offBoard++;
+    if (!m.passable(col, row, false)) {
+      illegal++;
+      if (!first) first = p.want.name + ' from ' + was.col + ',' + was.row;
+    }
+  }
+
+  check('20x23: steered enough frames to mean something', samples > 1000, samples);
+  check('20x23: never steers into a wall', illegal === 0,
+    illegal + ' of ' + samples + '  ' + first);
+  check('20x23: never steers off the board', offBoard === 0, offBoard);
+  check('20x23: never walks into a wall either', blocked === 0, blocked);
+});
+
+/* Pac-Man on a tunnel mouth with the board's only pellet at `pellet`, facing
+ * the way the search should not send him — the fallback that picks any open
+ * direction answers with the mouth's other side, so only the search can
+ * produce the direction each check below expects. */
+function mouthStep(startCol, facing, pellet) {
+  var a = PV.createAttract();
+  var m = a.game.maze;
+  for (var r = 0; r < m.rows; r++) {
+    for (var c = 0; c < m.cols; c++) m.pellets[r][c] = 0;
+  }
+  m.pellets[pellet.row][pellet.col] = 1;
+
+  a.game.pacman.x = PV.center(startCol);
+  a.game.pacman.y = PV.center(m.tunnelRow);
+  a.game.pacman.dir = facing;
+  a.update(STEP);
+  return a.game.pacman.want.name;
+}
+
+/* The tunnel check again, from both mouths of a board 20 wide: a wrap that
+ * used the module's 28 lands eight columns past the far edge, on a tile this
+ * board does not have. The pellet is two steps through the mouth and sixteen
+ * the long way round. */
+onStandIn([[20, 23]], function () {
+  var west = mouthStep(0, PV.DIRS.right, { col: 18, row: 11 });
+  check('20x23: routes west through the tunnel', west === 'left', west);
+
+  var east = mouthStep(19, PV.DIRS.left, { col: 1, row: 11 });
+  check('20x23: routes east through the tunnel', east === 'right', east);
+});
+
+/* And that the wrap lands on the far column rather than merely somewhere: on a
+ * board 24 wide the tile eight columns past the right edge is (3, 14), which
+ * is where this pellet sits. It is four steps east of the left mouth and
+ * twenty-two through the tunnel, so the route is east. */
+onStandIn([[24, 27]], function () {
+  var step = mouthStep(0, PV.DIRS.left, { col: 3, row: 14 });
+  check('24x27: the tunnel is a wrap, not a shortcut', step === 'right', step);
+});
+
+/* What the flood fill is for. One pellet in the far corner from the spawn is
+ * only reached by a search that indexes tiles the way the board is laid out —
+ * a fill addressing 28-wide rows on a 20-wide board reaches nothing and the
+ * demo falls back to walking whichever way is open. */
+onStandIn([[20, 23]], function () {
+  var a = PV.createAttract();
+  a.game.invuln = Infinity;
+  var m = a.game.maze;
+  for (var r = 0; r < m.rows; r++) {
+    for (var c = 0; c < m.cols; c++) m.pellets[r][c] = 0;
+  }
+  m.pellets[1][1] = 1;
+
+  for (var i = 0; i < 60 * 15 && a.game.dotsEaten === 0; i++) a.update(STEP);
+  check('20x23: walks to the only pellet on the board', a.game.dotsEaten === 1,
+    a.game.dotsEaten + ' after ' + (i / 60).toFixed(1) + 's');
+});
 
 console.log('');
 console.log(failures === 0 ? 'ALL ATTRACT CHECKS OK' : failures + ' CHECK(S) FAILED');
