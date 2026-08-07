@@ -312,57 +312,57 @@ console.log('the torch ladder');
 console.log('');
 console.log('the ping spans its own board');
 
-/* A board no template produces: smaller, with its spawn on its own row. maze.js
- * hands out one size, so a ping measured against a module constant would still
- * sweep every real board correctly — a second size is what tells the two apart.
- * It carries only what a ping reads off a board. */
-function standInMaze() {
-  var cols = 20, rows = 23;
-  return {
-    cols: cols, rows: rows,
-    width: cols * PV.TILE, height: rows * PV.TILE,
-    spawn: { pacman: { col: 9, row: 17 } }
-  };
-}
+/* Two boards, sized whole rather than derived, so the spans below are pinned
+ * geometry and not the same arithmetic run twice. Each carries only what a ping
+ * reads off a board: its size, and the spawn the free one fires from. A ping
+ * measured against a module constant sweeps the widest board correctly either
+ * way — the second size is what tells the two apart. */
+var FULL = { cols: 28, rows: 31, width: 560, height: 620,
+             spawn: { pacman: { col: 13, row: 23 } } };
+var SMALL = { cols: 20, rows: 23, width: 400, height: 460,
+              spawn: { pacman: { col: 9, row: 17 } } };
 
 (function () {
-  var full = PV.createMaze(3);
-  var small = standInMaze();
-
   check('the full board spans corner to corner',
-    near(PV.pulseSpan(full), Math.hypot(560, 620), 1e-9), PV.pulseSpan(full));
+    near(PV.pulseSpan(FULL), Math.hypot(560, 620), 1e-9), PV.pulseSpan(FULL));
   check('a smaller board spans less',
-    near(PV.pulseSpan(small), Math.hypot(400, 460), 1e-9), PV.pulseSpan(small));
+    near(PV.pulseSpan(SMALL), Math.hypot(400, 460), 1e-9), PV.pulseSpan(SMALL));
 
-  [full, small].forEach(function (maze) {
+  // The stand-ins are the shape a real maze reports, whatever size it is built at.
+  var real = PV.createMaze();
+  check('a real maze spans its own tiles',
+    near(PV.pulseSpan(real),
+      Math.hypot(real.cols * PV.TILE, real.rows * PV.TILE), 1e-9), PV.pulseSpan(real));
+
+  var lives = [FULL, SMALL].map(function (maze) {
     var on = maze.cols + 'x' + maze.rows + ' ';
+
     var o = PV.pulseOrigin(maze);
-    check(on + 'fires the free ping from its own spawn',
+    check(on + 'fires a free ping from its own spawn',
       o.x === PV.center(maze.spawn.pacman.col) &&
       o.y === PV.center(maze.spawn.pacman.row), o.x + ',' + o.y);
-  });
 
-  /* Stepped to expiry rather than read off a constant: the ring has to be
-   * clocked by the board it is crossing, not by the widest one there is. */
-  function pingLife(maze) {
+    /* The round's own opening ping, not one this test fires: reset() is where
+     * a board's spawn reaches the free ping every round starts with. */
     var v = PV.createVision(RULES);
     v.reset(maze);
-    check(maze.cols + 'x' + maze.rows + ' takes a press',
-      v.select('walls', PV.pulseOrigin(maze)) === 'ok');
+    var open = v.pulse();
+    check(on + 'opens the round on a ping from that spawn',
+      open.x === PV.center(maze.spawn.pacman.col) &&
+      open.y === PV.center(maze.spawn.pacman.row), open.x + ',' + open.y);
+
+    /* Stepped to expiry rather than read off a constant: the ring has to be
+     * clocked by the board it is crossing, not by the widest one there is. */
     var t = 0;
     while (v.pulse() && t < 20) { v.update(STEP, maze); t += STEP; }
+    check(on + 'ping is spent once it has crossed that board',
+      near(t, Math.hypot(maze.width, maze.height) / SPEED + RULES.hold + RULES.fade,
+        0.05), t);
     return t;
-  }
+  });
 
-  function expected(w, h) { return Math.hypot(w, h) / SPEED + RULES.hold + RULES.fade; }
-
-  var fullLife = pingLife(full), smallLife = pingLife(small);
-  check('the full board ping runs its own span',
-    near(fullLife, expected(560, 620), 0.05), fullLife);
-  check('the smaller board ping runs its own, shorter span',
-    near(smallLife, expected(400, 460), 0.05), smallLife);
-  check('a ping is spent sooner on a smaller board', smallLife < fullLife - 0.1,
-    smallLife.toFixed(3) + ' vs ' + fullLife.toFixed(3));
+  check('a ping is spent sooner on a smaller board', lives[1] < lives[0] - 0.1,
+    lives[1].toFixed(3) + ' vs ' + lives[0].toFixed(3));
 })();
 
 console.log('');

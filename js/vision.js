@@ -238,7 +238,10 @@ window.PV = window.PV || {};
         return 'ok';
       },
 
-      /** @param maze  the board a live ping is sweeping. */
+      /**
+       * @param dt    seconds since the last frame
+       * @param maze  the board a live ping is sweeping
+       */
       update: function (dt, maze) {
         cooldown = Math.max(0, cooldown - dt);
         denied = Math.max(0, denied - dt);
