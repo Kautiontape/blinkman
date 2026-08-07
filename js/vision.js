@@ -160,12 +160,6 @@ window.PV = window.PV || {};
     return PV.TEXT.levels[PV.DIFFICULTIES[id].level].toUpperCase();
   };
 
-  /** The level's one-liner, shown on the READY overlay. */
-  PV.levelBlurb = function (id) {
-    var r = PV.DIFFICULTIES[id];
-    return PV.TEXT.modes[r.mode].levels[r.level].blurb;
-  };
-
   /* The board nudge for a player who hasn't used the number keys. Only the
    * digits the mode answers to are named: a freeSelf mode never spends a pick
    * on your own layer, so it has no 4. Digits come off LAYER_KEYS rather than

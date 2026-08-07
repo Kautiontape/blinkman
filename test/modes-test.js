@@ -112,7 +112,6 @@ IDS.forEach(function (id) {
   var r = PV.DIFFICULTIES[id];
   check(id + ' names its mode', /^[A-Z]+$/.test(PV.modeName(id)), PV.modeName(id));
   check(id + ' names its level', /^[A-Z]+$/.test(PV.levelName(id)), PV.levelName(id));
-  check(id + ' has a blurb', (PV.levelBlurb(id) || '').length > 0, PV.levelBlurb(id));
 
   var copy = PV.TEXT.modes[r.mode].levels[r.level];
   check(id + ' has a menu line', !!copy && (copy.menu || '').length > 0, copy && copy.menu);
@@ -124,6 +123,23 @@ PV.MODE_IDS.forEach(function (mode) {
   check(mode + ' has a menu line', !!copy && (copy.menu || '').length > 0, copy && copy.menu);
   check(mode + ' menu has one bold run', (copy.menu.match(/<b>/g) || []).length === 1, copy.menu);
 });
+
+console.log('');
+console.log('READY carries no blurb');
+
+/* The overlay names the mode and the level and nothing else, so the per-level
+ * blurbs and the accessor that read them are gone. */
+check('no levelBlurb accessor', PV.levelBlurb === undefined, PV.levelBlurb);
+
+IDS.forEach(function (id) {
+  var r = PV.DIFFICULTIES[id];
+  check(id + ' has no blurb',
+    PV.TEXT.modes[r.mode].levels[r.level].blurb === undefined,
+    PV.TEXT.modes[r.mode].levels[r.level].blurb);
+});
+
+check('the ready hint names no maze',
+  PV.TEXT.overlay.readyHint.indexOf('%MAZE%') === -1, PV.TEXT.overlay.readyHint);
 
 console.log('');
 console.log('best-score migration');

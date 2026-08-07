@@ -146,7 +146,7 @@
     if (!game) return;
 
     var key = paused + '|' + game.state + '|' + game.level + '|' +
-      game.score + '|' + game.best + '|' + game.maze.recipe;
+      game.score + '|' + game.best;
     if (key === overlayKey) return;
     overlayKey = key;
 
@@ -158,9 +158,8 @@
       hint = T.pausedHint;
     } else if (game.state === 'ready') {
       title = T.ready;
-      body = PV.modeName(game.difficulty) + ' · ' + PV.levelName(game.difficulty) +
-        '  ·  ' + PV.levelBlurb(game.difficulty);
-      hint = PV.t(T.readyHint, { MAZE: game.maze.recipe });
+      body = PV.modeName(game.difficulty) + ' · ' + PV.levelName(game.difficulty);
+      hint = T.readyHint;
     } else if (game.state === 'levelclear') {
       title = PV.t(T.levelClear, { N: game.level });
       body = PV.t(T.levelClearBody, { SCORE: game.score });
