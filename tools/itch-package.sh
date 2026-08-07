@@ -11,8 +11,9 @@ mkdir -p "$out"
 rm -f "$zipfile"
 
 cd "$root"
-# cover.png stays out: it exists for og:image on the web deploy, and itch hosts
-# its own cover. The og:image tag 404s inside the zip; harmless.
+# cover.png and press/ stay out. itch hosts its own cover, and og:image is an
+# absolute URL onto the Pages deploy, so the card resolves from inside the zip
+# without the image being in it.
 zip -r -q "$zipfile" index.html css js
 
 echo "$zipfile"

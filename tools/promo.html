@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BLINK-MAN press art</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;800&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; padding: 28px; background: #12141c; color: #e8ecff;
+         font: 13px ui-monospace, monospace; }
+  canvas { display: block; max-width: 900px; width: 100%; height: auto;
+           margin-bottom: 10px; }
+  /* The checker shows where the logo is genuinely transparent. */
+  .alpha { background-image:
+             linear-gradient(45deg, #333 25%, transparent 25%, transparent 75%, #333 75%),
+             linear-gradient(45deg, #333 25%, #222 25%, #222 75%, #333 75%);
+           background-size: 22px 22px;
+           background-position: 0 0, 11px 11px; }
+  .light { background: #ffffff; }
+  .dark-bg { background: #000000; }
+  /* Half brightness, to check the near ghost survives a dim screen. */
+  .dim { filter: brightness(0.55); }
+  button { font: inherit; padding: 7px 14px; background: #ffd23f; color: #05060c;
+           border: 0; border-radius: 3px; cursor: pointer; margin-bottom: 26px; }
+  h2 { font: 600 13px ui-monospace, monospace; margin: 26px 0 8px; }
+  p { color: #6a7398; margin: 0 0 8px; }
+</style>
+</head>
+<body>
+  <p id="info">rendering…</p>
+
+  <h2>social.png — 1200 x 630, og:image</h2>
+  <canvas id="social" width="1200" height="630"></canvas>
+  <p>Dimmed to 55% — the near ghost must still resolve</p>
+  <canvas id="social-dim" class="dim" width="1200" height="630"></canvas>
+  <button data-save="social">Download social.png</button>
+
+  <h2>cover-wide.png — 1920 x 1080, 16:9</h2>
+  <canvas id="wide" width="1920" height="1080"></canvas>
+  <button data-save="wide">Download cover-wide.png</button>
+
+  <h2>logo.png — transparent, one file for every background</h2>
+  <p>On black, on white, and on the checker. All three are the same canvas
+     drawn once; the wordmark has to hold up in all of them.</p>
+  <canvas id="logo" class="dark-bg" width="1900" height="340"></canvas>
+  <canvas id="logo-white" class="light" width="1900" height="340"></canvas>
+  <canvas id="logo-checker" class="alpha" width="1900" height="340"></canvas>
+  <button data-save="logo">Download logo.png</button>
+
+<script src="../js/maze.js"></script>
+<script src="../js/render.js"></script>
+<script src="./banner-layout.js"></script>
+<script src="./banner-draw.js"></script>
+<script>
+  var FILES = {
+    social: 'social.png',
+    wide: 'cover-wide.png',
+    logo: 'logo.png'
+  };
+
+  function byId(id) { return document.getElementById(id); }
+
+  document.fonts.load('800 100px "JetBrains Mono"').then(function () {
+    return document.fonts.load('500 40px "JetBrains Mono"');
+  }).then(function () {
+    return document.fonts.ready;
+  }).then(function () {
+    var social = PV.drawPreset(byId('social'), 'social');
+    PV.drawPreset(byId('wide'), 'wide');
+    PV.drawLogo(byId('logo'));
+
+    ['logo-white', 'logo-checker'].forEach(function (id) {
+      byId(id).getContext('2d').drawImage(byId('logo'), 0, 0);
+    });
+    byId('social-dim').getContext('2d').drawImage(byId('social'), 0, 0);
+
+    byId('info').textContent = 'seed ' + social.seed + '  recipe ' +
+      social.recipe + '  player c' + social.player.col + ',r' + social.player.row +
+      '   logo ink ' + PV.LOGO_INK +
+      '  ' + PV.contrastRatio(PV.LOGO_INK, '#ffffff').toFixed(2) + ':1 on white, ' +
+      PV.contrastRatio(PV.LOGO_INK, '#000000').toFixed(2) + ':1 on black';
+    document.body.dataset.ready = '1';
+  }).catch(function (err) {
+    byId('info').textContent = 'FAILED: ' + err.message;
+    throw err;
+  });
+
+  document.body.addEventListener('click', function (e) {
+    var id = e.target.dataset && e.target.dataset.save;
+    if (!id) return;
+    byId(id).toBlob(function (blob) {
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = FILES[id];
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+  });
+</script>
+</body>
+</html>

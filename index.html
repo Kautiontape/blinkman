@@ -11,7 +11,17 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="BLINK-MAN">
 <meta property="og:description" content="A maze chase drawn one layer at a time.">
-<meta property="og:image" content="cover.png">
+<!-- Absolute, and deliberately so. A relative og:image resolves against
+     whatever page the scraper fetched, which inside the itch.io zip is a
+     sandboxed iframe origin that has no press/ directory. Pointing at the
+     Pages copy gives every embed of the game the same card.
+     press/social.png is 1200x630 because twitter:card below promises a
+     1.91:1 image; cover.png is 630x500 and gets centre-cropped. -->
+<meta property="og:image" content="https://kautiontape.github.io/blinkman/press/social.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="BLINK-MAN over a maze that fades into the dark, two ghosts waiting in it">
+<meta property="og:url" content="https://kautiontape.github.io/blinkman/">
 <meta name="twitter:card" content="summary_large_image">
 <!-- inline so it survives being zipped for itch.io and served from a subpath -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%2305060c'/%3E%3Cpath d='M12 12L22 5.5a11 11 0 1 0 0 13z' fill='%23ffd23f'/%3E%3C/svg%3E">

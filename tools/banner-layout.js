@@ -12,22 +12,32 @@ window.PV = window.PV || {};
    * an offscreen canvas and then blitted 1:1. Blitting 1:1 (rather than
    * scaling) is what keeps the 2px wall strokes crisp, and that requires an
    * integer source y. */
+  /* `zoom` renders the board larger than the target and crops the right-hand
+   * columns away, which thickens the walls and pellets relative to the frame.
+   * The banner leaves it at 1 and fits the board's full width; a 16:9 crop
+   * needs it above 1 or the maze reads as fine texture rather than as a maze.
+   * The crop is left-aligned because every preset fades out rightward, so the
+   * columns it discards are the ones about to be erased anyway. */
   PV.bannerBand = function (opts) {
-    var scale = opts.bannerW / opts.boardW;
+    var zoom = opts.zoom || 1;
+    var scale = (opts.bannerW * zoom) / opts.boardW;
     var bandDesignH = opts.bannerH / scale;
     var bandRows = bandDesignH / opts.tile;
     var boardRows = opts.boardH / opts.tile;
 
     return {
       scale: scale,
+      zoom: zoom,
       bandRows: bandRows,
+      bandCols: opts.bannerW / (opts.tile * scale),
       exact: Number.isInteger(bandRows),
       /* A band that starts too low, or above the board entirely, runs off
        * the edge — the blit still succeeds, it just reads blank canvas
        * rather than maze tiles, so nothing else would ever catch it. */
       fits: opts.topRow >= 0 && opts.topRow + bandRows <= boardRows,
+      srcX: 0,
       srcY: Math.round(opts.topRow * opts.tile * scale),
-      offscreenW: opts.bannerW,
+      offscreenW: Math.ceil(opts.boardW * scale),
       offscreenH: Math.ceil(opts.boardH * scale)
     };
   };
@@ -69,14 +79,20 @@ window.PV = window.PV || {};
    * Returns null when the band is solid — callers must not silently place the
    * player inside a wall.
    *
+   * maxCol bounds the search the same way for columns, which matters once a
+   * preset zooms in and crops the right-hand columns away: without it the
+   * search can answer with a tile that is not in the picture. It defaults to
+   * the full width, which is what every unzoomed preset wants.
+   *
    * Ties resolve to the first tile in scan order — lowest row, then lowest
    * column. The banner is a build artefact, so which tile wins matters less
    * than it winning the same way every time. */
-  PV.bannerPlayerSpot = function (maze, targetCol, targetRow, minRow, maxRow) {
+  PV.bannerPlayerSpot = function (maze, targetCol, targetRow, minRow, maxRow, maxCol) {
     var best = null, bestDist = Infinity;
+    if (maxCol === undefined) maxCol = maze.cols - 1;
 
     for (var r = minRow; r <= maxRow; r++) {
-      for (var c = 0; c < maze.cols; c++) {
+      for (var c = 0; c <= maxCol; c++) {
         if (maze.walls[r][c]) continue;
         var dc = c - targetCol, dr = r - targetRow;
         var dist = dc * dc + dr * dr;
@@ -85,6 +101,57 @@ window.PV = window.PV || {};
     }
 
     return best;
+  };
+
+  /* WCAG relative luminance and contrast ratio.
+   *
+   * Here because press/logo.png is one file that has to stay readable on both
+   * white and black, which is a genuine constraint rather than a preference:
+   * contrast against one background falls as it rises against the other, and
+   * the best any single colour can do on both is 4.58:1, at luminance 0.179.
+   * A wordmark colour is therefore a solved problem, not a taste question, and
+   * the test checks it rather than trusting the eye. */
+  PV.relativeLuminance = function (hex) {
+    var ch = [1, 3, 5].map(function (i) {
+      var v = parseInt(hex.substr(i, 2), 16) / 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+  };
+
+  PV.contrastRatio = function (hexA, hexB) {
+    var a = PV.relativeLuminance(hexA), b = PV.relativeLuminance(hexB);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  };
+
+  /* Horizontal lockup for press/logo.png: a disc on the left, the wordmark
+   * filling whatever width is left.
+   *
+   * The disc comes off the height and the text off the remaining width, so the
+   * two are coupled through the canvas aspect — there is no size that satisfies
+   * both independently. `fits` is false when the padding and disc have eaten
+   * the whole width, which draws a wordmark squeezed to the minimum font size
+   * rather than erroring, and is invisible unless something checks. */
+  PV.logoLockup = function (w, h, opts) {
+    var discR = (opts.discFrac * h) / 2;
+    var padX = opts.padFrac * w;
+    var discX = padX + discR;
+    var textLeft = discX + discR + opts.gapFrac * w;
+    var textWidth = w - padX - textLeft;
+
+    return {
+      discR: discR,
+      discX: discX,
+      textLeft: textLeft,
+      textWidth: textWidth,
+      fits: textWidth > 0,
+      /* Disc diameter over the wordmark's cap height. JetBrains Mono's caps are
+       * 0.73 em, and the pair reads as one mark near 1.6 — much above and the
+       * disc becomes a bullet the text hangs off, much below and the mark turns
+       * into a line of type with a dot. Only meaningful once the caller has
+       * fitted a font size to textWidth. */
+      discToCap: function (fontSize) { return (discR * 2) / (0.73 * fontSize); }
+    };
   };
 
   /* Binary-search a font size whose measured width hits targetPx.

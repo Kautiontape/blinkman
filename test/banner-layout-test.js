@@ -4,7 +4,14 @@
  * a mistake that renders as a subtly wrong image rather than an error.
  */
 global.window = {};
-require(require('path').join(__dirname, '..', 'tools', 'banner-layout.js'));
+var join = require('path').join;
+require(join(__dirname, '..', 'tools', 'banner-layout.js'));
+/* js/maze.js for the board's real dimensions and the real ghost-house row, and
+ * tools/banner-draw.js for the presets themselves — both only touch `document`
+ * from inside a draw call, so requiring them outside a browser is safe and
+ * beats restating their numbers here where they could drift. */
+require(join(__dirname, '..', 'js', 'maze.js'));
+require(join(__dirname, '..', 'tools', 'banner-draw.js'));
 var PV = global.window.PV;
 
 var failures = 0;
@@ -58,6 +65,71 @@ var bad = PV.bannerBand({
 });
 check('a non-integral band is reported rather than rounded away',
   bad.exact === false, 'exact=' + bad.exact);
+
+check('an unzoomed band spans the whole board width', band.bandCols === 28,
+  'cols=' + band.bandCols);
+check('an unzoomed offscreen is exactly the target width',
+  band.offscreenW === 1860, 'offscreenW=' + band.offscreenW);
+
+console.log('');
+console.log('zoomed band');
+
+/* press/cover-wide.png. Zoom is the only reason a preset shows fewer than all
+ * 28 columns, so these pin the crop rather than the fit. */
+var zoomed = PV.bannerBand({
+  bannerW: 1920, bannerH: 1080, boardW: 560, boardH: 620, tile: 20,
+  topRow: 3, zoom: 1.5
+});
+
+check('zoom multiplies the scale', zoomed.scale === (1920 * 1.5) / 560,
+  'scale=' + zoomed.scale);
+check('zooming in shows fewer rows', Math.abs(zoomed.bandRows - 10.5) < 1e-9,
+  'rows=' + zoomed.bandRows);
+check('zooming in crops columns away', zoomed.bandCols < 28,
+  'cols=' + zoomed.bandCols.toFixed(2));
+check('the offscreen is wide enough to crop from',
+  zoomed.offscreenW >= 1920, 'offscreenW=' + zoomed.offscreenW);
+check('the zoomed band still fits the board', zoomed.fits === true,
+  'topRow=3 rows=' + zoomed.bandRows);
+check('source x is an integer so the blit does not resample',
+  Number.isInteger(zoomed.srcX), 'srcX=' + zoomed.srcX);
+
+/* press/social.png, from the real preset rather than a copy of its numbers.
+ *
+ * The ghost house door is the one piece of board that reads as a defect in a
+ * link card: a short red bar landing near the tagline. The social crop is
+ * chosen to stop above it, and nothing about the image says so — this is the
+ * only thing standing between a retuned zoom and a red smear on every card. */
+var social = PV.PRESETS.social;
+var socialBand = PV.bannerBand({
+  bannerW: social.w, bannerH: social.h, boardW: PV.WIDTH, boardH: PV.HEIGHT,
+  tile: PV.TILE, topRow: social.topRow, zoom: social.zoom
+});
+
+check('the social crop is a whole number of tile rows', socialBand.exact === true,
+  'rows=' + socialBand.bandRows);
+check('the social preset demands that exactness of itself',
+  social.exactRows === true, 'exactRows=' + social.exactRows);
+check('the social crop stops above the ghost house door',
+  social.topRow + socialBand.bandRows <= PV.SPAWN.door.row,
+  'lastRow=' + (social.topRow + socialBand.bandRows) +
+  ' doorRow=' + PV.SPAWN.door.row);
+check('the social crop still fits the board', socialBand.fits === true,
+  'fits=' + socialBand.fits);
+
+/* Omitting zoom has to behave exactly like zoom 1, or docs/banner.png moves. */
+var implicit = PV.bannerBand({
+  bannerW: 1860, bannerH: 465, boardW: 560, boardH: 620, tile: 20, topRow: 4
+});
+var explicit = PV.bannerBand({
+  bannerW: 1860, bannerH: 465, boardW: 560, boardH: 620, tile: 20, topRow: 4,
+  zoom: 1
+});
+check('an absent zoom is exactly zoom 1',
+  implicit.scale === explicit.scale && implicit.srcY === explicit.srcY &&
+  implicit.offscreenW === explicit.offscreenW &&
+  implicit.bandRows === explicit.bandRows,
+  'srcY=' + implicit.srcY + '/' + explicit.srcY);
 
 console.log('');
 console.log('ghost dome');
@@ -138,6 +210,94 @@ check('never leaves the visible band',
 var none = PV.bannerPlayerSpot(stubMaze([]), 3, 7, 4, 10);
 check('reports failure rather than returning a wall tile', none === null,
   'got ' + JSON.stringify(none));
+
+/* The same trap as the row clamp, on the axis a zoomed preset crops. Tile
+ * [24,7] is nearer the target than [1,7], so an unclamped search takes it —
+ * and it sits outside the 18 columns cover-wide.png actually shows. */
+var cropped = PV.bannerPlayerSpot(stubMaze([[1, 7], [24, 7]]), 20, 7, 4, 10, 17);
+check('never leaves the visible columns',
+  cropped.col === 1 && cropped.row === 7,
+  'got c' + cropped.col + ',r' + cropped.row);
+
+var unclamped = PV.bannerPlayerSpot(stubMaze([[1, 7], [24, 7]]), 20, 7, 4, 10);
+check('an absent column bound searches the full width',
+  unclamped.col === 24, 'got c' + unclamped.col);
+
+console.log('');
+console.log('logo lockup');
+
+var LOGO = { discFrac: 0.62, padFrac: 0.035, gapFrac: 0.045 };
+var lock = PV.logoLockup(1900, 340, LOGO);
+
+check('the disc is centred on its own diameter plus the pad',
+  Math.abs(lock.discX - (0.035 * 1900 + lock.discR)) < 1e-9,
+  'discX=' + lock.discX);
+check('the text starts clear of the disc', lock.textLeft > lock.discX + lock.discR,
+  'textLeft=' + lock.textLeft.toFixed(1));
+check('the text ends a full pad short of the edge',
+  Math.abs((lock.textLeft + lock.textWidth) - (1900 - 0.035 * 1900)) < 1e-9,
+  'right=' + (lock.textLeft + lock.textWidth).toFixed(1));
+check('the lockup fits', lock.fits === true,
+  'textWidth=' + lock.textWidth.toFixed(1));
+
+/* A canvas far taller than it is wide leaves the wordmark nowhere to go. */
+var squeezed = PV.logoLockup(400, 2000, LOGO);
+check('a degenerate lockup is reported rather than drawn',
+  squeezed.fits === false, 'textWidth=' + squeezed.textWidth.toFixed(1));
+
+/* JetBrains Mono 800 advances 0.6em, and drawLogo adds 0.34em of tracking to
+ * every glyph but discounts the trailing one. Nine glyphs of that predicts the
+ * size drawLogo's binary search lands on — 181.1px in Chrome at this canvas,
+ * which is what makes the ratio below checkable without a browser. */
+var predicted = lock.textWidth / (9 * (0.6 + 0.34) - 0.34);
+var ratio = lock.discToCap(predicted);
+check('disc and cap height read as one mark', ratio > 1.5 && ratio < 1.7,
+  'predicted=' + predicted.toFixed(1) + 'px ratio=' + ratio.toFixed(2));
+
+console.log('');
+console.log('logo legibility');
+
+/* press/logo.png is a single transparent file laid over backgrounds it does not
+ * control, so the wordmark colour is load-bearing. These are the numbers that
+ * stop it drifting back toward one that only works on the dark half. */
+var onWhite = PV.contrastRatio(PV.LOGO_INK, '#ffffff');
+var onBlack = PV.contrastRatio(PV.LOGO_INK, '#000000');
+
+check('WCAG luminance matches the published figure for mid grey',
+  Math.abs(PV.relativeLuminance('#777777') - 0.1845) < 0.001,
+  'L=' + PV.relativeLuminance('#777777').toFixed(4));
+check('a colour has no contrast with itself',
+  PV.contrastRatio('#7183e4', '#7183e4') === 1);
+check('white on black is the full 21:1',
+  Math.abs(PV.contrastRatio('#ffffff', '#000000') - 21) < 1e-9);
+
+check('the logo ink clears 3:1 on white', onWhite >= 3,
+  PV.LOGO_INK + ' -> ' + onWhite.toFixed(2) + ':1');
+check('the logo ink clears 3:1 on black', onBlack >= 3,
+  PV.LOGO_INK + ' -> ' + onBlack.toFixed(2) + ':1');
+check('the logo ink favours black, where the logo is usually placed',
+  onBlack > onWhite, 'white=' + onWhite.toFixed(2) + ' black=' + onBlack.toFixed(2));
+
+/* The banner's near-white and any dark ink each fail one side outright. Pinned
+ * so the two-file approach cannot quietly come back. */
+check('the banner ink would be illegible on white',
+  PV.contrastRatio('#e8ecff', '#ffffff') < 1.5,
+  'e8ecff -> ' + PV.contrastRatio('#e8ecff', '#ffffff').toFixed(2) + ':1');
+check('a dark ink would be illegible on black',
+  PV.contrastRatio('#12141c', '#000000') < 1.5,
+  '12141c -> ' + PV.contrastRatio('#12141c', '#000000').toFixed(2) + ':1');
+
+/* Contrast against white and black trade off exactly, so the best a single
+ * colour can do on its worse side is the value where the two are equal:
+ * (L+0.05)^2 = 0.0525, giving 4.58:1 at L=0.179. Stated because it is not
+ * obvious, and because it is the reason the two sides above are lopsided
+ * rather than both excellent. */
+var ceiling = Math.sqrt(0.0525) / 0.05;
+check('a single colour cannot beat 4.58:1 on both sides',
+  Math.abs(ceiling - 4.58) < 0.01, 'ceiling=' + ceiling.toFixed(2) + ':1');
+check('the ink does not claim to beat that ceiling',
+  Math.min(onWhite, onBlack) <= ceiling,
+  'worse side=' + Math.min(onWhite, onBlack).toFixed(2) + ':1');
 
 console.log('');
 console.log('wordmark fitting');

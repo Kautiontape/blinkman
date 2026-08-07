@@ -98,6 +98,7 @@ Description:
 | `docs/hard-mode.png` | Hard mode: four ghosts in a void, and the YOU chip is unlit because you can't see yourself either | 1600x1000 |
 | `docs/mazes.png` | Four of the sixteen mazes side by side | 1314x393 |
 | `docs/menu.png` | The mode select | 1600x1000 |
+| `docs/banner.png` | Page banner | 1860x465 |
 
 Upload order matters a little: itch shows them in the order given, and the
 first one does the most work. `screenshot.png` then `hard-mode.png` reads best,
@@ -105,3 +106,43 @@ because the first shows a game and the second shows what's wrong with it.
 
 Blink mode photographs as a black rectangle, which is honest but a poor sales
 pitch, so there's no screenshot of it.
+
+## Press art
+
+`press/` holds the art that gets uploaded to somewhere other than itch —
+storefront forms, link cards, anywhere asking for a logo.
+
+| File | Use | Size |
+|---|---|---|
+| `press/social.png` | `og:image`. The 1.91:1 card Twitter, Facebook, Slack and Discord crop to | 1200x630 |
+| `press/cover-wide.png` | 16:9 key image | 1920x1080 |
+| `press/logo.png` | Transparent horizontal logo, one file for any background | 1900x340 |
+| `press/favicon.svg` | Source for every raster icon beside it | 24x24 |
+| `press/favicon.ico` | Bundles 16, 32 and 48 | — |
+| `press/favicon-32.png`, `-180`, `-192`, `-512`, `apple-touch-icon.png` | Whatever size a form demands | — |
+
+The icons are upload assets and nothing serves them: the icon browsers show is
+the data URI inlined in `index.html`, which is what keeps it working inside the
+itch zip. Change one and change the other — `press/favicon.svg` carries the same
+geometry so they can't drift silently.
+
+`social.png` is the only one anything links to, via an absolute `og:image` onto
+the Pages deploy. Moving or renaming it breaks every link card.
+
+The logo is one file rather than a light and a dark variant, because the forms
+asking for it overlay it on backgrounds they choose and accept a single upload.
+Its wordmark is `#7183e4`: 3.46:1 on white and 6.07:1 on black, lopsided on
+purpose toward the darker backgrounds it usually lands on, and above the 3:1
+that large type needs on both. No colour beats 4.58:1 on both sides at once, so
+a mark that looks its best on black is a mark that fails on white — the near
+white the banner uses manages 1.17:1 there. The disc keeps the full brand yellow
+and takes a keyline instead, since a shape survives low contrast where a word
+does not. `test/banner-layout-test.js` holds all of this.
+
+Regenerate the four rendered files by opening `tools/promo.html` in Chrome and
+clicking through the download buttons. Chrome specifically: the wordmark needs
+canvas `letterSpacing`, and the page throws rather than quietly drawing
+untracked type. `tools/banner.html` does the same for `docs/banner.png`. Both
+draw the board with the real maze and the real renderer, so a change to either
+shows up in the art — which is the point, and the reason the art is generated
+rather than exported from a design tool.
