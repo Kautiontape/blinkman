@@ -24,14 +24,14 @@ function near(actual, expected, tol) {
 }
 
 var STEP = 1 / 60;
-var RULES = PV.DIFFICULTIES.torch;
+var RULES = PV.DIFFICULTIES['torch-normal'];
 var SPEED = PV.PULSE_SPEED;
 
 /* The same seam opening-test.js uses: pellets frozen so nothing under test
  * depends on what Pac-Man wanders into, and invuln held so a ghost can't end
  * the round mid-measurement. steer() is what moves a round out of 'ready'. */
 function playing() {
-  var g = PV.createGame('torch');
+  var g = PV.createGame('torch-normal');
   g.startRound();
   g.maze.eatPellet = function () { return 0; };
   g.invuln = Infinity;
@@ -105,8 +105,8 @@ console.log('ping lifetime');
   check('the ping expires once the last element has faded',
     g.vision.pulse() === null, g.vision.pulse());
 
-  check('blink has no ping', PV.createGame('blink').vision.pulse() === null);
-  check('normal has no ping', PV.createGame('normal').vision.pulse() === null);
+  check('flash has no ping', PV.createGame('flash-normal').vision.pulse() === null);
+  check('stare has no ping', PV.createGame('stare-normal').vision.pulse() === null);
 })();
 
 console.log('');

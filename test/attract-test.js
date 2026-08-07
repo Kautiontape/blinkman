@@ -48,13 +48,13 @@ function driveByHand(game, seconds) {
 
 (function () {
   writes.length = 0;
-  var demo = PV.createGame('normal', { persist: false });
+  var demo = PV.createGame('stare-normal', { persist: false });
   driveByHand(demo, 6);
   check('a persist:false game scores', demo.score > 0, demo.score);
   check('a persist:false game writes nothing', writes.length === 0, writes.join(' '));
 
   writes.length = 0;
-  var real = PV.createGame('normal');
+  var real = PV.createGame('stare-normal');
   driveByHand(real, 6);
   check('a default game still writes', real.score > 0 && writes.length > 0,
     real.score + ' / ' + writes.length + ' writes');
@@ -162,7 +162,7 @@ console.log('layer rotation');
     if (order[order.length - 1] !== cur) order.push(cur);
   }
 
-  var pool = PV.DIFFICULTIES.normal.pool.slice().sort().join(',');
+  var pool = PV.DIFFICULTIES['stare-normal'].pool.slice().sort().join(',');
   check('reaches every layer in the pool', Object.keys(seen).sort().join(',') === pool,
     Object.keys(seen).sort().join(','));
   check('walks walls -> dots -> ghosts, then repeats',

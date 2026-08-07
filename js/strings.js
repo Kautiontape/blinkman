@@ -65,36 +65,70 @@ window.PV = window.PV || {};
       dots: 'Dots',
       ghosts: 'Ghosts',
       walls: 'Walls',
-      // Second person, not the character's name: Hard and Blink switch this
-      // layer off, and it would otherwise sit directly above BLINK in the HUD.
+      // Second person, not the character's name: Stare Hard and Flash's Normal
+      // and Hard switch this layer off, so it names something you can lose.
       pacman: 'You'
     },
 
+    /* Written once and shared, so a level is spelled the same everywhere. */
+    levels: { easy: 'Easy', normal: 'Normal', hard: 'Hard' },
+
+    /* One bold run per menu line, and it is always the phrase saying how much
+     * you can see. `blurb` is the plain version the READY overlay uses. */
     modes: {
-      easy: {
-        name: 'Easy',
-        blurb: 'You and your last two picks',
-        menu: 'You and your last <b>two picks</b> &middot; 1s cooldown'
-      },
-      normal: {
-        name: 'Normal',
-        blurb: 'You and your last pick',
-        menu: 'You and your <b>last pick</b> &middot; 1s cooldown'
-      },
-      hard: {
-        name: 'Hard',
-        blurb: 'One of four, and you can go dark',
-        menu: '<b>One of four</b>, and you can go dark &middot; 3s cooldown'
-      },
-      blink: {
-        name: 'Blink',
-        blurb: 'Flash one layer and remember it',
-        menu: 'Dark. Flash <b>one layer</b>, then it fades &middot; 1s cooldown'
+      stare: {
+        name: 'Stare',
+        menu: 'The layer you pick <b>stays lit</b>',
+        levels: {
+          easy: {
+            blurb: 'You and your last two picks',
+            menu: 'You and your last <b>two picks</b> &middot; 1s'
+          },
+          normal: {
+            blurb: 'You and your last pick',
+            menu: 'You and your <b>last pick</b> &middot; 1s'
+          },
+          hard: {
+            blurb: 'One of four, and you can go dark',
+            menu: '<b>One of four</b>, and you can go dark &middot; 3s'
+          }
+        }
       },
       torch: {
         name: 'Torch',
-        blurb: 'A pool of light, and a ping that sweeps',
-        menu: 'Lit around you. A ping <b>sweeps one layer</b> &middot; 1s cooldown'
+        menu: 'A circle and a cone, and a <b>ping that sweeps</b>',
+        levels: {
+          easy: {
+            blurb: 'A wide cone, and it reaches',
+            menu: 'A <b>wide</b> cone, and it reaches &middot; 1s'
+          },
+          normal: {
+            blurb: 'A pool of light, and a ping that sweeps',
+            menu: 'A <b>normal</b> cone, and a ping &middot; 1s'
+          },
+          hard: {
+            blurb: 'A narrow cone, quick to fade',
+            menu: 'A <b>narrow</b> cone, quick to fade &middot; 2s'
+          }
+        }
+      },
+      flash: {
+        name: 'Flash',
+        menu: 'Dark. <b>Flash one layer</b>, then it fades',
+        levels: {
+          easy: {
+            blurb: 'You stay lit, and a flash lingers',
+            menu: 'You stay lit. A flash <b>lingers 3.5s</b> &middot; 1s'
+          },
+          normal: {
+            blurb: 'Flash one layer and remember it',
+            menu: 'Dark. A flash <b>fades over 2s</b> &middot; 1s'
+          },
+          hard: {
+            blurb: 'Flash one layer, and it is gone',
+            menu: 'Dark. A flash <b>fades over 1s</b> &middot; 2s'
+          }
+        }
       }
     },
 

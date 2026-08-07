@@ -34,7 +34,7 @@ var STEP = 1 / 60;
  * Pac-Man happens to wander into, and invuln never expires so a ghost can't
  * end the round mid-measurement. */
 function newGame(difficulty) {
-  var g = PV.createGame(difficulty || 'normal');
+  var g = PV.createGame(difficulty || 'stare-normal');
   g.startRound();
   g.maze.eatPellet = function () { return 0; };
   g.invuln = Infinity;
@@ -196,11 +196,11 @@ console.log('dots intro blink');
     return { peak: peak, settled: v.alpha.dots };
   }
 
-  var normal = dotsAfter('normal', 1.6);
+  var normal = dotsAfter('stare-normal', 1.6);
   check('normal blinks the dots to full', near(normal.peak, 1, 0.001), normal.peak);
   check('normal settles the dots dark', normal.settled === 0, normal.settled);
 
-  var easy = dotsAfter('easy', 1.6);
+  var easy = dotsAfter('stare-easy', 1.6);
   check('easy blinks the dots to full', near(easy.peak, 1, 0.001), easy.peak);
   check('easy settles the dots to its own alpha', near(easy.settled, 0.55, 0.001), easy.settled);
 })();
@@ -213,11 +213,16 @@ console.log('layer nudge');
  * offer a 4, and the verb comes from its style. */
 (function () {
   var EXPECTED = {
-    easy: 'Press 1/2/3 to change layer',
-    normal: 'Press 1/2/3 to change layer',
-    hard: 'Press 1/2/3/4 to change layer',
-    torch: 'Press 1/2/3 to scan',
-    blink: 'Press 1/2/3/4 to flash'
+    'stare-easy': 'Press 1/2/3 to change layer',
+    'stare-normal': 'Press 1/2/3 to change layer',
+    'stare-hard': 'Press 1/2/3/4 to change layer',
+    'torch-easy': 'Press 1/2/3 to scan',
+    'torch-normal': 'Press 1/2/3 to scan',
+    'torch-hard': 'Press 1/2/3 to scan',
+    // Easy draws you always, so it is the one Flash cell with no 4 to offer.
+    'flash-easy': 'Press 1/2/3 to flash',
+    'flash-normal': 'Press 1/2/3/4 to flash',
+    'flash-hard': 'Press 1/2/3/4 to flash'
   };
 
   Object.keys(PV.DIFFICULTIES).forEach(function (id) {

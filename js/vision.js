@@ -57,54 +57,89 @@ window.PV = window.PV || {};
     return (1 - t) * (1 - t);
   };
 
-  /* Behaviour only — the name and blurb of each mode live in strings.js.
+  /* Behaviour only — every word the player reads lives in strings.js.
    *
    * style 'persist' — your last `keep` picks stay lit until you pick again.
    * style 'blink'   — a pick flashes at full alpha, holds, then fades out.
-   * style 'torch'   — a pick pings outward from you; render.js paints it in
-   *                   board space, so the layer alphas stay dark.
-   * freeSelf        — your own layer is always drawn and costs no pick. */
-  PV.DIFFICULTIES = {
-    easy: {
-      id: 'easy',
-      pool: ['dots', 'ghosts', 'walls'],
-      style: 'persist', keep: 2, freeSelf: true,
-      cooldown: 1.0,
-      ghostSpeed: 0.80, initial: ['walls', 'dots']
-    },
-    normal: {
-      id: 'normal',
-      pool: ['dots', 'ghosts', 'walls'],
-      style: 'persist', keep: 1, freeSelf: true,
-      cooldown: 1.0,
-      ghostSpeed: 0.92, initial: ['walls']
-    },
-    hard: {
-      id: 'hard',
-      pool: LAYERS,
-      style: 'persist', keep: 1, freeSelf: false,
-      cooldown: 3.0,
-      ghostSpeed: 1.0, initial: ['walls']
-    },
-    blink: {
-      id: 'blink',
-      pool: LAYERS,
-      style: 'blink', keep: 1, freeSelf: false,
-      cooldown: 1.0, hold: 0.4, fade: 2.0,
-      ghostSpeed: 0.86, initial: ['walls']
+   * style 'torch'   — a lit circle and a forward cone travel with you, and a
+   *                   pick pings outward from you; render.js paints all three
+   *                   in board space, so the layer alphas stay dark.
+   * freeSelf        — your own layer is always drawn and costs no pick.
+   *
+   * `base` is what a mode's three levels share; a level merges over it. */
+  PV.MODES = {
+    stare: {
+      base: {
+        style: 'persist', pool: ['dots', 'ghosts', 'walls'],
+        freeSelf: true, initial: ['walls']
+      },
+      levels: {
+        easy:   { keep: 2, cooldown: 1.0, ghostSpeed: 0.80, initial: ['walls', 'dots'] },
+        normal: { keep: 1, cooldown: 1.0, ghostSpeed: 0.92 },
+        hard:   { keep: 1, cooldown: 3.0, ghostSpeed: 1.00, pool: LAYERS, freeSelf: false }
+      }
     },
     torch: {
-      id: 'torch',
-      pool: ['dots', 'ghosts', 'walls'],
-      style: 'torch', keep: 1, freeSelf: true,
-      cooldown: 1.0, hold: 0.25, fade: 1.1,
-      ghostSpeed: 0.90, initial: ['walls']
+      base: {
+        style: 'torch', pool: ['dots', 'ghosts', 'walls'],
+        freeSelf: true, keep: 1, initial: ['walls']
+      },
+      levels: {
+        easy: {
+          torchRadius: 60, coneLen: 150, coneHalf: Math.PI / 3,
+          hold: 0.35, fade: 1.8, cooldown: 1.0, ghostSpeed: 0.78
+        },
+        normal: {
+          torchRadius: 46, coneLen: 120, coneHalf: Math.PI / 4,
+          hold: 0.25, fade: 1.1, cooldown: 1.0, ghostSpeed: 0.90
+        },
+        hard: {
+          torchRadius: 32, coneLen: 96, coneHalf: Math.PI / 6,
+          hold: 0.15, fade: 0.7, cooldown: 2.0, ghostSpeed: 1.00
+        }
+      }
+    },
+    flash: {
+      base: { style: 'blink', pool: LAYERS, freeSelf: false, keep: 1, initial: ['walls'] },
+      levels: {
+        // Easy draws you always, so a flash is only ever spent on the board.
+        easy:   { pool: ['dots', 'ghosts', 'walls'], freeSelf: true,
+                  hold: 0.6, fade: 3.5, cooldown: 1.0, ghostSpeed: 0.74 },
+        normal: { hold: 0.4, fade: 2.0, cooldown: 1.0, ghostSpeed: 0.86 },
+        hard:   { hold: 0.25, fade: 1.0, cooldown: 2.0, ghostSpeed: 0.96 }
+      }
     }
   };
 
-  /** Display name for a mode, from strings.js. */
-  PV.modeName = function (id) { return PV.TEXT.modes[id].name.toUpperCase(); };
-  PV.modeBlurb = function (id) { return PV.TEXT.modes[id].blurb; };
+  var LEVELS = ['easy', 'normal', 'hard'];
+  PV.LEVELS = LEVELS;
+  PV.MODE_IDS = ['stare', 'torch', 'flash'];
+
+  /* One flat table keyed 'mode-level'. createGame, the best-score key and the
+   * menu all address a cell by that id, so the nesting above stays authoring
+   * convenience and never reaches a consumer. */
+  PV.DIFFICULTIES = {};
+  PV.MODE_IDS.forEach(function (mode) {
+    LEVELS.forEach(function (level) {
+      var rules = { id: mode + '-' + level, mode: mode, level: level };
+      [PV.MODES[mode].base, PV.MODES[mode].levels[level]].forEach(function (part) {
+        Object.keys(part).forEach(function (k) { rules[k] = part[k]; });
+      });
+      PV.DIFFICULTIES[rules.id] = rules;
+    });
+  });
+
+  /** Display name for a cell's mode, its level, and the level's one-liner. */
+  PV.modeName = function (id) {
+    return PV.TEXT.modes[PV.DIFFICULTIES[id].mode].name.toUpperCase();
+  };
+  PV.levelName = function (id) {
+    return PV.TEXT.levels[PV.DIFFICULTIES[id].level].toUpperCase();
+  };
+  PV.modeBlurb = function (id) {
+    var r = PV.DIFFICULTIES[id];
+    return PV.TEXT.modes[r.mode].levels[r.level].blurb;
+  };
 
   /* The board nudge for a player who hasn't used the number keys. Only the
    * digits the mode answers to are named: a freeSelf mode never spends a pick
