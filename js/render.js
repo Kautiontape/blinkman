@@ -125,6 +125,11 @@ window.PV = window.PV || {};
     var ctx = canvas.getContext('2d');
     var scale = 1;   // backing-store pixels per design pixel
 
+    /* What the torch carries between frames so it can ease instead of snap:
+     * the heading it is swinging toward, the last ray lengths, and where it
+     * stood when it measured them. Null until the first Torch frame. */
+    var torchMemory = { facing: null, reach: null, x: 0, y: 0 };
+
     var renderer = {
       shake: 0,
 
@@ -143,16 +148,20 @@ window.PV = window.PV || {};
         // visibleAlpha(), not vision.alpha: a death forces ghosts + Pac-Man on.
         var alpha = game.visibleAlpha();
         // Non-null only in Torch, where it doubles as the mode test.
-        var torch = null;
+        var torch = null, reach = null;
         if (game.rules.style === 'torch') {
           var r = torchRadius(game.time);
           torch = {
-            x: game.pacman.x, y: game.pacman.y, dir: game.pacman.dir,
+            x: game.pacman.x, y: game.pacman.y,
             radius: r,
             coneLen: TORCH_CONE_LEN * (r / TORCH_R),   // flickers in step with the circle
             coneHalf: TORCH_CONE_HALF,
             soft: TORCH_SOFT
           };
+          // The swung heading, not his own: the beam lags a turn by a frame
+          // or two, and what it lights has to agree with where it points.
+          torch.dir = torchSwing(torchMemory, game.pacman.dir, torch.x, torch.y, dt);
+          reach = torchSpill(torchMemory, torch, game.maze, dt);
         }
 
         ctx.save();
@@ -171,7 +180,7 @@ window.PV = window.PV || {};
         // Under the layers, so a death reveal still draws over the top.
         if (torch) {
           drawPulse(ctx, game);
-          drawTorch(ctx, game, torch, scale);
+          drawTorch(ctx, game, torch, reach, scale);
         }
 
         // Only drawWalls needs `scale` — see its shadowBlur.
@@ -332,124 +341,148 @@ window.PV = window.PV || {};
     });
   }
 
-  /* Is this open tile inside the circle-or-cone shape, and is Blinkman's
-   * line of sight to it clear? The two are deliberately separate tests:
-   * shape first (cheap), occlusion second (a grid walk), so a tile that's
-   * simply out of range never pays for a line-of-sight check. */
-  function torchTileLit(maze, torch, c, r) {
-    var x = PV.center(c), y = PV.center(r);
-    var dx = x - torch.x, dy = y - torch.y;
-    if (PV.torchAlpha(dx, dy, torch.dir, torch) <= 0) return false;
-    return PV.canSee(torch.x, torch.y, x, y, maze);
+  var TORCH_RAYS = 480;          // ~0.75 deg apart: smooth at the cone's reach
+  var TORCH_BITE = TILE * 0.5;   // how far light sinks into the wall it stops on
+  var TORCH_SPILL = 700;         // px/s the lit edge travels when a way opens
+  var TORCH_TURN = 20;           // rad/s the beam swings round to a new heading
+  var TORCH_JUMP = TILE * 2;     // a move this big (the tunnel) skips the easing
+  var TORCH_RIM = 'rgba(255,214,130,0.20)';
+
+  /** An angle folded into a single turn, 0 to 2pi. */
+  function wrapTurn(a) {
+    var t = Math.PI * 2;
+    return ((a % t) + t) % t;
   }
 
-  /* One face per wall tile per lit open neighbour, same offsets buildEdges
-   * uses in maze.js. A wall tile fills if any face of it is lit; a face
-   * strokes only on the side that's actually visible, which is what makes a
-   * wall behind a corner disappear instead of showing its far side. */
-  var WALL_FACES = [
-    { dc: 0, dr: -1, x1: 0, y1: 0, x2: TILE, y2: 0 },
-    { dc: 0, dr: 1, x1: 0, y1: TILE, x2: TILE, y2: TILE },
-    { dc: -1, dr: 0, x1: 0, y1: 0, x2: 0, y2: TILE },
-    { dc: 1, dr: 0, x1: TILE, y1: 0, x2: TILE, y2: TILE }
-  ];
-
-  function drawTorchWalls(ctx, maze, torch, scale) {
-    ctx.save();
-    ctx.fillStyle = 'rgba(24,36,102,0.45)';
-
-    var edges = [];
-    for (var r = 0; r < maze.rows; r++) {
-      for (var c = 0; c < maze.cols; c++) {
-        if (!maze.walls[r][c]) continue;
-        var lit = false;
-        for (var i = 0; i < WALL_FACES.length; i++) {
-          var f = WALL_FACES[i];
-          var nc = c + f.dc, nr = r + f.dr;
-          if (maze.isWall(nc, nr)) continue;
-          if (!torchTileLit(maze, torch, nc, nr)) continue;
-          lit = true;
-          edges.push([c * TILE + f.x1, r * TILE + f.y1, c * TILE + f.x2, r * TILE + f.y2]);
-        }
-        if (lit) ctx.fillRect(c * TILE, r * TILE, TILE, TILE);
-      }
-    }
-
-    ctx.strokeStyle = '#4b6bff';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.shadowColor = 'rgba(75,107,255,0.85)';
-    ctx.shadowBlur = 6 * scale;
-    ctx.beginPath();
-    for (var j = 0; j < edges.length; j++) {
-      ctx.moveTo(edges[j][0], edges[j][1]);
-      ctx.lineTo(edges[j][2], edges[j][3]);
-    }
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    // The house door is a floor tile for isWall's purposes (see maze.js), so
-    // it gets the same single-tile lit test pellets use, not the wall faces.
-    ctx.strokeStyle = '#ff9ede';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    for (var dr = 0; dr < maze.rows; dr++) {
-      for (var dc = 0; dc < maze.cols; dc++) {
-        if (!maze.doors[dr][dc]) continue;
-        if (!torchTileLit(maze, torch, dc, dr)) continue;
-        ctx.moveTo(dc * TILE, dr * TILE + TILE / 2);
-        ctx.lineTo(dc * TILE + TILE, dr * TILE + TILE / 2);
-      }
-    }
-    ctx.stroke();
-
-    ctx.restore();
+  /** The same angle folded to -pi..pi, so its sign is a direction to turn. */
+  function wrapHalf(a) {
+    var t = Math.PI * 2, w = wrapTurn(a);
+    return w > Math.PI ? w - t : w;
   }
 
-  function drawTorchPellets(ctx, maze, torch, time) {
-    ctx.save();
-    ctx.fillStyle = '#ffe9a8';
-
-    for (var r = 0; r < maze.rows; r++) {
-      for (var c = 0; c < maze.cols; c++) {
-        var kind = maze.pellets[r][c];
-        if (!kind) continue;
-        if (!torchTileLit(maze, torch, c, r)) continue;
-        var x = PV.center(c), y = PV.center(r);
-        if (kind === 1) ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
-        else fillCircle(ctx, x, y, 4 + Math.sin(time * 6) * 1.6);
-      }
-    }
-    ctx.restore();
+  /** Move `from` toward `to` by at most `step`. */
+  function approach(from, to, step) {
+    var d = to - from;
+    return Math.abs(d) <= step ? to : from + (d > 0 ? step : -step);
   }
 
-  /* The torch: the union of a disc and a forward cone, each clipped to
-   * Blinkman's line of sight, in a mode that's otherwise black. Ghosts are
-   * not part of this — drawGhosts gives them an alpha floor instead, so one
-   * straddling the rim shows whole rather than sliced. */
-  function drawTorch(ctx, game, torch, scale) {
-    drawTorchWalls(ctx, game.maze, torch, scale);
-    drawTorchPellets(ctx, game.maze, torch, game.time);
+  /* How far the light reaches at this absolute angle: the cone's length
+   * within the cone, the disc's radius everywhere else. Their union is the
+   * lit shape before any wall gets in the way. */
+  function torchReach(ang, torch) {
+    var off = ang - Math.atan2(torch.dir.y, torch.dir.x);
+    while (off > Math.PI) off -= Math.PI * 2;
+    while (off < -Math.PI) off += Math.PI * 2;
+    return Math.abs(off) <= torch.coneHalf ? torch.coneLen : torch.radius;
+  }
 
-    // A warm halo on both boundaries, so the hard edges read as light
-    // falling off rather than a level-editor viewport.
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255,214,130,0.45)';
-    ctx.lineWidth = 2;
-    ctx.shadowColor = 'rgba(255,196,92,0.9)';
-    ctx.shadowBlur = 10 * scale;
+  /* Distance to the first wall along a ray, capped at `max`. Walks the grid
+   * the way PV.canSee does, but reports where it stopped rather than whether
+   * it arrived. Light sinks TORCH_BITE into the wall it lands on, so a wall
+   * reads as a lit surface instead of a bare outline — half a tile, so it
+   * can never reach through to the corridor on the far side. */
+  function torchRay(x0, y0, ang, max, maze) {
+    var dx = Math.cos(ang), dy = Math.sin(ang);
+    var c = Math.floor(x0 / TILE), r = Math.floor(y0 / TILE);
 
+    var stepC = dx > 0 ? 1 : dx < 0 ? -1 : 0;
+    var stepR = dy > 0 ? 1 : dy < 0 ? -1 : 0;
+    var tMaxC = stepC === 0 ? Infinity : ((stepC > 0 ? (c + 1) * TILE : c * TILE) - x0) / dx;
+    var tMaxR = stepR === 0 ? Infinity : ((stepR > 0 ? (r + 1) * TILE : r * TILE) - y0) / dy;
+    var tDeltaC = stepC === 0 ? Infinity : Math.abs(TILE / dx);
+    var tDeltaR = stepR === 0 ? Infinity : Math.abs(TILE / dy);
+
+    for (var guard = 0; guard < 64; guard++) {
+      var t;
+      if (tMaxC < tMaxR) { t = tMaxC; c += stepC; tMaxC += tDeltaC; }
+      else { t = tMaxR; r += stepR; tMaxR += tDeltaR; }
+      if (t >= max) return max;
+      if (maze.isWall(c, r)) return Math.min(t + TORCH_BITE, max);
+    }
+    return max;
+  }
+
+  /* Where the beam is pointing, as a unit vector. It swings round to a new
+   * heading rather than cutting to it, so a turn reads as a turn. A reversal
+   * is a tie — both ways round are the same distance — and breaks toward
+   * whichever sweep crosses the middle of the board, which is the side with
+   * more to look at. Everything downstream reads this rather than his own
+   * facing, so the ghosts a beam lights are the ones it visibly covers. */
+  function torchSwing(mem, dir, x, y, dt) {
+    if (dir.x === 0 && dir.y === 0) dir = { x: 1, y: 0 };
+    var want = Math.atan2(dir.y, dir.x);
+
+    if (mem.facing === null) {
+      mem.facing = want;
+    } else {
+      var d = wrapHalf(want - mem.facing);
+      if (Math.PI - Math.abs(d) < 1e-3) {
+        var toMiddle = Math.atan2(PV.HEIGHT / 2 - y, PV.WIDTH / 2 - x);
+        d = wrapHalf(toMiddle - mem.facing) >= 0 ? Math.PI : -Math.PI;
+      }
+      mem.facing = wrapTurn(approach(mem.facing, mem.facing + d, TORCH_TURN * dt));
+    }
+    return { x: Math.cos(mem.facing), y: Math.sin(mem.facing) };
+  }
+
+  /* Each ray's length, eased from where it was last frame. Easing is what
+   * keeps a corridor from arriving all at once the instant he clears a
+   * corner — the light runs down it instead. The clamp to the wall is not
+   * optional: without it a lagging ray would sit inside a wall he has just
+   * walked up to, and light would show through it. A jump too big to be a
+   * step (the tunnel) skips the easing rather than sweeping the board. */
+  function torchSpill(mem, torch, maze, dt) {
+    var reach = mem.reach;
+    var cut = reach === null || Math.hypot(torch.x - mem.x, torch.y - mem.y) > TORCH_JUMP;
+    if (reach === null) reach = mem.reach = new Array(TORCH_RAYS);
+
+    var step = TORCH_SPILL * dt;
+    for (var i = 0; i < TORCH_RAYS; i++) {
+      var ang = i / TORCH_RAYS * Math.PI * 2;
+      var wall = torchRay(torch.x, torch.y, ang, torch.coneLen, maze);
+      var want = Math.min(torchReach(ang, torch), wall);
+      reach[i] = Math.min(cut ? want : approach(reach[i], want, step), wall);
+    }
+
+    mem.x = torch.x;
+    mem.y = torch.y;
+    return reach;
+  }
+
+  /* The lit region as one polygon. Used as a clip, so the board inside draws
+   * exactly as it would anywhere else and the darkness is the absence of it
+   * — no per-tile lighting, nothing to read as a grid. */
+  function torchClipPath(ctx, torch, reach) {
     ctx.beginPath();
-    ctx.arc(torch.x, torch.y, torch.radius, 0, Math.PI * 2);
-    ctx.stroke();
-
-    var base = Math.atan2(torch.dir.y, torch.dir.x);
-    ctx.beginPath();
-    ctx.moveTo(torch.x, torch.y);
-    ctx.arc(torch.x, torch.y, torch.coneLen, base - torch.coneHalf, base + torch.coneHalf);
+    for (var i = 0; i < TORCH_RAYS; i++) {
+      var ang = i / TORCH_RAYS * Math.PI * 2;
+      var x = torch.x + Math.cos(ang) * reach[i];
+      var y = torch.y + Math.sin(ang) * reach[i];
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
     ctx.closePath();
-    ctx.stroke();
+  }
 
+  /* The torch: the board itself, shown only where the light lands. Ghosts
+   * are not clipped — drawGhosts gives them an alpha floor instead, so one
+   * straddling the edge shows whole rather than sliced. */
+  function drawTorch(ctx, game, torch, reach, scale) {
+    ctx.save();
+    torchClipPath(ctx, torch, reach);
+    ctx.clip();
+    drawWalls(ctx, game.maze, 1, scale);
+    drawPellets(ctx, game.maze, 1, game.time);
+    ctx.restore();
+
+    // A faint rim on the lit edge. Down a bare corridor there is no wall
+    // close enough to catch the light, and without this the dark just
+    // thins out with nothing to say how far you can actually see.
+    ctx.save();
+    torchClipPath(ctx, torch, reach);
+    ctx.strokeStyle = TORCH_RIM;
+    ctx.lineWidth = 1.5;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
     ctx.restore();
   }
 
