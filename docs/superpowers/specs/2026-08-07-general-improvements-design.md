@@ -103,7 +103,7 @@ the more useful thing it says:
 
 ## 6. The board aura
 
-New `js/aura.js`, loaded before `js/render.js`.
+New `js/aura.js`, loaded after `js/render.js`, whose `PV.wantsCalm` it reads.
 
 `PV.createAura()` returns `{ update(game, dt), draw(ctx) }`. A separate file
 rather than more `render.js`, which is already the largest in the project; the
@@ -183,8 +183,7 @@ back to a static `.55`.
 The README's mode grid gets new Torch Easy and Torch Hard cells, its Torch
 summary drops the cone as a universal feature, and the paragraph about house
 ghosts glowing through the dark is removed. `index.html` gains the `js/aura.js`
-tag ahead of `js/render.js`, and its load-order comment names the new
-dependency.
+tag after `js/render.js`, and its load-order comment names the new dependency.
 
 ## Out of scope
 
