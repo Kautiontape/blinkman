@@ -78,14 +78,12 @@ window.PV = window.PV || {};
     var persist = !opts || opts.persist !== false;
     var deathSounded = false;
 
-    var maze = PV.createMaze();
-
     var game = {
       difficulty: difficultyId,
       rules: rules,
-      maze: maze,
-      pacman: PV.createPacman(maze),
-      ghosts: PV.createGhosts(maze),
+      maze: null,          // newBoard() below fills the board and its actors in
+      pacman: null,
+      ghosts: null,
       vision: PV.createVision(rules),
 
       state: 'ready',      // ready | playing | dying | levelclear | gameover
@@ -111,9 +109,10 @@ window.PV = window.PV || {};
       onEvent: function () {}
     };
 
-    /* Each actor holds the maze it was built against and reads its spawn, its
-     * scatter corner and the tunnel width from it, so a new board means new
-     * actors. Every caller reads game.pacman and game.ghosts per frame. */
+    /* The only place a board is built. Each actor holds the maze it was made
+     * against and reads its spawn, its scatter corner and the tunnel width from
+     * it, so a new board means new actors — a reset alone would place them on
+     * the old one. Every caller reads game.pacman and game.ghosts per frame. */
     function newBoard() {
       game.maze = PV.createMaze();
       game.pacman = PV.createPacman(game.maze);
@@ -415,6 +414,7 @@ window.PV = window.PV || {};
       }
     }
 
+    newBoard();
     resetActors();
     return game;
   };

@@ -123,10 +123,10 @@ console.log('respawn through the house');
 
   var blinky = g.ghosts[0];
   blinky.state = 'entering';
-  blinky.x = PV.center(PV.SPAWN.outside.col);
-  blinky.y = PV.center(PV.SPAWN.outside.row);
+  blinky.x = PV.center(g.maze.spawn.outside.col);
+  blinky.y = PV.center(g.maze.spawn.outside.row);
   for (var j = 0; j < 200 && blinky.state === 'entering'; j++) {
-    PV.updateGhost(blinky, STEP, g.maze, PV.SPAWN.outside);
+    PV.updateGhost(blinky, STEP, g.maze, g.maze.spawn.outside);
   }
   check('an eaten blinky lands in the house', blinky.state === 'house', blinky.state);
 
@@ -145,8 +145,9 @@ console.log('ghost-house reveal');
 
 (function () {
   var maze = PV.createMaze(1);
-  var HOUSE = PV.center(14), DOOR = PV.center(12);
-  var MID = (DOOR + PV.center(11)) / 2, EXIT = PV.center(11);
+  var HOUSE = PV.center(maze.spawn.pinky.row), DOOR = PV.center(maze.spawn.door.row);
+  var EXIT = PV.center(maze.spawn.outside.row), MID = (DOOR + EXIT) / 2;
+  var LOOSE = PV.center(maze.spawn.pacman.row);   // well below the door line
 
   // Full below the door line, falling to zero across the doorway.
   ['house', 'leaving', 'entering'].forEach(function (st) {
@@ -163,7 +164,7 @@ console.log('ghost-house reveal');
   /* The state guard is load-bearing: a ghost loose on the lower board sits well
    * below the door line, and the position term alone would clamp it to 1. */
   ['out', 'eaten'].forEach(function (st) {
-    [HOUSE, DOOR, MID, EXIT, PV.center(23)].forEach(function (y) {
+    [HOUSE, DOOR, MID, EXIT, LOOSE].forEach(function (y) {
       check(st + ' is dark at y=' + y, PV.ghostReveal({ state: st, y: y }, maze) === 0);
     });
   });
@@ -241,22 +242,33 @@ console.log('board-relative actors');
 /* Actors take their positions from the maze they are placed in, not from a
  * table read at load time. */
 var boardFailures = 0;
+
+// Several of these compare tiles, which print as '[object Object]' otherwise.
+function show(v) {
+  return v && typeof v === 'object' && v.col !== undefined ? v.col + ',' + v.row : String(v);
+}
+
 function boardExpect(label, got, want) {
   if (got === want) return;
   boardFailures++;
-  console.log('  BOARD  ' + label + ': got ' + got + ', want ' + want);
+  console.log('  BOARD  ' + label + ': got ' + show(got) + ', want ' + show(want));
 }
 
-/* A stand-in maze of a different size and layout. Every shipped board is the
- * full 28x31 one, whose spawns and scatter corners are exactly what the module
- * constants hold, so this is the only thing that separates an actor reading the
- * maze it was placed in from one reading a table. It carries just the fields
- * the actors touch. */
+/* A hand-built board no template produces: a smaller one, with its house and
+ * its shelf on different rows. maze.js hands out one size, so an actor that
+ * ignored the maze and used a fixed table would still land on the right tiles
+ * on every real board — this is what tells the two apart. It carries the
+ * handful of fields entities.js reads, plus the tunnel row this block walks
+ * across. Every tile reports open, so an actor walked over it goes wherever it
+ * is steered. */
 function standInMaze() {
   var board = { cols: 20, rows: 23 };
   return {
     cols: board.cols, rows: board.rows,
+    width: board.cols * PV.TILE,
+    tunnelRow: 11,
     scatter: PV.scatterCorners(board),
+    passable: function () { return true; },
     spawn: {
       pacman:  { col: 9, row: 17 },
       door:    { col: 9, row: 9 },
@@ -298,7 +310,82 @@ function standInMaze() {
   houseGhost.state = 'leaving';
   houseGhost.y = PV.center(maze.spawn.outside.row);
   boardExpect(on + 'exited ghost hidden', PV.ghostReveal(houseGhost, maze), 0);
+
+  /* Off the left edge and back on at the right one, which is the board's own
+   * far column and not a fixed 28th. */
+  var walker = {
+    x: PV.center(0), y: PV.center(maze.tunnelRow),
+    dir: PV.DIRS.left, want: PV.DIRS.left
+  };
+  PV.advance(walker, PV.TILE, maze, false, null);
+  boardExpect(on + 'tunnel wraps to the far column', walker.x, PV.center(maze.cols - 1));
+
+  /* The scripted house moves ignore the maze for pathing but take the door and
+   * the exit tile from it. Leaving ends on the tile above the door... */
+  var leaver = ghosts[2];        // inky, so the slide across to the door counts
+  leaver.reset();
+  leaver.state = 'leaving';
+  for (var i = 0; i < 400 && leaver.state === 'leaving'; i++) {
+    PV.updateGhost(leaver, STEP, maze, maze.scatter.inky);
+  }
+  boardExpect(on + 'leaving ends outside the door', leaver.state, 'out');
+  boardExpect(on + 'leaving ends on the exit col', leaver.x, PV.center(maze.spawn.outside.col));
+  boardExpect(on + 'leaving ends on the exit row', leaver.y, PV.center(maze.spawn.outside.row));
+
+  // ...and entering ends back on the middle slot.
+  var enterer = ghosts[3];
+  enterer.reset();
+  enterer.state = 'entering';
+  enterer.x = PV.center(maze.spawn.outside.col);
+  enterer.y = PV.center(maze.spawn.outside.row);
+  for (var j = 0; j < 400 && enterer.state === 'entering'; j++) {
+    PV.updateGhost(enterer, STEP, maze, maze.scatter.clyde);
+  }
+  boardExpect(on + 'entering lands in the house', enterer.state, 'house');
+  boardExpect(on + 'entering lands on the middle slot', enterer.y,
+    PV.center(maze.spawn.pinky.row));
+
+  // Eyes head for the board's own exit tile, whatever board that is.
+  ghosts[0].state = 'eaten';
+  boardExpect(on + 'eaten targets the exit tile',
+    PV.ghostTarget(ghosts[0], 'chase', pac, ghosts[0], maze), maze.spawn.outside);
 });
+
+/* Advancing a level swaps the board, and the actors hold the maze they were
+ * built against — so the advance has to rebuild them. Resetting them alone
+ * would place the whole cast on the board just left behind. */
+(function () {
+  var g = newGame();
+  var firstPac = g.pacman;
+  var real = PV.createMaze;
+
+  // A real maze, moved off the spawn table and the corners it opened on.
+  PV.createMaze = function (seed) {
+    var m = real(seed);
+    var moved = {};
+    Object.keys(m.spawn).forEach(function (k) { moved[k] = m.spawn[k]; });
+    moved.pacman = { col: 1, row: 1 };
+    m.spawn = moved;
+    m.scatter = PV.scatterCorners({ cols: 12, rows: 9 });
+    return m;
+  };
+  try {
+    g.nextLevel();
+  } finally {
+    PV.createMaze = real;
+  }
+
+  boardExpect('level advance rebuilds pac-man', g.pacman !== firstPac, true);
+  boardExpect('pac-man on the new board x', g.pacman.x, PV.center(g.maze.spawn.pacman.col));
+  boardExpect('pac-man on the new board y', g.pacman.y, PV.center(g.maze.spawn.pacman.row));
+  /* Compared by identity, not by tile: pinky's corner is 2,0 on every board, so
+   * only the table it came out of says which board it belongs to. */
+  g.ghosts.forEach(function (gh) {
+    boardExpect(gh.name + ' scatter is the new board\'s own', gh.scatterTile,
+      g.maze.scatter[gh.name]);
+    boardExpect(gh.name + ' on the new board', gh.x, PV.center(g.maze.spawn[gh.name].col));
+  });
+})();
 
 console.log('  ' + (boardFailures === 0 ? 'ok  ' : 'FAIL') + '  board-relative actors: ' +
   (boardFailures === 0 ? 'PASS' : 'FAIL'));

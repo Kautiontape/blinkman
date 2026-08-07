@@ -138,10 +138,10 @@ is what lets `file://` work.
     js/main.js      input, frame loop, layout
 
 `maze.js` has to load before `vision.js`, `entities.js`, `render.js` and
-`game.js`, which read `PV.TILE`, the board size and the spawn table at load
-time. `attract.js` reads `PV.DIRS` and the grid size, so it comes after
-`entities.js` too. `main.js` has to load last. Everything else in the script
-order is slack.
+`game.js`. The last three read `PV.TILE` at load time; `vision.js` also reads
+the board size and the spawn table. `attract.js` reads `PV.DIRS` and the grid
+size, so it comes after `entities.js` too. `main.js` has to load last.
+Everything else in the script order is slack.
 
 Seven test suites, five node and two bash, none of them needing anything
 installed. The second covers the ghost release ladder, the house reveal, the
