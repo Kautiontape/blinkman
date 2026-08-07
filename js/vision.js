@@ -100,7 +100,9 @@ window.PV = window.PV || {};
       levels: {
         easy: {
           torchRadius: 60, coneLen: 150, coneHalf: Math.PI / 3,
-          hold: 0.35, fade: 1.8, cooldown: 1.0, ghostSpeed: 0.78
+          hold: 0.35, fade: 1.8, cooldown: 1.0, ghostSpeed: 0.78,
+          // A contact keeps following its ghost for as long as it is lit.
+          pingTracks: true
         },
         normal: {
           // 46px = 2.3 tiles radius, 120px = 6-tile cone, coneHalf 45 deg

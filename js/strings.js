@@ -99,8 +99,8 @@ window.PV = window.PV || {};
         menu: 'A circle and a cone, and a <b>ping that sweeps</b>',
         levels: {
           easy: {
-            blurb: 'A wide cone, and it reaches',
-            menu: 'A <b>wide</b> cone, and it reaches &middot; 1s cooldown'
+            blurb: 'A wide cone, and pings that follow',
+            menu: 'A wide cone, and a ping that <b>follows them</b> &middot; 1s cooldown'
           },
           normal: {
             blurb: 'A pool of light, and a ping that sweeps',

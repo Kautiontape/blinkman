@@ -326,15 +326,14 @@ window.PV = window.PV || {};
   }
 
   /* A contact is the ghost's own outline, so there is no doubt what the ring
-   * found. The wobble is frozen with the position — a sampled contact should
-   * not keep animating. blips is sparse, indexed by ghost, and forEach skips
-   * the holes. */
+   * found. `dist` is where the ring found it and clocks the fade, whether or
+   * not the contact has since followed the ghost. blips is sparse, indexed by
+   * ghost, and forEach skips the holes. */
   function drawPulseBlips(ctx, p, rules) {
     p.blips.forEach(function (b) {
-      var d = Math.hypot(b.x - p.x, b.y - p.y);
-      var a = PV.pulseAlpha(d, p.age, rules);
+      var a = PV.pulseAlpha(b.dist, p.age, rules);
       if (a <= 0.001) return;
-      var edge = justReached(d, p.age);
+      var edge = justReached(b.dist, p.age);
 
       ctx.save();
       ctx.globalAlpha = a;

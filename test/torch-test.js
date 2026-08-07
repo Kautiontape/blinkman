@@ -160,6 +160,9 @@ console.log('ghost blips');
     p.blips[0].x + ',' + p.blips[0].y);
 
   var frozen = { x: p.blips[0].x, y: p.blips[0].y, wobble: p.blips[0].wobble };
+  check('the contact records the distance the ring found it at',
+    near(p.blips[0].dist,
+      Math.hypot(frozen.x - p.x, frozen.y - p.y), 0.001), p.blips[0].dist);
   check('the blip freezes the waddle too, so the outline holds still',
     frozen.wobble === ghost.wobble, frozen.wobble);
 
@@ -179,6 +182,45 @@ console.log('ghost blips');
   for (var n = 0; n < 40; n++) h.update(STEP);
   check('a walls ping records no blips',
     livePulse(h).blips.length === 0, livePulse(h).blips.length);
+})();
+
+console.log('');
+console.log('tracked blips');
+
+(function () {
+  var g = PV.createGame('torch-easy');
+  g.startRound();
+  g.maze.eatPellet = function () { return 0; };
+  g.invuln = Infinity;
+  g.steer(PV.DIRS.left);
+  for (var i = 0; i < 100; i++) g.update(STEP);
+  check('a ghost ping opens', g.selectVision('ghosts') === 'ok');
+
+  var p = livePulse(g);
+  var ghost = g.ghosts[0];
+  for (var f = 0; f < 60 && !p.blips[0]; f++) g.update(STEP);
+  check('the ring reaches it', !!p.blips[0]);
+
+  var dist = p.blips[0].dist;
+  check('the contact distance is recorded', dist > 0, dist);
+
+  var at = { x: p.blips[0].x, y: p.blips[0].y };
+  for (var k = 0; k < 20; k++) g.update(STEP);
+
+  check('the ghost moved on', Math.hypot(ghost.x - at.x, ghost.y - at.y) > 4,
+    Math.hypot(ghost.x - at.x, ghost.y - at.y).toFixed(1));
+  check('the blip followed it',
+    near(p.blips[0].x, ghost.x, 0.001) && near(p.blips[0].y, ghost.y, 0.001),
+    p.blips[0].x + ',' + p.blips[0].y);
+  check('the blip keeps waddling', p.blips[0].wobble === ghost.wobble,
+    p.blips[0].wobble);
+  check('the fade still runs off the contact distance',
+    p.blips[0].dist === dist, p.blips[0].dist);
+
+  // Normal and Hard leave a contact where they found it.
+  check('normal does not track', !PV.DIFFICULTIES['torch-normal'].pingTracks);
+  check('hard does not track', !PV.DIFFICULTIES['torch-hard'].pingTracks);
+  check('easy tracks', PV.DIFFICULTIES['torch-easy'].pingTracks === true);
 })();
 
 console.log('');

@@ -57,7 +57,7 @@ press does; the difficulty decides how much it gives you.
 | | Easy | Normal | Hard |
 |---|---|---|---|
 | Stare | Your last two picks, 1s | Your last pick, 1s | One of four and you can go dark, 3s |
-| Torch | A wide cone that reaches, 1s | A 6-tile cone, 1s | No cone, just the light you stand in, 2s |
+| Torch | A wide cone, and pings that follow, 1s | A 6-tile cone, 1s | No cone, just the light you stand in, 2s |
 | Flash | You stay lit, a 3.5s fade, 1s | A 2s fade, 1s | A 1s fade, 2s |
 
 Your own layer is free in every cell except Stare Hard, Flash Normal and Flash
