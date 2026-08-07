@@ -131,18 +131,22 @@ time. `attract.js` reads `PV.DIRS` and the grid size, so it comes after
 `entities.js` too. `main.js` has to load last. Everything else in the script
 order is slack.
 
-Four test suites, all plain node scripts with nothing to install. The second
-covers the ghost release ladder, the house reveal, the dots blink and the
-wording of the layer nudge; the third covers Torch's ping — its fade curve, its
-frozen origin, and the ghost blips it leaves behind; the fourth covers the menu
-demo, whose autopilot has to steer only into open tiles, eat at a reasonable
-rate, and reach every layer as it rotates. None of that is visible to a layout
-check.
+Six test suites, four node and two bash, none of them needing anything
+installed. The second covers the ghost release ladder, the house reveal, the
+dots blink and the wording of the layer nudge; the third covers Torch's ping —
+its fade curve, its frozen origin, and the ghost blips it leaves behind; the
+fourth covers the menu demo, whose autopilot has to steer only into open tiles,
+eat at a reasonable rate, and reach every layer as it rotates. None of that is
+visible to a layout check. The last two are bash because what they exercise is
+bash; `release-test.sh` drives `tools/release.sh` against a throwaway repo, so
+nothing it does reaches GitHub.
 
     node test/maze-test.js
     node test/opening-test.js
     node test/torch-test.js
     node test/attract-test.js
+    bash test/release-test.sh
+    bash test/itch-deploy-test.sh
 
 The game always draws into a fixed 560x620 space and a canvas transform maps
 that onto whatever size the board actually is. Nothing in the game logic knows
@@ -154,8 +158,16 @@ old one. Hard reload with Ctrl-Shift-R.
 
 ## Publishing
 
-`docs/itch.md` covers the itch.io upload. `./tools/itch-package.sh` builds the
-zip and `./tools/itch-deploy.sh` pushes it with butler.
+    ./tools/release.sh 1.6.0
+
+Bumps `PV.VERSION`, commits, tags `v1.6.0` and pushes. The tag triggers
+`.github/workflows/deploy.yml`, which checks the tag against `PV.VERSION`, runs
+the game suites, packages the zip, pushes it to itch.io and creates a GitHub
+release.
+
+To ship a build without cutting a version, `./tools/itch-package.sh` builds the
+zip and `./tools/itch-deploy.sh` pushes it. `docs/itch.md` covers the store
+page, which stays manual.
 
 ## License
 

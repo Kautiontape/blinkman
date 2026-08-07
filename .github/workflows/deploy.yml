@@ -1,0 +1,57 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # First, so a mismatch costs nothing and publishes nothing.
+      - name: Check the tag against PV.VERSION
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          source="$(sed -n "s/^ *PV\.VERSION = '\([^']*\)';\$/\1/p" js/strings.js)"
+          if [ "$version" != "$source" ]; then
+            echo "tag $GITHUB_REF_NAME does not match PV.VERSION $source — use ./tools/release.sh" >&2
+            exit 1
+          fi
+
+      # The runner ships Node and the suites have no dependencies, so there is
+      # no setup-node step and no version to keep bumping.
+      - name: Test
+        run: |
+          node test/maze-test.js
+          node test/opening-test.js
+          node test/torch-test.js
+          node test/attract-test.js
+
+      # itch.io's own CDN. The URL ends in LATEST, so there is nothing to pin
+      # and nothing to track, and the publish key stays out of third-party code.
+      - name: Install butler
+        run: |
+          curl -sSfL -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
+          mkdir -p "$HOME/.local/bin"
+          unzip -q butler.zip -d "$HOME/.local/bin"
+          chmod +x "$HOME/.local/bin/butler"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Package
+        run: ./tools/itch-package.sh
+
+      - name: Push to itch.io
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: ./tools/itch-deploy.sh "${GITHUB_REF_NAME#v}"
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/blinkman-itch.zip --generate-notes --verify-tag

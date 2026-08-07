@@ -1,10 +1,38 @@
 # Publishing to itch.io
 
-Build the upload:
+## Releasing
+
+    ./tools/release.sh 1.6.0
+
+Bumps the version, tags it and pushes. The tag triggers
+`.github/workflows/deploy.yml`, which packages the zip, pushes it to the `html`
+channel and creates a GitHub release.
+
+The workflow needs one secret. Generate a key at
+<https://itch.io/user/settings/api-keys> and add it to the repository as
+`BUTLER_API_KEY`, under Settings → Secrets and variables → Actions.
+
+butler updates the playable build and nothing else. Everything below — title,
+description, tags, screenshots — has no API and stays manual.
+
+### When a release run fails
+
+If the workflow fails before the itch.io push, fix the cause and re-run the
+job. The tag is already pushed, so don't re-tag.
+
+If `./tools/release.sh` itself fails at a push, it prints what to run next. A
+failed branch push leaves nothing on origin, so it gives you an undo. A failed
+tag push means the commit already landed, so it gives you the retry instead.
+
+If the GitHub release step fails after the itch.io push has already
+succeeded, a draft release can be left behind. Delete it before re-running the
+job, or the retry fails.
+
+## Building by hand
 
     ./tools/itch-package.sh
 
-That writes `dist/blinkman-itch.zip` (~30 KB) with `index.html` at the archive
+That writes `dist/blinkman-itch.zip` (~34 KB) with `index.html` at the archive
 root, which is what itch looks for.
 
 Push it to the `html` channel with [butler](https://itch.io/docs/butler/),
