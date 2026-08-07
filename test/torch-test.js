@@ -6,7 +6,7 @@
  */
 global.window = {};
 var path = require('path');
-['maze.js', 'entities.js', 'vision.js', 'game.js'].forEach(function (f) {
+['maze.js', 'entities.js', 'vision.js', 'game.js', 'render.js'].forEach(function (f) {
   require(path.join(__dirname, '..', 'js', f));
 });
 var PV = global.window.PV;
@@ -172,6 +172,33 @@ console.log('ghost blips');
   for (var n = 0; n < 40; n++) h.update(STEP);
   check('a walls ping records no blips',
     h.vision.pulse().blips.length === 0, h.vision.pulse().blips.length);
+})();
+
+console.log('');
+console.log('line of sight');
+
+(function () {
+  // A single wall tile at (col 1, row 1); everything else in this 3x3
+  // patch is open. isWall is the only method PV.canSee calls on a maze.
+  function fakeMaze(wallTiles) {
+    return {
+      isWall: function (c, r) { return wallTiles.indexOf(c + ',' + r) !== -1; }
+    };
+  }
+
+  var maze = fakeMaze(['1,1']);
+
+  check('a straight line with nothing on it sees through',
+    PV.canSee(PV.center(0), PV.center(0), PV.center(0), PV.center(2), maze));
+
+  check('a wall directly on the line blocks it',
+    !PV.canSee(PV.center(0), PV.center(1), PV.center(2), PV.center(1), maze));
+
+  check('a line that goes around the wall still sees',
+    PV.canSee(PV.center(0), PV.center(0), PV.center(2), PV.center(0), maze));
+
+  check('a point can always see itself',
+    PV.canSee(PV.center(5), PV.center(5), PV.center(5), PV.center(5), maze));
 })();
 
 console.log('');

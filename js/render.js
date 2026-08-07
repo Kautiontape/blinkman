@@ -31,6 +31,30 @@ window.PV = window.PV || {};
     return TORCH_R * (1 + 0.045 * Math.sin(time * 11.3) + 0.028 * Math.sin(time * 23.7));
   }
 
+  /**
+   * Line-of-sight against the wall grid: true if nothing solid sits between
+   * the two points. Walls are always a full tile (20px) thick, so sampling
+   * every quarter-tile can't step clean through one. Origin and destination
+   * tiles are never tested — a caller checking visibility of a wall tile's
+   * own face passes that wall's *open* neighbour as the destination, not the
+   * wall tile itself; testing the endpoints would make a target inside or
+   * beside a wall spuriously block itself.
+   */
+  PV.canSee = function (x0, y0, x1, y1, maze) {
+    var dx = x1 - x0, dy = y1 - y0;
+    var dist = Math.hypot(dx, dy);
+    if (dist < 1e-6) return true;
+
+    var steps = Math.max(1, Math.ceil(dist / (TILE / 4)));
+    for (var i = 1; i < steps; i++) {
+      var t = i / steps;
+      var c = Math.floor((x0 + dx * t) / TILE);
+      var r = Math.floor((y0 + dy * t) / TILE);
+      if (maze.isWall(c, r)) return false;
+    }
+    return true;
+  };
+
   PV.createRenderer = function (canvas) {
     var ctx = canvas.getContext('2d');
     var scale = 1;   // backing-store pixels per design pixel
