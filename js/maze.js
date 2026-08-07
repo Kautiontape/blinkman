@@ -178,10 +178,13 @@ window.PV = window.PV || {};
   var GHOST_NAMES = ['blinky', 'pinky', 'inky', 'clyde'];
 
   PV.TILE = TILE;
+
+  /* The full board's shape, for callers that read it from the module rather
+   * than from the maze they were handed. */
   PV.COLS = COLS;
   PV.ROWS = ROWS;
   PV.TUNNEL_ROW = TUNNEL_ROW;
-  PV.SPAWN = BOARDS.full.spawn;   // removed in Task 8
+  PV.SPAWN = BOARDS.full.spawn;
   PV.WIDTH = COLS * TILE;
   PV.HEIGHT = ROWS * TILE;
   PV.TOP_PIECES = TOP_PIECES;
