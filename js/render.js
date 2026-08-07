@@ -155,16 +155,16 @@ window.PV = window.PV || {};
           };
           // The swung heading, not his own: the beam lags a turn by a frame
           // or two, and what it lights has to agree with where it points.
-          torch.dir = torchSwing(torchMemory, game.pacman.dir, torch.x, torch.y, dt);
+          torch.dir = torchSwing(torchMemory, game.pacman.dir, torch.x, torch.y, game.maze, dt);
           reach = torchSpill(torchMemory, torch, game.maze, dt);
         }
 
         ctx.save();
-        // Everything below is authored in the fixed 560x620 design space; this
-        // maps it onto the real canvas size so the board stays sharp.
+        // Everything below is authored in the maze's design space, 20px to a
+        // tile; this maps it onto the real canvas size so the board stays sharp.
         ctx.setTransform(scale, 0, 0, scale, 0, 0);
         ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, PV.WIDTH, PV.HEIGHT);
+        ctx.fillRect(0, 0, game.maze.width, game.maze.height);
 
         if (renderer.shake > 0) {
           var s = renderer.shake;
@@ -403,7 +403,7 @@ window.PV = window.PV || {};
    * whichever sweep crosses the middle of the board, which is the side with
    * more to look at. Everything downstream reads this rather than his own
    * facing, so the ghosts a beam lights are the ones it visibly covers. */
-  function torchSwing(mem, dir, x, y, dt) {
+  function torchSwing(mem, dir, x, y, maze, dt) {
     if (dir.x === 0 && dir.y === 0) dir = { x: 1, y: 0 };
     var want = Math.atan2(dir.y, dir.x);
 
@@ -412,7 +412,7 @@ window.PV = window.PV || {};
     } else {
       var d = wrapHalf(want - mem.facing);
       if (Math.PI - Math.abs(d) < 1e-3) {
-        var toMiddle = Math.atan2(PV.HEIGHT / 2 - y, PV.WIDTH / 2 - x);
+        var toMiddle = Math.atan2(maze.height / 2 - y, maze.width / 2 - x);
         d = wrapHalf(toMiddle - mem.facing) >= 0 ? Math.PI : -Math.PI;
       }
       mem.facing = wrapTurn(approach(mem.facing, mem.facing + d, TORCH_TURN * dt));
