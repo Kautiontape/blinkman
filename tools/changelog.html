@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BLINK-MAN changelog</title>
+<style>
+  :root {
+    --bg: #12141c; --panel: #0c0f1c; --sunken: #0a0e1c; --line: #1d2440;
+    --ink: #e8ecff; --dim: #6a7398; --accent: #ffd23f; --accent2: #4fc3ff;
+    --danger: #ff4d6d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 13px/1.6 ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace; }
+
+  header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center;
+           gap: 16px; padding: 14px 28px; background: rgba(18,20,28,.94);
+           border-bottom: 1px solid var(--line); backdrop-filter: blur(6px); }
+  h1 { margin: 0; font-size: 14px; letter-spacing: 3px; color: var(--accent); font-weight: 700; }
+  .spacer { flex: 1; }
+  #verdict { font-size: 11.5px; color: var(--dim); }
+  #verdict.bad { color: var(--danger); }
+  #verdict.good { color: #6ee7a8; }
+
+  .cols { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+          gap: 24px; padding: 24px 28px 80px; align-items: start; }
+  @media (max-width: 1100px) { .cols { grid-template-columns: minmax(0,1fr); } }
+
+  h2 { margin: 0 0 12px; font-size: 11px; letter-spacing: 2.5px; color: var(--dim);
+       font-weight: 500; }
+
+  /* ---- the editor ---- */
+
+  details { background: var(--panel); border: 1px solid var(--line);
+            border-left: 3px solid var(--line); border-radius: 7px;
+            margin-bottom: 10px; }
+  details[open] { border-left-color: var(--accent2); }
+  details.pending { border-left-color: var(--accent); }
+  summary { display: flex; align-items: center; gap: 10px; padding: 11px 14px;
+            cursor: pointer; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: '▸'; color: var(--dim); font-size: 14px; line-height: 1; }
+  details[open] summary::before { content: '▾'; }
+  .rel-name { letter-spacing: 2px; color: var(--accent); }
+  .rel-when { font-size: 11px; color: var(--dim); }
+  .rel-count { margin-left: auto; font-size: 11px; color: var(--dim); }
+  .body { padding: 0 14px 14px; }
+
+  .note { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 7px; }
+  textarea { flex: 1; min-height: 34px; padding: 7px 10px; resize: none; overflow: hidden;
+             background: var(--sunken); border: 1px solid var(--line); border-radius: 5px;
+             color: var(--ink); font: inherit; }
+  textarea:focus { outline: none; border-color: var(--accent2); }
+  textarea.bad { border-color: var(--danger); }
+  .why { margin: -3px 0 8px 2px; font-size: 11px; color: var(--danger); }
+  .why[hidden] { display: none; }
+
+  .tools { display: flex; flex-direction: column; gap: 2px; }
+  .mini { width: 22px; height: 16px; padding: 0; line-height: 1; background: none;
+          border: 1px solid var(--line); border-radius: 3px; color: var(--dim);
+          font: 10px ui-monospace, monospace; cursor: pointer; }
+  .mini:hover:not(:disabled) { color: var(--ink); border-color: var(--accent2); }
+  .mini:disabled { opacity: .25; cursor: default; }
+  .mini.kill:hover { color: var(--danger); border-color: var(--danger); }
+
+  button.act { padding: 7px 13px; background: var(--sunken); border: 1px solid var(--line);
+               border-radius: 5px; color: var(--dim); font: inherit; font-size: 11.5px;
+               cursor: pointer; }
+  button.act:hover:not(:disabled) { color: var(--ink); border-color: var(--accent2); }
+  button.act:disabled { opacity: .35; cursor: default; }
+  button.act.go { background: var(--accent); border-color: var(--accent); color: #05060c; }
+  button.act.go:hover:not(:disabled) { color: #05060c; filter: brightness(1.12); }
+
+  /* ---- the output ---- */
+
+  .out { position: sticky; top: 62px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .tab { padding: 5px 11px; background: none; border: 1px solid var(--line);
+         border-radius: 5px; color: var(--dim); font: inherit; font-size: 11px;
+         cursor: pointer; }
+  .tab.on { color: var(--accent); border-color: var(--accent); }
+  pre { margin: 0; padding: 14px; max-height: 58vh; overflow: auto;
+        background: var(--sunken); border: 1px solid var(--line); border-radius: 7px;
+        font: inherit; font-size: 11.5px; white-space: pre-wrap; word-break: break-word;
+        color: var(--dim); }
+  #preview { max-height: 58vh; overflow: auto; padding: 14px 18px;
+             background: var(--sunken); border: 1px solid var(--line); border-radius: 7px; }
+  .rel-block + .rel-block { margin-top: 18px; }
+  .rel-block h3 { display: flex; justify-content: space-between; align-items: baseline;
+                  margin: 0 0 8px; padding-bottom: 5px; border-bottom: 1px solid var(--line);
+                  font-size: 12px; letter-spacing: 2px; color: var(--accent); }
+  .rel-block .when { font-size: 9px; letter-spacing: .1em; color: var(--dim); }
+  .rel-block ul { margin: 0; padding-left: 15px; }
+  .rel-block li { margin: 6px 0; font-size: 11px; line-height: 1.65; }
+  .rel-block li::marker { color: var(--accent2); }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
+  #saved { font-size: 11px; color: var(--dim); }
+  #how { margin: 8px 0 0; font-size: 10.5px; color: var(--dim); }
+
+  .warn { margin: 0 28px; display: flex; flex-direction: column; gap: 8px; }
+  .warn:empty { display: none; }
+  .warn p { display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+            margin: 0; padding: 10px 14px; background: #2a1520;
+            border: 1px solid var(--danger); border-radius: 6px;
+            font-size: 11.5px; color: #ffb3c1; }
+  .warn a { color: var(--accent); font-weight: 700; }
+  code { color: var(--accent2); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>CHANGELOG</h1>
+  <span id="verdict"></span>
+  <span class="spacer"></span>
+  <button class="act" id="add-pending" hidden>+ Start an Unreleased section</button>
+</header>
+
+<div class="warn" id="warn"></div>
+
+<div class="cols">
+  <div>
+    <h2>NOTES</h2>
+    <div id="editor"></div>
+  </div>
+
+  <div class="out">
+    <h2>OUTPUT</h2>
+    <div class="tabs">
+      <button class="tab on" data-view="preview">In game</button>
+      <button class="tab" data-view="md">CHANGELOG.md</button>
+      <button class="tab" data-view="js">js/changelog.js</button>
+    </div>
+    <div id="preview"></div>
+    <pre id="md" hidden></pre>
+    <pre id="js" hidden></pre>
+    <div class="bar">
+      <button class="act go" id="save">Save to project</button>
+      <button class="act" id="download">Download both</button>
+      <button class="act" id="copy">Copy this tab</button>
+      <span id="saved"></span>
+    </div>
+    <p id="how"></p>
+  </div>
+</div>
+
+<!-- The notes themselves, and every renderer the game uses on them. Loading
+     the real file is the point: this page edits what the game ships. -->
+<script src="../js/changelog.js"></script>
+<script>
+(function (PV) {
+  'use strict';
+
+  /* The draft. Deep-copied so an abandoned edit is one reload away, and so the
+     array the page loaded stays available as the "unchanged" baseline. */
+  var draft = JSON.parse(JSON.stringify(PV.CHANGELOG));
+  var PENDING = PV.CHANGELOG_UNRELEASED;
+
+  var editor = document.getElementById('editor');
+  var verdict = document.getElementById('verdict');
+  var saved = document.getElementById('saved');
+  var warn = document.getElementById('warn');
+  var saveBtn = document.getElementById('save');
+  var downloadBtn = document.getElementById('download');
+
+  /* The source text js/changelog.js's array gets spliced into. Fetched rather
+     than rebuilt, so this page never has to know what else is in that file. */
+  var sourceText = null;
+  var rootHandle = null;
+
+  /* Writing to disk needs a trustworthy origin, and only localhost, 127.0.0.1
+     and [::1] are. `python3 -m http.server` prints its banner as 0.0.0.0,
+     which is the address it *binds*, and following that into the URL bar costs
+     you the file access — same server, same port, wrong name. This is the same
+     page on a name that counts. */
+  function trustworthyUrl() {
+    if (window.isSecureContext || location.protocol !== 'http:') return null;
+    return 'http://localhost' + (location.port ? ':' + location.port : '') +
+      location.pathname + location.search;
+  }
+
+  // ------------------------------------------------------------- the rules
+
+  /* Both live in js/changelog.js, alongside the notes and the renderers, and
+     test/changelog-test.js fails on the same faultIn. That is what makes Save
+     staying disabled here the same standard the suite applies — this page
+     cannot write a file that turns it red. */
+  var faultIn = PV.changelogFault;
+  var tidy = PV.changelogTidy;
+
+  function clean() {
+    return draft.map(function (rel) {
+      return {
+        version: rel.version,
+        date: rel.date,
+        notes: rel.notes.map(tidy).filter(Boolean)
+      };
+    });
+  }
+
+  function faults() {
+    var n = 0;
+    draft.forEach(function (rel) {
+      if (!rel.notes.length) n++;
+      rel.notes.forEach(function (note) { if (faultIn(note)) n++; });
+    });
+    return n;
+  }
+
+  // ------------------------------------------------------------ the editor
+
+  function grow(ta) {
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+  }
+
+  function noteRow(rel, i) {
+    var row = document.createElement('div');
+    row.className = 'note';
+
+    var ta = document.createElement('textarea');
+    ta.value = rel.notes[i];
+    ta.rows = 1;
+
+    var why = document.createElement('p');
+    why.className = 'why';
+
+    /* Live rather than on blur: a note being told it is 'empty' while you are
+       three words into fixing it is worse than no message at all. */
+    function mark() {
+      var fault = faultIn(rel.notes[i]);
+      ta.classList.toggle('bad', !!fault);
+      why.textContent = fault || '';
+      why.hidden = !fault;
+    }
+
+    ta.addEventListener('input', function () {
+      rel.notes[i] = ta.value;
+      grow(ta);
+      mark();
+      refresh();
+    });
+    // Tidying on the way out rather than as you type, so a half-typed word is
+    // never rewritten under the cursor.
+    ta.addEventListener('blur', function () {
+      rel.notes[i] = tidy(ta.value);
+      ta.value = rel.notes[i];
+      grow(ta);
+      mark();
+      refresh();
+    });
+    // A list of notes behaves like a list: Enter starts the next one.
+    ta.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' || e.shiftKey) return;
+      e.preventDefault();
+      rel.notes[i] = tidy(ta.value);
+      rel.notes.splice(i + 1, 0, '');
+      draw(rel, i + 1);
+    });
+
+    var tools = document.createElement('div');
+    tools.className = 'tools';
+    tools.appendChild(mini('▲', i === 0, function () {
+      rel.notes.splice(i - 1, 0, rel.notes.splice(i, 1)[0]);
+      draw(rel, i - 1);
+    }));
+    tools.appendChild(mini('▼', i === rel.notes.length - 1, function () {
+      rel.notes.splice(i + 1, 0, rel.notes.splice(i, 1)[0]);
+      draw(rel, i + 1);
+    }));
+    var kill = mini('✕', false, function () {
+      rel.notes.splice(i, 1);
+      draw();
+    });
+    kill.classList.add('kill');
+    tools.appendChild(kill);
+
+    row.appendChild(ta);
+    row.appendChild(tools);
+
+    var wrap = document.createElement('div');
+    wrap.appendChild(row);
+    wrap.appendChild(why);
+    mark();
+    return wrap;
+  }
+
+  function mini(label, disabled, onclick) {
+    var b = document.createElement('button');
+    b.className = 'mini';
+    b.type = 'button';
+    b.textContent = label;
+    b.disabled = disabled;
+    b.onclick = onclick;
+    return b;
+  }
+
+  /* Which releases are unfolded, by version. Adding or deleting a note redraws
+     the whole list, and without this every other release would fold itself up
+     underneath you each time. */
+  var opened = {};
+  draft.forEach(function (rel) { opened[rel.version] = rel.version === PENDING; });
+
+  /* `focusRel` and `focusAt` put the caret back where the edit happened, since
+     every structural change redraws the whole list. */
+  function draw(focusRel, focusAt) {
+    editor.textContent = '';
+    draft.forEach(function (rel) {
+      var pending = rel.version === PENDING;
+
+      var box = document.createElement('details');
+      if (pending) box.className = 'pending';
+      box.open = !!opened[rel.version];
+      box.addEventListener('toggle', function () { opened[rel.version] = box.open; });
+
+      var sum = document.createElement('summary');
+      sum.innerHTML = '<span class="rel-name"></span><span class="rel-when"></span>' +
+        '<span class="rel-count"></span>';
+      sum.querySelector('.rel-name').textContent = rel.version;
+      sum.querySelector('.rel-when').textContent = rel.date ||
+        (pending ? 'dated when you release' : '');
+      sum.querySelector('.rel-count').textContent =
+        rel.notes.length + (rel.notes.length === 1 ? ' note' : ' notes');
+      box.appendChild(sum);
+
+      var body = document.createElement('div');
+      body.className = 'body';
+      rel.notes.forEach(function (note, i) { body.appendChild(noteRow(rel, i)); });
+
+      var add = document.createElement('button');
+      add.className = 'act';
+      add.type = 'button';
+      add.textContent = '+ Add note';
+      add.onclick = function () {
+        rel.notes.push('');
+        draw(rel, rel.notes.length - 1);
+      };
+      body.appendChild(add);
+
+      box.appendChild(body);
+      editor.appendChild(box);
+
+      if (rel === focusRel) {
+        opened[rel.version] = box.open = true;
+        var tas = body.querySelectorAll('textarea');
+        if (tas[focusAt]) { tas[focusAt].focus(); }
+      }
+    });
+
+    editor.querySelectorAll('textarea').forEach(grow);
+    document.getElementById('add-pending').hidden =
+      draft.some(function (rel) { return rel.version === PENDING; });
+    refresh();
+  }
+
+  // ------------------------------------------------------------ the output
+
+  var views = { preview: document.getElementById('preview'),
+                md: document.getElementById('md'),
+                js: document.getElementById('js') };
+  var view = 'preview';
+
+  function refresh() {
+    var entries = clean();
+    // The same call main.js makes, so this is the modal, not a lookalike.
+    views.preview.innerHTML = PV.changelogHtml(entries)
+      .replace(/class="rel"/g, 'class="rel-block"')
+      .replace(/class="rel-date"/g, 'class="when"');
+    views.md.textContent = PV.changelogMarkdown(entries);
+    views.js.textContent = PV.changelogEntriesJs(entries);
+
+    var bad = faults();
+    verdict.className = bad ? 'bad' : 'good';
+    verdict.textContent = bad
+      ? bad + (bad === 1 ? ' note needs fixing' : ' notes need fixing')
+      : 'ready';
+    saveBtn.disabled = downloadBtn.disabled = bad > 0 || !sourceText;
+    saveBtn.title = whySaveIs();
+    document.getElementById('how').textContent = whySaveIs();
+  }
+
+  /* A disabled button with no reason on it is the worst version of this, so
+     the reason is always on screen. It names the actual missing piece — the
+     server, the API, or a note — rather than blaming the browser on a hunch. */
+  function whySaveIs() {
+    if (!sourceText) return 'needs a local server — see above';
+    if (faults()) return 'fix the notes first';
+    if (!window.isSecureContext) {
+      return location.hostname + ' is not a trustworthy origin — reopen on localhost';
+    }
+    if (!window.showDirectoryPicker) {
+      return 'no directory picker in this browser — Download both instead';
+    }
+    return 'writes js/changelog.js and CHANGELOG.md in place';
+  }
+
+  document.querySelectorAll('.tab').forEach(function (tab) {
+    tab.onclick = function () {
+      view = tab.dataset.view;
+      document.querySelectorAll('.tab').forEach(function (t) {
+        t.classList.toggle('on', t === tab);
+      });
+      Object.keys(views).forEach(function (k) { views[k].hidden = k !== view; });
+    };
+  });
+
+  document.getElementById('add-pending').onclick = function () {
+    draft.unshift({ version: PENDING, date: '', notes: [''] });
+    draw(draft[0], 0);
+  };
+
+  // -------------------------------------------------------------- the save
+
+  function files() {
+    var entries = clean();
+    return {
+      'js/changelog.js': PV.changelogSource(sourceText, entries),
+      'CHANGELOG.md': PV.changelogMarkdown(entries)
+    };
+  }
+
+  function say(msg, bad) {
+    saved.textContent = msg;
+    saved.style.color = bad ? 'var(--danger)' : '#6ee7a8';
+  }
+
+  /* Several things can be wrong at once — a non-trustworthy origin and a
+     CHANGELOG.md holding edits, say — so notices stack rather than replace. */
+  function notice(build) {
+    var p = document.createElement('p');
+    build(p);
+    warn.appendChild(p);
+    return p;
+  }
+
+  /* Straight onto the working copy. The directory picker is the only way a
+     page is allowed to do that, and it needs the project root — the one
+     holding index.html — not js/ or tools/. */
+  saveBtn.onclick = async function () {
+    try {
+      /* Report the state rather than guess at a cause. The picker needs a
+         secure context — http://localhost counts, file:// does not — and a
+         Chromium build that ships it. Which of those is missing is worth
+         saying out loud, because the fix is different for each. */
+      if (!window.showDirectoryPicker) throw new Error(
+        'no showDirectoryPicker on ' + location.origin +
+        ' (secure context: ' + window.isSecureContext + '). Use Download both.');
+      if (!rootHandle) {
+        rootHandle = await window.showDirectoryPicker({ mode: 'readwrite', id: 'blinkman' });
+      }
+      var js = await rootHandle.getDirectoryHandle('js');
+      var handle = await js.getFileHandle('changelog.js');
+
+      // Re-read rather than trusting the fetch from page load: an edit made in
+      // an editor since then would otherwise be silently overwritten.
+      var onDisk = await (await handle.getFile()).text();
+      var next = PV.changelogSource(onDisk, clean());
+      if (next === null) throw new Error('could not find the array in js/changelog.js');
+
+      await write(handle, next);
+      await write(await rootHandle.getFileHandle('CHANGELOG.md', { create: true }),
+        PV.changelogMarkdown(clean()));
+      sourceText = next;
+      say('saved both files');
+    } catch (err) {
+      if (err.name === 'AbortError') return;          // the picker was dismissed
+      // The name matters as much as the text: SecurityError means the origin,
+      // NotAllowedError means the permission was refused.
+      say(err.name && err.name !== 'Error' ? err.name + ': ' + err.message : err.message, true);
+    }
+  };
+
+  async function write(handle, text) {
+    var w = await handle.createWritable();
+    await w.write(text);
+    await w.close();
+  }
+
+  downloadBtn.onclick = function () {
+    var out = files();
+    Object.keys(out).forEach(function (name) {
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([out[name]], { type: 'text/plain' }));
+      a.download = name.split('/').pop();
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+    say('downloaded — move them into place');
+  };
+
+  document.getElementById('copy').onclick = function () {
+    var text = view === 'preview' ? views.md.textContent : views[view].textContent;
+    navigator.clipboard.writeText(text).then(function () {
+      say('copied ' + (view === 'preview' ? 'the Markdown' : 'the ' + view));
+    }, function () { say('the browser refused the clipboard', true); });
+  };
+
+  // --------------------------------------------------------------- startup
+
+  /* The array arrives through the script tag above, which works from anywhere.
+     The file's *text* has to be fetched, and that needs a server — so does the
+     directory picker, which is only offered in a secure context. */
+  /* no-store on both reads. A cached copy here is not a stale preview, it is a
+     wrong answer: the divergence check would clear a CHANGELOG.md it had not
+     actually seen, and Download both would hand back a file spliced onto an
+     older source. */
+  fetch('../js/changelog.js', { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+    .then(function (text) { sourceText = text; refresh(); return checkMarkdown(); })
+    .catch(function () {
+      notice(function (p) {
+        p.innerHTML = 'Open this over a local server to save anything — ' +
+          '<code>python3 -m http.server 8000</code> from the project root, then ' +
+          '<code>localhost:8000/tools/changelog.html</code>. Editing and the ' +
+          'previews work as they are.';
+      });
+      refresh();
+    });
+
+  /* Ahead of everything else, because it is the one problem with a one-click
+     fix and the one whose cause is invisible: the page looks perfectly served,
+     it just cannot be trusted with your files under this name. */
+  (function () {
+    var better = trustworthyUrl();
+    if (!better) return;
+    notice(function (p) {
+      p.appendChild(document.createTextNode(
+        location.hostname + ' is not a trustworthy origin, so the browser will ' +
+        'not hand over your files. Same server, different name:'));
+      var a = document.createElement('a');
+      a.href = better;
+      a.textContent = better;
+      p.appendChild(a);
+    });
+  })();
+
+  /* CHANGELOG.md is the file people reach for, so it grows edits the array has
+     not seen. Saying so on arrival — with the button that takes them — is what
+     keeps the next save from quietly writing over them. */
+  function checkMarkdown() {
+    return fetch('../CHANGELOG.md', { cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+      .then(function (md) {
+        var fromMd = PV.changelogParse(md);
+        if (!fromMd.length || PV.changelogSame(fromMd, clean())) return;
+        var row = notice(function (p) {
+          p.appendChild(document.createTextNode(
+            'CHANGELOG.md says something different from js/changelog.js. ' +
+            'Saving now would write over it.'));
+          var take = document.createElement('button');
+          take.className = 'act';
+          take.textContent = 'Load CHANGELOG.md';
+          take.onclick = function () {
+            draft = fromMd;
+            opened = {};
+            draft.forEach(function (rel) { opened[rel.version] = rel.version === PENDING; });
+            row.remove();
+            draw();
+            say('loaded from CHANGELOG.md — Save to write it back');
+          };
+          p.appendChild(take);
+        });
+      })
+      .catch(function () { /* no CHANGELOG.md yet — the array is all there is */ });
+  }
+
+  draw();
+
+})(window.PV);
+</script>
+</body>
+</html>

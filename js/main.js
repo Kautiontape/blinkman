@@ -5,6 +5,9 @@
   var canvas = document.getElementById('board');
   var overlay = document.getElementById('overlay');
   var panelMenu = document.getElementById('panel-menu');
+  var panelLog = document.getElementById('panel-changelog');
+  var logBody = document.getElementById('changelog-log');
+  var versionBtn = document.getElementById('version');
   var panelMsg = document.getElementById('panel-message');
   var msgTitle = document.getElementById('msg-title');
   var msgBody = document.getElementById('msg-body');
@@ -25,6 +28,7 @@
   var game = null;
   var attract = null;      // the demo behind the menu; null while a round is live
   var paused = false;
+  var logOpen = false;     // the changelog, which only the menu can reach
   var prevTs = 0;
   var overlayKey = '';
   var boardKey = '';       // re-lays out when the level changes the board size
@@ -92,7 +96,11 @@
   /* Elements carrying data-t are filled once from strings.js, by dotted path. */
   function applyStaticText() {
     document.title = PV.TEXT.title;
-    document.getElementById('version').textContent = 'v' + PV.VERSION;
+    versionBtn.textContent = 'v' + PV.VERSION;
+    // The digits are the marker; what the button does is the accessible name.
+    versionBtn.setAttribute('aria-label', PV.TEXT.changelog.open + ' — v' + PV.VERSION);
+    versionBtn.title = PV.TEXT.changelog.open;
+    logBody.innerHTML = PV.changelogHtml();
     document.querySelectorAll('[data-t]').forEach(function (el) {
       var value = el.dataset.t.split('.').reduce(function (obj, key) {
         return obj == null ? null : obj[key];
@@ -121,7 +129,32 @@
     if (name === 'roundStart') hint.reset();
   }
 
+  /* The changelog takes the menu's place in the overlay rather than sitting on
+   * top of it: one panel is up at a time, and the demo keeps playing behind
+   * both. Reachable only from the menu, so there is no round underneath to
+   * worry about. */
+  function showChangelog() {
+    if (logOpen) return;
+    logOpen = true;
+    panelMenu.hidden = true;
+    panelLog.hidden = false;
+    logBody.scrollTop = 0;
+    logBody.focus();       // so the arrows and Page keys scroll the notes
+  }
+
+  /* `refocus` puts focus back on the marker the changelog was opened from, and
+   * is what the keyboard and pointer paths ask for. showMenu passes false: it
+   * is rebuilding the screen and the menu takes focus from there. */
+  function hideChangelog(refocus) {
+    if (!logOpen) return;
+    logOpen = false;
+    panelLog.hidden = true;
+    panelMenu.hidden = false;
+    if (refocus) versionBtn.focus();
+  }
+
   function showMenu() {
+    hideChangelog(false);
     game = null;
     PV.game = null;
     paused = false;
@@ -221,8 +254,9 @@
   window.addEventListener('keydown', function (e) {
     // Ahead of the repeat guard and every early return below, because these
     // keys scroll the page on any screen and a held key keeps scrolling. Space
-    // is exempt on a button: that is how a keyboard user activates it.
-    if (SCROLL_KEYS[e.code] &&
+    // is exempt on a button: that is how a keyboard user activates it. The
+    // changelog is exempt outright — its notes are what those keys scroll.
+    if (SCROLL_KEYS[e.code] && !logOpen &&
         !(e.code === 'Space' && e.target && e.target.tagName === 'BUTTON')) {
       e.preventDefault();
     }
@@ -235,6 +269,15 @@
     // Mute and fullscreen work on every screen, menu included.
     if (e.code === 'KeyF') { toggleFullscreen(); return; }
     if (e.code === 'KeyM') { toggleMute(); return; }
+
+    /* The changelog swallows the rest. There is no round under it and the menu
+     * behind it is not addressable, so Escape is the only key with anywhere to
+     * go. Everything else falls through to the browser, which is what leaves
+     * Tab, the arrows and Space on the close button working. */
+    if (logOpen) {
+      if (e.code === 'Escape') hideChangelog(true);
+      return;
+    }
 
     if (!game) {
       if (menu.handleKey(e)) e.preventDefault();
@@ -301,6 +344,17 @@
     fullBtn.textContent = document.fullscreenElement
       ? PV.TEXT.buttons.exitFullscreen : PV.TEXT.buttons.fullscreen;
   }
+
+  versionBtn.addEventListener('click', showChangelog);
+  document.getElementById('changelog-close').addEventListener('click', function () {
+    hideChangelog(true);
+  });
+  /* The backdrop closes it. Guarded on the target because the overlay is also
+   * what the menu sits on, and a click that landed on a panel is not a click
+   * outside one. */
+  overlay.addEventListener('click', function (e) {
+    if (logOpen && e.target === overlay) hideChangelog(true);
+  });
 
   muteBtn.addEventListener('click', function () {
     PV.Sfx.unlock();

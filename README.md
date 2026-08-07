@@ -166,6 +166,7 @@ Plain scripts hanging off a `window.PV` global. No modules, no bundler, which
 is what lets `file://` work.
 
     js/strings.js   every player-facing word
+    js/changelog.js the release notes, and the modal's markup
     js/maze.js      board templates, maze pieces, assembly, pellets, passability
     js/entities.js  grid movement, ghost targeting
     js/vision.js    the layer and cooldown state machine
@@ -184,7 +185,7 @@ read `PV.TILE` at load time. `attract.js` reads `PV.DIRS`, so it comes after
 `render.js`, which defines it. `main.js` has to load last. Everything else in
 the script order is slack.
 
-Eleven test suites, nine node and two bash, none of them needing anything
+Twelve test suites, ten node and two bash, none of them needing anything
 installed. The first proves every shipped maze is playable; the second reads
 the ladder as a ladder, so a piece authored into the wrong tier can't flatten
 the curve while passing on its own. The third covers the ghost release ladder,
@@ -200,10 +201,11 @@ fades on its own clock, what a round opens with, and how much of the house the
 lit board leaves showing; the eighth covers the board aura's schedule, the mitre
 that keeps its four bands from doubling up in the corners, and its absence from
 the menu demo; the ninth guards the arithmetic behind `docs/banner.png`, where a
-mistake renders as a subtly wrong image rather than an error. None of that is
-visible to a layout check. The last two are bash because what they exercise is
-bash; `release-test.sh` drives `tools/release.sh` against a throwaway repo, so
-nothing it does reaches GitHub.
+mistake renders as a subtly wrong image rather than an error; the tenth holds
+`CHANGELOG.md` and `js/changelog.js` to saying the same thing, in both
+directions. None of that is visible to a layout check. The last two are bash
+because what they exercise is bash; `release-test.sh` drives
+`tools/release.sh` against a throwaway repo, so nothing it does reaches GitHub.
 
     node test/maze-test.js
     node test/progression-test.js
@@ -214,6 +216,7 @@ nothing it does reaches GitHub.
     node test/flash-test.js
     node test/aura-test.js
     node test/banner-layout-test.js
+    node test/changelog-test.js
     bash test/release-test.sh
     bash test/itch-deploy-test.sh
 
@@ -227,11 +230,63 @@ from the console; `PV.game.nextLevel()` skips ahead to see a later board.
 Editing a file and seeing nothing change usually means the browser cached the
 old one. Hard reload with Ctrl-Shift-R.
 
+## Changelog
+
+`CHANGELOG.md` is generated. The notes live in `js/changelog.js`, because the
+game reads them there too — the version marker in the menu's bottom corner is a
+button, and it opens them in a modal. Add to the `Unreleased` entry as you go.
+
+`tools/changelog.html` is the easy way. Serve the project and open it:
+
+    python3 -m http.server 8000
+    # then 127.0.0.1:8000/tools/changelog.html
+
+Reach it as `127.0.0.1` or `localhost`, **not** `0.0.0.0`. Writing to disk needs
+a trustworthy origin and only those two names are; `0.0.0.0` is the address the
+server binds, which is what it prints on startup, and following that into the
+address bar leaves the page unable to save. The page says so and offers the
+link if it happens.
+
+One box per note, released versions folded away, and a live preview of both the
+modal and the Markdown. **Save to project** writes `js/changelog.js` and
+`CHANGELOG.md` in place — it asks for the project root once per visit, since
+that permission is the only way a page may write to disk. Without a server it
+still edits and previews, but cannot save; **Download both** and **Copy this
+tab** are the way out of that.
+
+It tidies as you go — line breaks flattened, `'` to `’`, `--` to `—` — and
+greys out Save until every note passes the same checks the suite runs, so a
+save can't turn the tests red. It only ever rewrites the array, leaving the
+rest of `js/changelog.js` untouched. If `CHANGELOG.md` says something the array
+doesn't, it says so on arrival and offers to load it.
+
+By hand, either file works. The array is the one that ships, so that is the
+default direction:
+
+    node tools/changelog.js             CHANGELOG.md from js/changelog.js
+    node tools/changelog.js --from-md   js/changelog.js from CHANGELOG.md
+    node tools/changelog.js --check     exit 1 if the two disagree
+    node tools/changelog.js --force     write the Markdown anyway
+
+Editing `CHANGELOG.md` is the more natural thing to reach for, so the default
+direction refuses when that is what happened — a Markdown file newer than the
+array and saying something different is holding the only copy of that work.
+`--from-md` reads it back, taking wrapped bullets, `*` bullets and a plain
+hyphen before the date. `release.sh` checks the two agree before it stamps
+anything, since past that point the array is newer whatever you did.
+
+`test/changelog-test.js` fails if the checked-in Markdown has drifted from the
+array, pins the array's layout so a save from the editor produces no incidental
+diff, and holds the parse to being the exact inverse of the render.
+
 ## Publishing
 
     ./tools/release.sh 1.6.0
 
-Bumps `PV.VERSION`, commits, tags `v1.6.0` and pushes. The tag triggers
+Bumps `PV.VERSION`, stamps the changelog's `Unreleased` heading with `1.6.0`
+and today's date, regenerates `CHANGELOG.md`, commits, tags `v1.6.0` and
+pushes. A release with no `Unreleased` entry to stamp is refused. The tag
+triggers
 `.github/workflows/deploy.yml`, which checks the tag against `PV.VERSION`, runs
 the game suites, packages the zip, pushes it to itch.io and creates a GitHub
 release.
