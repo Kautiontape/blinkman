@@ -90,7 +90,7 @@ if (require.main === module) {
   expect('full.spawn.clyde.col', full.spawn.clyde.col, 15);
 
   // A maze carries its own board, so nothing needs the module constants.
-  var m = PV.createMaze(9);
+  var m = PV.createMaze(4, 9);
   expect('maze.cols', m.cols, 28);
   expect('maze.rows', m.rows, 31);
   expect('maze.width', m.width, 560);
@@ -119,6 +119,69 @@ if (require.main === module) {
 
   var l1Problems = PV.checkLayout(small, l1Layout);
   expect('L1 valid', l1Problems.join('; '), '');
+
+  /* The ladder: which board and pool each level draws from. Levels 5-6, 7-8
+   * and 9-up share a rung, so both ends of each are checked. */
+  [[1, 'small', 'fixed'],
+   [2, 'mid',   'gentle'],
+   [3, 'large', 'medium'],
+   [4, 'full',  'fixed'],
+   [5, 'full',  'classic'],
+   [6, 'full',  'classic'],
+   [7, 'full',  'dense'],
+   [8, 'full',  'dense'],
+   [9, 'full',  'densest']].forEach(function (rung) {
+    var plan = PV.planFor(rung[0]);
+    expect('L' + rung[0] + ' board', plan.board, rung[1]);
+    expect('L' + rung[0] + ' tier', plan.tier, rung[2]);
+    expect('L' + rung[0] + ' maze is on that board', PV.createMaze(rung[0], 3).board, rung[1]);
+  });
+
+  // The last rung runs forever.
+  expect('L10 stays on densest', PV.planFor(10).tier, 'densest');
+  expect('L500 stays on densest', PV.planFor(500).tier, 'densest');
+
+  // Below the ladder, and off it: the first rung, never a fall-through.
+  expect('L0 falls to the first rung', PV.planFor(0).board, 'small');
+  expect('a negative level falls to the first rung', PV.planFor(-3).tier, 'fixed');
+  expect('a missing level falls to the first rung', PV.planFor().board, 'small');
+  expect('a non-number falls to the first rung', PV.planFor('4').board, 'small');
+
+  /* Levels 1 and 4 are one-map pools, so the seed has nothing to choose and
+   * every game plays the same board. */
+  var l1Fixed = true, l4Arcade = true;
+  for (var sd = 0; sd < 200; sd++) {
+    var l1Maze = PV.createMaze(1, sd);
+    if (l1Maze.recipe !== 'S1/S1' || l1Maze.totalPellets !== 128) l1Fixed = false;
+    if (PV.createMaze(4, sd).recipe !== 'T1/B1') l4Arcade = false;
+  }
+  expect('L1 is the same map at every seed', l1Fixed, true);
+  expect('L4 is the arcade map at every seed', l4Arcade, true);
+
+  /* A tier whose pieces the RNG cannot reach is a silent bug — the level would
+   * ship with pieces nobody ever sees. One level is swept per pool. */
+  [2, 3, 5, 7, 9].forEach(function (level) {
+    var plan = PV.planFor(level);
+    var pool = PV.BOARDS[plan.board].tiers[plan.tier];
+    var reached = {}, count = 0;
+    for (var s = 0; s < 1000; s++) {
+      var rec = PV.createMaze(level, s).recipe;
+      if (!reached[rec]) { reached[rec] = true; count++; }
+    }
+    expect('L' + level + ' reaches every ' + plan.tier + ' combination',
+      count, pool.top.length * pool.bottom.length);
+  });
+
+  // Deterministic in both arguments: level and seed together fix the maze.
+  var fixedByArgs = true;
+  [1, 2, 3, 4, 5, 7, 9].forEach(function (level) {
+    [0, 1, 12345].forEach(function (s) {
+      var x = PV.createMaze(level, s), y = PV.createMaze(level, s);
+      if (x.board !== y.board || x.recipe !== y.recipe ||
+          x.totalPellets !== y.totalPellets) fixedByArgs = false;
+    });
+  });
+  expect('level and seed fix the maze', fixedByArgs, true);
 
   // Geometry invariants every template shares — these catch a typo in the data.
   Object.keys(PV.BOARDS).forEach(function (id) {
@@ -201,17 +264,16 @@ if (require.main === module) {
     });
   });
 
-  /* Determinism, and confirm no combination is unreachable by the RNG.
-   * PV.createMaze only ever draws from the full board's classic pool, so that
-   * pool — not the whole sweep — is what has to be reachable. */
+  /* Determinism, and confirm no combination is unreachable by the RNG. A level
+   * draws from one pool, so reachability is per level; 5 is the classic rung. */
   var classicCombos = PV.BOARDS.full.tiers.classic.top.length *
                       PV.BOARDS.full.tiers.classic.bottom.length;
-  var a = PV.createMaze(12345), b = PV.createMaze(12345);
+  var a = PV.createMaze(5, 12345), b = PV.createMaze(5, 12345);
   var reproducible = a.recipe === b.recipe && a.totalPellets === b.totalPellets;
   var seen = {};
   var distinct = 0;
   for (var s = 0; s < 2000; s++) {
-    var rec = PV.createMaze(s).recipe;
+    var rec = PV.createMaze(5, s).recipe;
     if (!seen[rec]) { seen[rec] = true; distinct++; }
   }
 

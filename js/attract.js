@@ -15,9 +15,16 @@ window.PV = window.PV || {};
   var STEPS = [PV.DIRS.up, PV.DIRS.left, PV.DIRS.down, PV.DIRS.right];
 
   PV.createAttract = function () {
-    // persist:false — a demo round scores like any other, and the write would
-    // land on the player's own Stare Normal best.
-    var game = PV.createGame('stare-normal', { persist: false });
+    /* persist:false — a demo round scores like any other, and the write would
+     * land on the player's own Stare Normal best.
+     *
+     * level 5 — the ladder's first full-size board with a pool behind it, so
+     * the demo shows a different maze between visits at one fixed shape. The
+     * menu's --sc is stageWidth / boardWidth, so a narrower board scales the
+     * copy up by a third and rewraps it mid-phrase. What is pinned is the
+     * level, not a board id: the ladder stays the only place that maps one to
+     * the other. */
+    var game = PV.createGame('stare-normal', { persist: false, level: 5 });
 
     /* Reused across frames so the searches allocate nothing. The `seen` arrays
      * hold a generation number rather than a flag, which saves clearing them. */

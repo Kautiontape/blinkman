@@ -657,6 +657,29 @@ window.PV = window.PV || {};
 
   PV.BOARDS = BOARDS;
 
+  /* Which board and which pool a level draws from. Levels 1 and 4 are single
+   * fixed maps rather than pools: an on-ramp a player can learn, and the
+   * arcade layout as a landmark. */
+  var LADDER = [
+    { upTo: 1,        board: 'small', tier: 'fixed' },
+    { upTo: 2,        board: 'mid',   tier: 'gentle' },
+    { upTo: 3,        board: 'large', tier: 'medium' },
+    { upTo: 4,        board: 'full',  tier: 'fixed' },
+    { upTo: 6,        board: 'full',  tier: 'classic' },
+    { upTo: 8,        board: 'full',  tier: 'dense' },
+    { upTo: Infinity, board: 'full',  tier: 'densest' }
+  ];
+
+  PV.planFor = function (level) {
+    // A missing or out-of-range level is the first rung, not a fall-through.
+    // The `>= 1` test rejects NaN along with everything below the ladder.
+    if (typeof level !== 'number' || !(level >= 1)) return LADDER[0];
+    for (var i = 0; i < LADDER.length; i++) {
+      if (level <= LADDER[i].upTo) return LADDER[i];
+    }
+    return LADDER[LADDER.length - 1];
+  };
+
   /* The four corners a ghost retreats to in scatter, as offsets from the board
    * rather than fixed tiles, so they land inside every template. The two-in
    * inset on the top pair is the arcade's. */
@@ -829,14 +852,17 @@ window.PV = window.PV || {};
 
   var warned = {};   // so a bad piece complains once, not once per level
 
-  /** Build a fresh, mutable level. The same seed always yields the same maze. */
-  PV.createMaze = function (seed) {
+  /** Build a fresh, mutable level. The level picks the board and the pool, the
+   *  seed picks the pieces within it; the same pair always yields the same maze. */
+  PV.createMaze = function (level, seed) {
     if (seed == null) seed = (Math.random() * 0xffffffff) >>> 0;
     var rand = mulberry32(seed);
-    var board = BOARDS.full;
+    var plan = PV.planFor(level);
+    var board = BOARDS[plan.board];
+    var pool = board.tiers[plan.tier];
 
-    var top = TOP_PIECES[Math.floor(rand() * TOP_PIECES.length)];
-    var bottom = BOTTOM_PIECES[Math.floor(rand() * BOTTOM_PIECES.length)];
+    var top = pool.top[Math.floor(rand() * pool.top.length)];
+    var bottom = pool.bottom[Math.floor(rand() * pool.bottom.length)];
     var layout = PV.assembleLayout(board, top, bottom);
 
     // test/maze-test.js covers every shipped combination; this is the net for
@@ -847,10 +873,11 @@ window.PV = window.PV || {};
       if (!warned[key]) {
         warned[key] = true;
         console.error('maze: layout ' + key + ' rejected (' + problems.join('; ') +
-          ') — falling back to the classic layout. Run test/maze-test.js.');
+          ') — falling back to the full board\'s arcade map. Run test/maze-test.js.');
       }
-      top = TOP_PIECES[0];
-      bottom = BOTTOM_PIECES[0];
+      board = BOARDS.full;
+      top = board.tiers.fixed.top[0];
+      bottom = board.tiers.fixed.bottom[0];
       layout = PV.assembleLayout(board, top, bottom);
     }
 

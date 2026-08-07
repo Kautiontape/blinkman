@@ -76,6 +76,9 @@ window.PV = window.PV || {};
     // The menu demo scores like any other round; persisting that would
     // overwrite the player's own best.
     var persist = !opts || opts.persist !== false;
+    // The level the game opens on and returns to on restart. The menu demo
+    // asks for one; a played game starts at 1.
+    var startLevel = opts && opts.level != null ? opts.level : 1;
     var deathSounded = false;
 
     var game = {
@@ -92,7 +95,7 @@ window.PV = window.PV || {};
 
       score: 0,
       best: readBest(bestKey),
-      level: 1,
+      level: startLevel,
       lives: 3,
 
       invuln: 0,
@@ -114,7 +117,7 @@ window.PV = window.PV || {};
      * it, so a new board means new actors — a reset alone would place them on
      * the old one. Every caller reads game.pacman and game.ghosts per frame. */
     function newBoard() {
-      game.maze = PV.createMaze();
+      game.maze = PV.createMaze(game.level);
       game.pacman = PV.createPacman(game.maze);
       game.ghosts = PV.createGhosts(game.maze);
     }
@@ -149,9 +152,10 @@ window.PV = window.PV || {};
     };
 
     game.restart = function () {
+      // The level comes first: newBoard() reads it to pick the board.
+      game.level = startLevel;
       newBoard();
       game.score = 0;
-      game.level = 1;
       game.lives = 3;
       game.dotsEaten = 0;
       game.pops = [];
