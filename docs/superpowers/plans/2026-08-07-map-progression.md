@@ -290,7 +290,7 @@ Add to `js/maze.js`, after `PV.checkLayout`:
    * other. Their sum is the score the tier bands are drawn against; the house
    * interior is excluded because it is the same at every size. */
   PV.scoreLayout = function (board, layout) {
-    var junctions = 0, corners = 0, pellets = 0, open = 0;
+    var junctions = 0, corners = 0, pellets = 0;
 
     /* The tunnel row wraps, so a mouth reads as the straight corridor it is
      * rather than as a corner. Wrapping here covers both the neighbour count
@@ -310,21 +310,17 @@ Add to `js/maze.js`, after `PV.checkLayout`:
         var ch = layout[r][c];
         if (ch === '.' || ch === 'o') pellets++;
         if (!isOpen(c, r) || inGhostHouse(board, c, r)) continue;
-        open++;
-        var deg = 0;
-        for (var i = 0; i < NEIGHBOURS.length; i++) {
-          if (isOpen(c + NEIGHBOURS[i][0], r + NEIGHBOURS[i][1])) deg++;
-        }
+
+        var u = isOpen(c, r - 1), d = isOpen(c, r + 1);
+        var l = isOpen(c - 1, r), rt = isOpen(c + 1, r);
+        var deg = (u ? 1 : 0) + (d ? 1 : 0) + (l ? 1 : 0) + (rt ? 1 : 0);
+
         if (deg >= 3) junctions++;
-        else if (deg === 2) {
-          var u = isOpen(c, r - 1), d = isOpen(c, r + 1);
-          var l = isOpen(c - 1, r), rt = isOpen(c + 1, r);
-          if (!((u && d) || (l && rt))) corners++;
-        }
+        else if (deg === 2 && !((u && d) || (l && rt))) corners++;
       }
     }
     return { junctions: junctions, corners: corners, score: junctions + corners,
-             pellets: pellets, open: open };
+             pellets: pellets };
   };
 ```
 
