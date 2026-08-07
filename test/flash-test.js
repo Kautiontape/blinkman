@@ -188,5 +188,36 @@ console.log('the house stays dark');
 })();
 
 console.log('');
+console.log('the maze on READY');
+
+(function () {
+  // The one moment to study the maze, so every mode shows it dimly.
+  ['stare-hard', 'torch-hard', 'flash-hard'].forEach(function (id) {
+    var g = PV.createGame(id, { persist: false });
+    g.startRound();
+    g.update(STEP);
+    check(id + ' shows the walls on ready', g.visibleAlpha().walls >= 0.55,
+      g.visibleAlpha().walls);
+  });
+
+  // And it drops back to the mode's own rules the moment you move.
+  var g = PV.createGame('torch-hard', { persist: false });
+  g.startRound();
+  g.steer(PV.DIRS.left);
+  g.maze.eatPellet = function () { return 0; };
+  g.invuln = Infinity;
+  for (var i = 0; i < 400; i++) g.update(STEP);
+  check('torch-hard goes dark once you move', g.visibleAlpha().walls === 0,
+    g.visibleAlpha().walls);
+
+  // A pick brighter than the floor is not dimmed by it.
+  var s = PV.createGame('stare-normal', { persist: false });
+  s.startRound();
+  s.update(STEP);
+  check('a lit layer is not dimmed to the floor', s.visibleAlpha().walls === 1,
+    s.visibleAlpha().walls);
+})();
+
+console.log('');
 console.log(failures === 0 ? 'ALL FLASH CHECKS OK' : failures + ' CHECK(S) FAILED');
 process.exit(failures === 0 ? 0 : 1);

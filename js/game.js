@@ -25,6 +25,9 @@ window.PV = window.PV || {};
   PV.DEATH_REVEAL = DEATH_REVEAL;   // render.js times the death animation off these
   PV.DEATH_ANIM = DEATH_ANIM;
 
+  // How much of the maze READY shows, whatever the mode would.
+  var READY_WALLS = 0.55;
+
   // Chrome refuses localStorage on file:// origins, and opening index.html by
   // double-clicking is a supported way to play this. Degrade to a no-op.
   var store = {
@@ -162,12 +165,19 @@ window.PV = window.PV || {};
     };
 
     /**
-     * The player's chosen layers, except while dying — then ghosts and Pac-Man
-     * are forced on. Renderer and HUD both read this, so the layer chips stay
+     * The player's chosen layers, with two exceptions. READY floors the walls,
+     * since it is the one moment to study the maze. Dying forces ghosts and
+     * Pac-Man on. Renderer and HUD both read this, so the layer chips stay
      * honest about what's on screen.
      */
     game.visibleAlpha = function () {
       var a = game.vision.alpha;
+      if (game.state === 'ready') {
+        return {
+          dots: a.dots, walls: Math.max(a.walls, READY_WALLS),
+          ghosts: a.ghosts, pacman: a.pacman
+        };
+      }
       if (game.state !== 'dying') return a;
       return { dots: a.dots, walls: a.walls, ghosts: 1, pacman: 1 };
     };
