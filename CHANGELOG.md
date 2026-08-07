@@ -5,7 +5,7 @@ there and run the generator, or open `tools/changelog.html` and use that.
 The same notes open in-game from the version marker in the menu's bottom
 corner.
 
-## Unreleased
+## 1.6.0 — 2026-08-07
 
 - Level progression! Maps now start off simple and familiar, and slowly ramp up how dense they are as you beat levels.
 - Added this changelog feature!

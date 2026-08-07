@@ -13,7 +13,7 @@ window.PV = window.PV || {};
   /* Shown in the menu's bottom corner and logged to the console, so you can
    * tell at a glance which build a deploy is actually serving.
    * ./tools/release.sh bumps this, tags it and pushes. */
-  PV.VERSION = '1.5.0';
+  PV.VERSION = '1.6.0';
 
   PV.TEXT = {
     title: 'BLINK-MAN',

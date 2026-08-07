@@ -23,8 +23,8 @@ window.PV = window.PV || {};
 
   PV.CHANGELOG = [
     {
-      version: 'Unreleased',
-      date: '',
+      version: '1.6.0',
+      date: '2026-08-07',
       notes: [
         'Level progression! Maps now start off simple and familiar, and slowly ramp up how dense they are as you beat levels.',
         'Added this changelog feature!',
