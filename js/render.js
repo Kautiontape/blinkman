@@ -142,8 +142,18 @@ window.PV = window.PV || {};
       draw: function (game, dt) {
         // visibleAlpha(), not vision.alpha: a death forces ghosts + Pac-Man on.
         var alpha = game.visibleAlpha();
-        // Non-zero only in Torch, where it doubles as the mode test.
-        var torchR = game.rules.style === 'torch' ? torchRadius(game.time) : 0;
+        // Non-null only in Torch, where it doubles as the mode test.
+        var torch = null;
+        if (game.rules.style === 'torch') {
+          var r = torchRadius(game.time);
+          torch = {
+            x: game.pacman.x, y: game.pacman.y, dir: game.pacman.dir,
+            radius: r,
+            coneLen: TORCH_CONE_LEN * (r / TORCH_R),   // flickers in step with the circle
+            coneHalf: TORCH_CONE_HALF,
+            soft: TORCH_SOFT
+          };
+        }
 
         ctx.save();
         // Everything below is authored in the fixed 560x620 design space; this
@@ -159,15 +169,15 @@ window.PV = window.PV || {};
         }
 
         // Under the layers, so a death reveal still draws over the top.
-        if (torchR) {
+        if (torch) {
           drawPulse(ctx, game);
-          drawTorch(ctx, game, torchR, scale);
+          drawTorch(ctx, game, torch, scale);
         }
 
         // Only drawWalls needs `scale` — see its shadowBlur.
         if (alpha.walls > 0)  drawWalls(ctx, game.maze, alpha.walls, scale);
         if (alpha.dots > 0)   drawPellets(ctx, game.maze, alpha.dots, game.time);
-        drawGhosts(ctx, game, alpha.ghosts, torchR);
+        drawGhosts(ctx, game, alpha.ghosts, torch);
         if (alpha.pacman > 0) drawPacman(ctx, game, alpha.pacman);
 
         drawFloatingScores(ctx, game);
@@ -322,40 +332,125 @@ window.PV = window.PV || {};
     });
   }
 
-  /* The torch: a disc of real colour around Pac-Man in a mode that is
-   * otherwise black. Ghosts are not clipped — drawGhosts gives them an alpha
-   * floor instead, so one straddling the rim shows whole rather than sliced.
-   * Pac-Man himself is drawn by the freeSelf path. */
-  function drawTorch(ctx, game, radius, scale) {
-    var p = game.pacman;
+  /* Is this open tile inside the circle-or-cone shape, and is Blinkman's
+   * line of sight to it clear? The two are deliberately separate tests:
+   * shape first (cheap), occlusion second (a grid walk), so a tile that's
+   * simply out of range never pays for a line-of-sight check. */
+  function torchTileLit(maze, torch, c, r) {
+    var x = PV.center(c), y = PV.center(r);
+    var dx = x - torch.x, dy = y - torch.y;
+    if (PV.torchAlpha(dx, dy, torch.dir, torch) <= 0) return false;
+    return PV.canSee(torch.x, torch.y, x, y, maze);
+  }
 
+  /* One face per wall tile per lit open neighbour, same offsets buildEdges
+   * uses in maze.js. A wall tile fills if any face of it is lit; a face
+   * strokes only on the side that's actually visible, which is what makes a
+   * wall behind a corner disappear instead of showing its far side. */
+  var WALL_FACES = [
+    { dc: 0, dr: -1, x1: 0, y1: 0, x2: TILE, y2: 0 },
+    { dc: 0, dr: 1, x1: 0, y1: TILE, x2: TILE, y2: TILE },
+    { dc: -1, dr: 0, x1: 0, y1: 0, x2: 0, y2: TILE },
+    { dc: 1, dr: 0, x1: TILE, y1: 0, x2: TILE, y2: TILE }
+  ];
+
+  function drawTorchWalls(ctx, maze, torch, scale) {
     ctx.save();
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-    ctx.clip();
-    drawWalls(ctx, game.maze, 1, scale);
-    drawPellets(ctx, game.maze, 1, game.time);
-    ctx.restore();
+    ctx.fillStyle = 'rgba(24,36,102,0.45)';
 
-    // A warm halo on the rim, so the hard clip edge reads as light falling off.
+    var edges = [];
+    for (var r = 0; r < maze.rows; r++) {
+      for (var c = 0; c < maze.cols; c++) {
+        if (!maze.walls[r][c]) continue;
+        var lit = false;
+        for (var i = 0; i < WALL_FACES.length; i++) {
+          var f = WALL_FACES[i];
+          var nc = c + f.dc, nr = r + f.dr;
+          if (maze.isWall(nc, nr)) continue;
+          if (!torchTileLit(maze, torch, nc, nr)) continue;
+          lit = true;
+          edges.push([c * TILE + f.x1, r * TILE + f.y1, c * TILE + f.x2, r * TILE + f.y2]);
+        }
+        if (lit) ctx.fillRect(c * TILE, r * TILE, TILE, TILE);
+      }
+    }
+
+    ctx.strokeStyle = '#4b6bff';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.shadowColor = 'rgba(75,107,255,0.85)';
+    ctx.shadowBlur = 6 * scale;
+    ctx.beginPath();
+    for (var j = 0; j < edges.length; j++) {
+      ctx.moveTo(edges[j][0], edges[j][1]);
+      ctx.lineTo(edges[j][2], edges[j][3]);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // The house door is a floor tile for isWall's purposes (see maze.js), so
+    // it gets the same single-tile lit test pellets use, not the wall faces.
+    ctx.strokeStyle = '#ff9ede';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (var dr = 0; dr < maze.rows; dr++) {
+      for (var dc = 0; dc < maze.cols; dc++) {
+        if (!maze.doors[dr][dc]) continue;
+        if (!torchTileLit(maze, torch, dc, dr)) continue;
+        ctx.moveTo(dc * TILE, dr * TILE + TILE / 2);
+        ctx.lineTo(dc * TILE + TILE, dr * TILE + TILE / 2);
+      }
+    }
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawTorchPellets(ctx, maze, torch, time) {
+    ctx.save();
+    ctx.fillStyle = '#ffe9a8';
+
+    for (var r = 0; r < maze.rows; r++) {
+      for (var c = 0; c < maze.cols; c++) {
+        var kind = maze.pellets[r][c];
+        if (!kind) continue;
+        if (!torchTileLit(maze, torch, c, r)) continue;
+        var x = PV.center(c), y = PV.center(r);
+        if (kind === 1) ctx.fillRect(x - 1.5, y - 1.5, 3, 3);
+        else fillCircle(ctx, x, y, 4 + Math.sin(time * 6) * 1.6);
+      }
+    }
+    ctx.restore();
+  }
+
+  /* The torch: the union of a disc and a forward cone, each clipped to
+   * Blinkman's line of sight, in a mode that's otherwise black. Ghosts are
+   * not part of this — drawGhosts gives them an alpha floor instead, so one
+   * straddling the rim shows whole rather than sliced. */
+  function drawTorch(ctx, game, torch, scale) {
+    drawTorchWalls(ctx, game.maze, torch, scale);
+    drawTorchPellets(ctx, game.maze, torch, game.time);
+
+    // A warm halo on both boundaries, so the hard edges read as light
+    // falling off rather than a level-editor viewport.
     ctx.save();
     ctx.strokeStyle = 'rgba(255,214,130,0.45)';
     ctx.lineWidth = 2;
     ctx.shadowColor = 'rgba(255,196,92,0.9)';
-    ctx.shadowBlur = 10 * scale;   // in device pixels, so scale by hand
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-  }
+    ctx.shadowBlur = 10 * scale;
 
-  /* Same shape as PV.ghostReveal: a per-entity alpha floor, not a clip. */
-  function torchReveal(g, pacman, radius) {
-    if (!radius) return 0;
-    var d = Math.hypot(g.x - pacman.x, g.y - pacman.y);
-    if (d <= radius - TORCH_SOFT) return 1;
-    if (d >= radius) return 0;
-    return (radius - d) / TORCH_SOFT;
+    ctx.beginPath();
+    ctx.arc(torch.x, torch.y, torch.radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    var base = Math.atan2(torch.dir.y, torch.dir.x);
+    ctx.beginPath();
+    ctx.moveTo(torch.x, torch.y);
+    ctx.arc(torch.x, torch.y, torch.coneLen, base - torch.coneHalf, base + torch.coneHalf);
+    ctx.closePath();
+    ctx.stroke();
+
+    ctx.restore();
   }
 
   function drawPellets(ctx, maze, alpha, time) {
