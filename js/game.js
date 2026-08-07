@@ -196,9 +196,9 @@ window.PV = window.PV || {};
       updatePops(dt);
 
       if (game.state === 'ready') {
-        // Returning before vision.update() freezes the cooldown and Flash's
-        // opening flash while the board is still behind the curtain.
-        if (game.stateTime > 1.8) beginPlay();
+        // Returning before vision.update() freezes the cooldown and the
+        // opening picks while the board is still behind the curtain. steer()
+        // is the only way out of here.
         return;
       }
 

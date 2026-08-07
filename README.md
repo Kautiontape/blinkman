@@ -78,7 +78,7 @@ A round opens the same way in every mode. The dots blink three times and then
 obey the layer, and all four ghosts start in the house and file out one at a
 time over the first several seconds. Pac-Man starts Blinky outside the house;
 keeping all four in makes the count readable, which matters more here than the
-pedigree.
+pedigree. The round holds on READY until you move.
 
 Five seconds into a round, a player who hasn't pressed a number key gets a line
 low on the board naming the ones that mode answers to — `Press 1/2/3 to scan`
