@@ -45,20 +45,30 @@ blue ring means you can switch. A shrinking red arc means wait.
 
 ## Modes
 
-| | What you see | Cooldown |
-|---|---|---|
-| Easy | You and your last two picks | 1s |
-| Normal | You and your last pick | 1s |
-| Hard | One of four, and you can go dark | 3s |
-| Torch | A lit circle around you, plus a longer cone ahead — both stop at a wall. A press pings one layer outward from where you stood, and it fades behind the ring, through walls. | 1s |
-| Blink | Nothing. A press flashes one layer, which fades over 2s. | 1s |
+Three ways of seeing, each with three difficulties. The mode decides what a
+press does; the difficulty decides how much it gives you.
+
+| | What a press does |
+|---|---|
+| Stare | Lights one layer, and it stays lit until you pick another. |
+| Torch | A lit circle and a forward cone travel with you, both stopping at walls. A press pings one layer outward from where you stood, through walls. |
+| Flash | The board is black. A press flashes one layer, which then fades. |
+
+| | Easy | Normal | Hard |
+|---|---|---|---|
+| Stare | Your last two picks, 1s | Your last pick, 1s | One of four and you can go dark, 3s |
+| Torch | A wide cone that reaches, 1s | A 6-tile cone, 1s | A narrow cone, quick to fade, 2s |
+| Flash | You stay lit, a 3.5s fade, 1s | A 2s fade, 1s | A 1s fade, 2s |
+
+Your own layer is free in every cell except Stare Hard, Flash Normal and Flash
+Hard, which is what makes those three the ones where you can lose yourself.
 
 Death is the one exception to all of this. Get caught and the ghosts light up
 for 0.6s before the death animation, with a red ring on whichever one got you,
 so a death always has a visible cause.
 
-The menu runs a demo behind it: a Normal round on autopilot, with the lit layer
-rotating every four seconds. `prefers-reduced-motion` turns it off.
+The menu runs a demo behind it: a Stare Normal round on autopilot, with the lit
+layer rotating every four seconds. `prefers-reduced-motion` turns it off.
 
 A round opens the same way in every mode. The dots blink three times and then
 obey the layer, and all four ghosts start in the house and file out one at a
@@ -71,9 +81,10 @@ count readable, which matters more here than the pedigree.
 
 Five seconds into a round, a player who hasn't pressed a number key gets a line
 low on the board naming the ones that mode answers to — `Press 1/2/3 to scan`
-in Torch, `Press 1/2/3/4 to flash` in Blink. It fades after ten seconds and
-returns each round until a pick is made, then stays gone for the rest of the
-game.
+in Torch, `Press 1/2/3/4 to flash` in Flash. Flash Easy is the exception at
+`Press 1/2/3`, since it draws you always and never spends a flash on you. It
+fades after ten seconds and returns each round until a pick is made, then stays
+gone for the rest of the game.
 
 ## Mazes
 
@@ -122,6 +133,7 @@ is what lets `file://` work.
     js/attract.js   the autopilot demo behind the menu
     js/render.js    canvas drawing
     js/hud.js       score, badge, cooldown ring, the layer nudge
+    js/menu.js      the mode and difficulty picker on the title screen
     js/audio.js     synthesised sound, no audio files
     js/main.js      input, frame loop, layout
 
@@ -131,13 +143,15 @@ time. `attract.js` reads `PV.DIRS` and the grid size, so it comes after
 `entities.js` too. `main.js` has to load last. Everything else in the script
 order is slack.
 
-Six test suites, four node and two bash, none of them needing anything
+Seven test suites, five node and two bash, none of them needing anything
 installed. The second covers the ghost release ladder, the house reveal, the
 dots blink and the wording of the layer nudge; the third covers Torch — its
 ping's fade curve and frozen origin, the ghost blips it leaves behind, and the
 line-of-sight and circle/cone math behind what the light itself reaches; the
 fourth covers the menu demo, whose autopilot has to steer only into open tiles,
-eat at a reasonable rate, and reach every layer as it rotates. None of that is
+eat at a reasonable rate, and reach every layer as it rotates; the fifth pins
+the shape of all nine cells and the exact tuning each mode's Normal is
+balanced around, so a change to it has to be deliberate. None of that is
 visible to a layout check. The last two are bash because what they exercise is
 bash; `release-test.sh` drives `tools/release.sh` against a throwaway repo, so
 nothing it does reaches GitHub.
@@ -146,6 +160,7 @@ nothing it does reaches GitHub.
     node test/opening-test.js
     node test/torch-test.js
     node test/attract-test.js
+    node test/modes-test.js
     bash test/release-test.sh
     bash test/itch-deploy-test.sh
 
