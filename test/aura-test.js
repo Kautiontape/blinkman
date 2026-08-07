@@ -109,6 +109,16 @@ console.log('the closing pulse');
   for (var i = 0; i < 10; i++) a.update(g, STEP);
   check('and decays', a.level < first, a.level);
 
+  // Eased away rather than linear: half the time gone, a quarter of the level.
+  var eased = PV.createAura();
+  var e = round({ frightTimer: STEP / 2 });
+  eased.update(e, STEP);
+  e.frightTimer = 0;
+  eased.update(e, STEP);
+  for (var m = 0; m < 15; m++) eased.update(e, STEP);   // 0.25s of 0.5s
+  check('the pulse eases away rather than ramping',
+    eased.level > 0.2 && eased.level < 0.3, eased.level);
+
   for (var j = 0; j < 60; j++) a.update(g, STEP);
   check('until there is nothing left', a.tint === null && a.level === 0,
     a.tint + ' / ' + a.level);

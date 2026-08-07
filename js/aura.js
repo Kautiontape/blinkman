@@ -14,7 +14,6 @@ window.PV = window.PV || {};
     red: '255,77,109'
   };
   PV.AURA_TINTS = TINTS;
-  PV.AURA_BAND = BAND;
 
   // A fright running: a slow breath between two levels.
   var BREATH_HZ = 1.2, BREATH_LOW = 0.35, BREATH_HIGH = 0.75;
