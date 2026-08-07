@@ -122,5 +122,45 @@ PV.MODE_IDS.forEach(function (mode) {
 });
 
 console.log('');
+console.log('best-score migration');
+
+(function () {
+  var OLD = {
+    'pv-best-easy': 'pv-best-stare-easy',
+    'pv-best-normal': 'pv-best-stare-normal',
+    'pv-best-hard': 'pv-best-stare-hard',
+    'pv-best-torch': 'pv-best-torch-normal',
+    'pv-best-blink': 'pv-best-flash-normal'
+  };
+
+  // A stand-in for the browser's localStorage, seeded with the five old keys
+  // and one new key that already holds a better score.
+  var mem = { 'pv-best-flash-normal': '900' };
+  Object.keys(OLD).forEach(function (k) { mem[k] = '100'; });
+
+  var store = {
+    getItem: function (k) { return Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null; },
+    setItem: function (k, v) { mem[k] = String(v); }
+  };
+
+  PV.migrateBests(store);
+
+  Object.keys(OLD).forEach(function (from) {
+    var to = OLD[from];
+    if (to === 'pv-best-flash-normal') return;
+    check(from + ' reaches ' + to, mem[to] === '100', mem[to]);
+  });
+
+  check('an existing best is never overwritten', mem['pv-best-flash-normal'] === '900',
+    mem['pv-best-flash-normal']);
+
+  // Running twice must be a no-op, not a second chance to clobber.
+  mem['pv-best-stare-normal'] = '5000';
+  PV.migrateBests(store);
+  check('re-running loses nothing', mem['pv-best-stare-normal'] === '5000',
+    mem['pv-best-stare-normal']);
+})();
+
+console.log('');
 console.log(failures === 0 ? 'ALL GRID CHECKS OK' : failures + ' CHECK(S) FAILED');
 process.exit(failures === 0 ? 0 : 1);

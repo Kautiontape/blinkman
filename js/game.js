@@ -43,6 +43,33 @@ window.PV = window.PV || {};
     return isFinite(n) && n > 0 ? n : 0;
   }
 
+  /* The ids carry a mode prefix, so a score stored under a bare difficulty name
+   * belongs to that mode's Normal. Copies each old key to its new one, skipping
+   * any the player has already scored under, so running it twice cannot cost a
+   * score. */
+  var OLD_BEST_KEYS = {
+    'pv-best-easy': 'pv-best-stare-easy',
+    'pv-best-normal': 'pv-best-stare-normal',
+    'pv-best-hard': 'pv-best-stare-hard',
+    'pv-best-torch': 'pv-best-torch-normal',
+    'pv-best-blink': 'pv-best-flash-normal'
+  };
+
+  PV.migrateBests = function (target) {
+    // `target` mirrors the browser's localStorage (getItem/setItem); the page
+    // itself reaches that through `store`, whose get/set wrap it in a try/catch.
+    var get = target ? target.getItem.bind(target) : store.get;
+    var set = target ? target.setItem.bind(target) : store.set;
+
+    Object.keys(OLD_BEST_KEYS).forEach(function (from) {
+      var value = get(from);
+      if (value == null) return;
+      var to = OLD_BEST_KEYS[from];
+      if (get(to) != null) return;
+      set(to, value);
+    });
+  };
+
   PV.createGame = function (difficultyId, opts) {
     var rules = PV.DIFFICULTIES[difficultyId];
     var bestKey = 'pv-best-' + difficultyId;

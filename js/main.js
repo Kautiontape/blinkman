@@ -353,6 +353,7 @@
   updateMuteLabel();
   updateFullLabel();
   layout();
+  PV.migrateBests();
   showMenu();
   requestAnimationFrame(frame);
 
