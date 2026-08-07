@@ -937,7 +937,20 @@ Keep `PV.TILE`, `PV.TOP_PIECES`, `PV.BOTTOM_PIECES`, `PV.center` and `PV.tileOf`
 - [ ] **Step 2: Find every straggler**
 
 Run: `grep -rn "PV\.COLS\|PV\.ROWS\|PV\.WIDTH\|PV\.HEIGHT\|PV\.SPAWN\|PV\.TUNNEL_ROW" js/ test/`
-Expected hits: `js/game.js:358`, `test/maze-test.js`'s `wideSpots`/`deadEnds`, and `test/opening-test.js` around line 126, which passes `PV.SPAWN.outside` as a target to `updateGhost` — switch that to the maze it already has in scope. Fix `game.js:358`, which measures tunnel-aware distance:
+
+Expected hits, all of which this task closes:
+
+| Location | Fix |
+|---|---|
+| `js/game.js:368` | tunnel-aware distance — use `game.maze.width` |
+| `test/maze-test.js` `wideSpots`/`deadEnds` | rewritten in Task 11; if that ran first, nothing here |
+| `test/attract-test.js:115,118` | `PV.TUNNEL_ROW` — the test has the maze in scope, use `m.tunnelRow` |
+| `test/torch-test.js:101` | derives expected pulse life from `PV.WIDTH`/`PV.HEIGHT` — use `PV.pulseSpan(maze)` from Task 4 |
+| `test/banner-layout-test.js:105,114,116` | promo artwork, which deliberately draws the full board — point it at `PV.BOARDS.full` rather than the maze |
+
+`test/banner-layout-test.js` is the one case where reading the full board is correct rather than a leftover: the banner is a fixed marketing image, not a level. Take its dimensions from the template explicitly so that intent is visible.
+
+Fix `game.js:368`, which measures tunnel-aware distance:
 
 ```javascript
         dx = Math.min(dx, game.maze.width - dx);
