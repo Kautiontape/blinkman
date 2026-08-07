@@ -174,5 +174,19 @@ console.log('the opening reveal');
 })();
 
 console.log('');
+console.log('the house stays dark');
+
+(function () {
+  // A ghost in the house is drawn on the ghosts layer alone. Nothing lifts it
+  // above what the mode is showing, in any mode.
+  check('nothing reveals the house', PV.ghostReveal === undefined, PV.ghostReveal);
+
+  var g = settled('flash-normal');
+  var housed = g.ghosts.filter(function (gh) { return gh.state === 'house'; });
+  check('someone is still in the house', housed.length > 0, housed.length);
+  check('the ghosts layer is dark', g.vision.alpha.ghosts === 0, g.vision.alpha.ghosts);
+})();
+
+console.log('');
 console.log(failures === 0 ? 'ALL FLASH CHECKS OK' : failures + ' CHECK(S) FAILED');
 process.exit(failures === 0 ? 0 : 1);

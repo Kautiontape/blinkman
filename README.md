@@ -76,12 +76,9 @@ layer rotating every four seconds. `prefers-reduced-motion` turns it off.
 
 A round opens the same way in every mode. The dots blink three times and then
 obey the layer, and all four ghosts start in the house and file out one at a
-time over the first several seconds. A ghost inside the house is visible
-whatever the layer says, fading out as it crosses the door, so you can count
-what is still waiting. Torch opts out of that: it brings its own light, so the
-house stays dark and who is still in it is something you walk up to or ping
-for. Pac-Man starts Blinky outside the house; keeping all four in makes the
-count readable, which matters more here than the pedigree.
+time over the first several seconds. Pac-Man starts Blinky outside the house;
+keeping all four in makes the count readable, which matters more here than the
+pedigree.
 
 Five seconds into a round, a player who hasn't pressed a number key gets a line
 low on the board naming the ones that mode answers to — `Press 1/2/3 to scan`
@@ -148,8 +145,8 @@ time. `attract.js` reads `PV.DIRS` and the grid size, so it comes after
 order is slack.
 
 Seven test suites, five node and two bash, none of them needing anything
-installed. The second covers the ghost release ladder, the house reveal, the
-dots blink and the wording of the layer nudge; the third covers Torch — its
+installed. The second covers the ghost release ladder, the dots blink and the
+wording of the layer nudge; the third covers Torch — its
 ping's fade curve and frozen origin, the ghost blips it leaves behind, and the
 line-of-sight and circle/cone math behind what the light itself reaches; the
 fourth covers the menu demo, whose autopilot has to steer only into open tiles,
