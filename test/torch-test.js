@@ -267,5 +267,48 @@ console.log('cone + circle shape');
 })();
 
 console.log('');
+console.log('the torch ladder');
+
+(function () {
+  var easy = PV.DIFFICULTIES['torch-easy'];
+  var normal = PV.DIFFICULTIES['torch-normal'];
+  var hard = PV.DIFFICULTIES['torch-hard'];
+
+  // The reach is a per-cell knob, so render.js holds no single value for it.
+  check('the reach is not a module constant',
+    PV.TORCH_R === undefined && PV.TORCH_CONE_LEN === undefined &&
+    PV.TORCH_CONE_HALF === undefined,
+    [PV.TORCH_R, PV.TORCH_CONE_LEN, PV.TORCH_CONE_HALF].join(' '));
+
+  check('normal keeps the shipped reach',
+    normal.torchRadius === 46 && normal.coneLen === 120 &&
+    near(normal.coneHalf, Math.PI / 4, 1e-9),
+    normal.torchRadius + ' / ' + normal.coneLen + ' / ' + normal.coneHalf);
+
+  check('the circle shrinks down the ladder',
+    easy.torchRadius > normal.torchRadius && normal.torchRadius > hard.torchRadius,
+    [easy.torchRadius, normal.torchRadius, hard.torchRadius].join(' '));
+
+  check('the cone shortens down the ladder',
+    easy.coneLen > normal.coneLen && normal.coneLen > hard.coneLen,
+    [easy.coneLen, normal.coneLen, hard.coneLen].join(' '));
+
+  check('the cone narrows down the ladder',
+    easy.coneHalf > normal.coneHalf && normal.coneHalf > hard.coneHalf,
+    [easy.coneHalf, normal.coneHalf, hard.coneHalf].join(' '));
+
+  // A wider cone must light a spot a narrower one cannot, or the knob is inert.
+  var right = PV.DIRS.right;
+  function lit(rules) {
+    return PV.torchAlpha(40, 60, right, {
+      radius: rules.torchRadius, coneLen: rules.coneLen,
+      coneHalf: rules.coneHalf, soft: PV.TORCH_SOFT
+    });
+  }
+  check('a wide cone reaches what a narrow one misses',
+    lit(easy) > 0 && lit(hard) === 0, lit(easy) + ' / ' + lit(hard));
+})();
+
+console.log('');
 console.log(failures === 0 ? 'ALL TORCH CHECKS OK' : failures + ' CHECK(S) FAILED');
 process.exit(failures === 0 ? 0 : 1);

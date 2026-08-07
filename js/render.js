@@ -16,15 +16,9 @@ window.PV = window.PV || {};
   var EDGE_TIME = 0.1;         // how long an element counts as just-reached
   var FRONT_ALPHA = 0.70;      // the wavefront: present, never competing
 
-  var TORCH_R = 46;                    // 2.3 tiles
   var TORCH_SOFT = 12;                 // px over which an edge fades in
-  var TORCH_CONE_HALF = Math.PI / 4;   // 45 deg either side of facing — 90 deg FOV
-  var TORCH_CONE_LEN = 120;            // 6 tiles
 
-  PV.TORCH_R = TORCH_R;
   PV.TORCH_SOFT = TORCH_SOFT;
-  PV.TORCH_CONE_HALF = TORCH_CONE_HALF;
-  PV.TORCH_CONE_LEN = TORCH_CONE_LEN;
 
   var calmQuery = window.matchMedia &&
     window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -33,9 +27,9 @@ window.PV = window.PV || {};
   PV.wantsCalm = function () { return !!(calmQuery && calmQuery.matches); };
 
   /* Two summed sines, so the flicker never settles into an obvious beat. */
-  function torchRadius(time) {
-    if (PV.wantsCalm()) return TORCH_R;
-    return TORCH_R * (1 + 0.045 * Math.sin(time * 11.3) + 0.028 * Math.sin(time * 23.7));
+  function torchRadius(base, time) {
+    if (PV.wantsCalm()) return base;
+    return base * (1 + 0.045 * Math.sin(time * 11.3) + 0.028 * Math.sin(time * 23.7));
   }
 
   /**
@@ -150,12 +144,13 @@ window.PV = window.PV || {};
         // Non-null only in Torch, where it doubles as the mode test.
         var torch = null, reach = null;
         if (game.rules.mode === 'torch') {
-          var r = torchRadius(game.time);
+          var r = torchRadius(game.rules.torchRadius, game.time);
           torch = {
             x: game.pacman.x, y: game.pacman.y,
             radius: r,
-            coneLen: TORCH_CONE_LEN * (r / TORCH_R),   // flickers in step with the circle
-            coneHalf: TORCH_CONE_HALF,
+            // flickers in step with the circle
+            coneLen: game.rules.coneLen * (r / game.rules.torchRadius),
+            coneHalf: game.rules.coneHalf,
             soft: TORCH_SOFT
           };
           // The swung heading, not his own: the beam lags a turn by a frame
