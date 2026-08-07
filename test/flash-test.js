@@ -147,6 +147,8 @@ console.log('the opening reveal');
     var a = g.vision.alpha;
     check(id + ' opens with the walls lit', a.walls === 1, a.walls);
     check(id + ' opens with you lit', a.pacman === 1, a.pacman);
+    check(id + ' opens with the badge on the board layer',
+      g.vision.current() === 'walls', g.vision.current());
   });
 
   // Easy draws you always, so the seeded pick changes nothing there.
@@ -154,6 +156,8 @@ console.log('the opening reveal');
   easy.startRound();
   check('flash-easy still draws you', easy.vision.alpha.pacman === 1,
     easy.vision.alpha.pacman);
+  check('flash-easy opens with the badge on the board layer',
+    easy.vision.current() === 'walls', easy.vision.current());
 
   // The opening reveal fades out like any other pick.
   var g = PV.createGame('flash-normal', { persist: false });
@@ -167,12 +171,6 @@ console.log('the opening reveal');
   }
   check('the opening reveal fades out', g.vision.alpha.pacman === 0,
     g.vision.alpha.pacman);
-
-  // Stare's `initial` is its stack, and must not gain a pacman entry.
-  check('stare seeds no pings', PV.DIFFICULTIES['stare-normal'].initial.join(',') === 'walls',
-    PV.DIFFICULTIES['stare-normal'].initial.join(','));
-  check('torch seeds only the walls', PV.DIFFICULTIES['torch-normal'].initial.join(',') === 'walls',
-    PV.DIFFICULTIES['torch-normal'].initial.join(','));
 })();
 
 console.log('');

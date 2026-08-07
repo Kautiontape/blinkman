@@ -114,8 +114,9 @@ window.PV = window.PV || {};
       }
     },
     flash: {
-      // The round opens showing the board and where you are standing on it.
-      base: { pool: LAYERS, freeSelf: false, keep: 1, initial: ['walls', 'pacman'] },
+      // The badge names the last-seeded layer, so the board goes last —
+      // the round opens showing you and the walls, badge reading WALLS.
+      base: { pool: LAYERS, freeSelf: false, keep: 1, initial: ['pacman', 'walls'] },
       levels: {
         // Easy draws you always, so a flash is only ever spent on the board.
         easy:   { pool: ['dots', 'ghosts', 'walls'], freeSelf: true,
