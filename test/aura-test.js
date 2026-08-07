@@ -54,11 +54,13 @@ console.log('a fright running');
   }
   check('the aura is white', a.tint === TINTS.white, a.tint);
 
+  // 2s covers 2.4 cycles of the breath, so both extremes are sampled closely.
   var low = Math.min.apply(null, seen), high = Math.max.apply(null, seen);
-  check('it stays lit throughout', low > 0, low);
+  check('it sinks to its floor without going dark', low > 0.34 && low < 0.36, low);
   check('it breathes rather than holding still', high - low > 0.2,
     (high - low).toFixed(3));
-  check('it never reaches full', high < 1, high);
+  check('it rises to its ceiling without reaching full',
+    high > 0.74 && high < 0.76, high);
 })();
 
 console.log('');
@@ -139,6 +141,36 @@ console.log('a round reset is not a spent fright');
 })();
 
 console.log('');
+console.log('a board cleared mid-fright');
+
+(function () {
+  /* game.js decrements frightTimer inside the 'playing' branch alone, so
+   * 'levelclear' leaves it frozen positive for the whole 2s pause. */
+  var a = PV.createAura();
+  var g = round({ frightTimer: 7 });
+  a.update(g, STEP);
+  g.state = 'levelclear';
+  a.update(g, STEP);
+  check('the breath stops with the round', a.tint === null, a.tint);
+
+  var lit = null;
+  for (var i = 0; i < 120; i++) {
+    g.time += STEP;
+    a.update(g, STEP);
+    if (a.tint !== null) lit = a.tint;
+  }
+  check('and nothing lights over the pause', lit === null, lit);
+
+  // The next round opens owing nothing for the fright it cut short.
+  g.state = 'ready';
+  g.frightTimer = 0;
+  a.update(g, STEP);
+  g.state = 'playing';
+  a.update(g, STEP);
+  check('the next round opens dark', a.tint === null, a.tint);
+})();
+
+console.log('');
 console.log('a life lost');
 
 (function () {
@@ -158,6 +190,12 @@ console.log('a life lost');
   g.stateTime = PV.DEATH_REVEAL;
   a.update(g, STEP);
   check('still full at the end of the reveal', a.level === 1, a.level);
+
+  // The frame the fade opens carries on from that full rather than jumping:
+  // the wobble is phased off the fade, so it starts at its own peak.
+  g.stateTime = PV.DEATH_REVEAL + 0.01;
+  a.update(g, STEP);
+  check('and picks up from it rather than popping', a.level > 0.9, a.level);
 
   g.stateTime = PV.DEATH_REVEAL + PV.DEATH_ANIM / 2;
   a.update(g, STEP);

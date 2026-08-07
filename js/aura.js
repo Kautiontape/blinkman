@@ -44,13 +44,16 @@ window.PV = window.PV || {};
   }
 
   /* Full through the reveal beat so the collision reads, then fading with the
-   * death animation. */
+   * death animation. The wobble is phased off the fade's own clock rather than
+   * the round's, so cos(0) is 1 on the frame the fade opens and the level
+   * carries on from the full it was held at instead of jumping. */
   function deathLevel(stateTime) {
     var t = (stateTime - PV.DEATH_REVEAL) / PV.DEATH_ANIM;
     if (t <= 0) return 1;
     if (t >= 1) return 0;
     var fade = 1 - t;
-    return PV.wantsCalm() ? fade : fade * (0.78 + 0.22 * Math.sin(stateTime * 18));
+    return PV.wantsCalm() ? fade
+      : fade * (0.78 + 0.22 * Math.cos((stateTime - PV.DEATH_REVEAL) * 18));
   }
 
   /**
@@ -78,7 +81,11 @@ window.PV = window.PV || {};
           return;
         }
 
-        var fright = game.frightTimer > 0;
+        /* Only while the round is live: game.js counts the timer down inside
+         * the 'playing' branch alone, so a board cleared mid-fright freezes it
+         * at a positive value that would otherwise breathe on through the
+         * level-clear pause. */
+        var fright = game.frightTimer > 0 && game.state === 'playing';
         /* The pulse fires on the frame a fright runs out mid-play. A round
          * reset zeroes the same timer, but never while state is 'playing'. */
         if (wasFright && !fright && game.state === 'playing') pulse = YELLOW_TIME;
