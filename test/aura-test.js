@@ -246,11 +246,16 @@ console.log('the board and the aura are separate asks');
  * context tells them apart under node: aura.js is the only thing in the
  * renderer that paints with a gradient. */
 function recorder() {
-  var seen = { gradients: 0, paths: [] };
+  var seen = { gradients: [], paths: [] };
   var ctx = {
-    createLinearGradient: function () {
-      seen.gradients++;
-      return { addColorStop: function () {} };
+    // Kept with its ends and its stops: which way a band fades is as much a
+    // question as where it sits, and nothing about the shape answers it.
+    createLinearGradient: function (x0, y0, x1, y1) {
+      var grad = { from: [x0, y0], to: [x1, y1], stops: [] };
+      seen.gradients.push(grad);
+      return {
+        addColorStop: function (at, color) { grad.stops.push([at, color]); }
+      };
     }
   };
   ['save', 'restore', 'setTransform', 'translate', 'rotate', 'clip',
@@ -282,12 +287,12 @@ function frightRound() {
   var g = frightRound();
 
   renderer.draw(g, STEP);
-  check('drawing the board paints no aura', ctx.seen.gradients === 0,
-    ctx.seen.gradients);
+  check('drawing the board paints no aura', ctx.seen.gradients.length === 0,
+    ctx.seen.gradients.length);
 
   renderer.drawAura(g, STEP);
-  check('asking for the aura paints one', ctx.seen.gradients === 4,
-    ctx.seen.gradients);
+  check('asking for the aura paints one', ctx.seen.gradients.length === 4,
+    ctx.seen.gradients.length);
 })();
 
 /* Esc back to the menu, and then a fresh round. Both of the aura's carried
@@ -305,7 +310,7 @@ function frightRound() {
   g.frightTimer = 0;
   renderer.drawAura(g, STEP);
   check('a round left mid-fright owes no closing pulse',
-    ctx.seen.gradients === 4, ctx.seen.gradients);
+    ctx.seen.gradients.length === 4, ctx.seen.gradients.length);
 })();
 
 (function () {
@@ -318,13 +323,13 @@ function frightRound() {
   renderer.drawAura(g, STEP);
   g.frightTimer = 0;
   renderer.drawAura(g, STEP);
-  check('a spent fright is painting', ctx.seen.gradients === 8,
-    ctx.seen.gradients);
+  check('a spent fright is painting', ctx.seen.gradients.length === 8,
+    ctx.seen.gradients.length);
 
   renderer.resetAura();
   renderer.drawAura(g, STEP);
-  check('and the pulse does not survive the menu', ctx.seen.gradients === 8,
-    ctx.seen.gradients);
+  check('and the pulse does not survive the menu', ctx.seen.gradients.length === 8,
+    ctx.seen.gradients.length);
 })();
 
 console.log('');
@@ -368,6 +373,47 @@ console.log('the four bands mitre into a frame');
   var frame = PV.WIDTH * PV.HEIGHT - (PV.WIDTH - 2 * b) * (PV.HEIGHT - 2 * b);
   check('and together cover the frame once', area === frame,
     area + ' of ' + frame);
+})();
+
+console.log('');
+console.log('every band fades outwards in');
+
+/* Which way a band fades is invisible to all of the above: one running inside
+ * out tiles the frame just as exactly and covers it just as once. It is only
+ * wrong on a screen, and only to someone who knows what to look for. */
+(function () {
+  var ctx = recorder();
+  var renderer = PV.createRenderer(ctx.canvas);
+  renderer.setScale(1);
+
+  renderer.drawAura(frightRound(), STEP);
+  var bands = ctx.seen.paths, fades = ctx.seen.gradients;
+
+  // The way a band reaches in, taken off its own two edges: rim run to inner.
+  function inward(p) {
+    return [(p[3][0] + p[2][0] - p[0][0] - p[1][0]) / 2,
+      (p[3][1] + p[2][1] - p[0][1] - p[1][1]) / 2];
+  }
+  function alphaAt(fade, offset) {
+    var stop = fade.stops.filter(function (s) { return s[0] === offset; })[0];
+    return stop === undefined ? NaN : parseFloat(stop[1].split(',')[3]);
+  }
+
+  var runs = fades.map(function (fade, i) {
+    var want = inward(bands[i]);
+    return fade.to[0] - fade.from[0] === want[0] &&
+      fade.to[1] - fade.from[1] === want[1];
+  });
+  check('each gradient runs the way its band reaches in',
+    runs.every(Boolean), runs.join(','));
+
+  var lit = fades.map(function (fade) {
+    return alphaAt(fade, 0) > 0 && alphaAt(fade, 1) === 0;
+  });
+  check('and is lit at the rim, gone by the inner edge', lit.every(Boolean),
+    fades.map(function (f) {
+      return alphaAt(f, 0) + '->' + alphaAt(f, 1);
+    }).join(' '));
 })();
 
 console.log('');

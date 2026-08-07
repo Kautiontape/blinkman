@@ -140,6 +140,13 @@ window.PV = window.PV || {};
      * are cut back at 45°, so the four bands mitre into a frame that is one
      * thickness and one brightness the whole way round. Four rects spanning
      * the full width and height would instead stack two deep in every corner.
+     *
+     * The pair of polygons meeting on a mitre are antialiased independently,
+     * so below canvas scale 1 — which layout() reaches on a small window —
+     * the shared edge lands about a tenth dim, a faint diagonal hairline.
+     * Overlapping the mitres to cover it buys a brighter one at every scale,
+     * which is the artifact the mitre is cut to avoid; adding the four in an
+     * offscreen buffer clears it exactly, for a board-sized buffer a frame.
      */
     function band(ctx, ax, ay, bx, by, nx, ny) {
       var run = Math.abs(bx - ax) + Math.abs(by - ay);
