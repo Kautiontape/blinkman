@@ -105,9 +105,10 @@ the more useful thing it says:
 
 New `js/aura.js`, loaded after `js/render.js`, whose `PV.wantsCalm` it reads.
 
-`PV.createAura()` returns `{ update(game, dt), draw(ctx) }`. A separate file
-rather than more `render.js`, which is already the largest in the project; the
-aura has one job and a two-method interface.
+`PV.createAura()` returns `{ update(game, dt), draw(ctx) }`, and `PV.AURA_TINTS`
+names the three colours so a test can address them. A separate file rather than
+more `render.js`, which is already the largest in the project; the aura has one
+job and a two-method interface.
 
 Form: four linear gradients, one per board edge, fading from the rim inward over
 about 34px, composited `lighter` so the corners come out brighter.
@@ -174,7 +175,9 @@ back to a static `.55`.
 - New coverage for stacked flashes: a second pick does not darken the first
   layer, and both fade independently.
 - The aura's schedule is testable without a canvas if `update()` exposes its
-  resolved colour and intensity; `draw()` stays untested.
+  resolved colour and intensity; `draw()` stays untested. The yellow pulse's
+  eased decay needs a check at its midpoint — "opens near full" and "decays"
+  are both satisfied by a linear ramp, so neither pins the curve.
 - READY: a round in `ready` stays there past 1.8s, and `steer()` moves it to
   `playing`.
 
