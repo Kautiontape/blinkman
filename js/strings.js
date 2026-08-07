@@ -90,7 +90,7 @@ window.PV = window.PV || {};
         // Hard has no cone, so the shared line names only what every level has.
         menu: 'A circle that travels with you, and a <b>ping that sweeps</b>',
         levels: {
-          easy:   { menu: 'A wide cone, and a ping that <b>follows them</b> &middot; 1s cooldown' },
+          easy:   { menu: 'A wide cone, and a ping that <b>follows the ghosts</b> &middot; 1s cooldown' },
           normal: { menu: 'A <b>6-tile</b> cone, and a ping &middot; 1s cooldown' },
           hard:   { menu: '<b>No cone.</b> Only the light you stand in &middot; 2s cooldown' }
         }

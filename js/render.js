@@ -188,15 +188,21 @@ window.PV = window.PV || {};
 
         drawFloatingScores(ctx, game);
         ctx.restore();
+      },
 
-        // Outside the shake: a band pinned to the board's edge must not slide
-        // off it.
+      /* Asked for separately from the board, which the demo behind the menu is
+       * drawn with too: the aura reports the round the player is in. Its own
+       * transform, outside draw()'s shake — a band pinned to the board's edge
+       * must not slide off it. */
+      drawAura: function (game, dt) {
         aura.update(game, dt);
         ctx.save();
         ctx.setTransform(scale, 0, 0, scale, 0, 0);
         aura.draw(ctx);
         ctx.restore();
-      }
+      },
+
+      resetAura: function () { aura.reset(); }
     };
 
     return renderer;

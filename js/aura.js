@@ -109,6 +109,15 @@ window.PV = window.PV || {};
         aura.level = 0;
       },
 
+      /* The round it was reporting is over. A fright or a death still part way
+       * through owes nothing to whatever round comes next. */
+      reset: function () {
+        pulse = 0;
+        wasFright = false;
+        aura.tint = null;
+        aura.level = 0;
+      },
+
       /* Four bands, one per edge, each fading from the rim inward. Composited
        * `lighter` so where two meet — the corners — they add rather than one
        * covering the other. */

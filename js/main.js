@@ -123,6 +123,9 @@
     // The shake decays on wall-clock time and the demo draws every frame, so a
     // death shaken into the last round would otherwise carry into this one.
     renderer.shake = 0;
+    // Same for the aura: a round left mid-fright still owes the pulse that
+    // closes one, and the next round would open on it.
+    renderer.resetAura();
     // Under reduced motion the board stays the black rectangle it was.
     attract = PV.wantsCalm() ? null : PV.createAttract();
   }
@@ -334,6 +337,9 @@
     // Real dt even while paused: the shake decays on wall-clock time, not on
     // game time.
     renderer.draw(game, dt);
+    // With the HUD and the hint rather than with the board: all three report
+    // the round being played, and the demo behind the menu gets none of them.
+    renderer.drawAura(game, dt);
     hud.update(game);
     hint.update(dt, game, paused);
     syncOverlay();

@@ -239,5 +239,89 @@ console.log('the ending window is shared');
 })();
 
 console.log('');
+console.log('the board and the aura are separate asks');
+
+/* One renderer draws both the live round and the demo behind the menu, so the
+ * aura is a second call rather than part of drawing the board. A recording
+ * context tells them apart under node: aura.js is the only thing in the
+ * renderer that paints with a gradient. */
+function recorder() {
+  var seen = { gradients: 0 };
+  var ctx = {
+    createLinearGradient: function () {
+      seen.gradients++;
+      return { addColorStop: function () {} };
+    }
+  };
+  ['save', 'restore', 'setTransform', 'translate', 'rotate', 'clip',
+    'beginPath', 'closePath', 'moveTo', 'lineTo', 'quadraticCurveTo', 'arc',
+    'ellipse', 'fill', 'stroke', 'fillRect', 'fillText'
+  ].forEach(function (name) { ctx[name] = function () {}; });
+  ctx.canvas = { width: PV.WIDTH, height: PV.HEIGHT, getContext: function () { return ctx; } };
+  ctx.seen = seen;
+  return ctx;
+}
+
+function frightRound() {
+  var g = PV.createGame('stare-normal', { persist: false });
+  g.startRound();
+  g.state = 'playing';
+  g.frightTimer = 7;
+  return g;
+}
+
+(function () {
+  var ctx = recorder();
+  var renderer = PV.createRenderer(ctx.canvas);
+  renderer.setScale(1);
+  var g = frightRound();
+
+  renderer.draw(g, STEP);
+  check('drawing the board paints no aura', ctx.seen.gradients === 0,
+    ctx.seen.gradients);
+
+  renderer.drawAura(g, STEP);
+  check('asking for the aura paints one', ctx.seen.gradients === 4,
+    ctx.seen.gradients);
+})();
+
+/* Esc back to the menu, and then a fresh round. Both of the aura's carried
+ * values have to go: the fright it was mid-way through and the pulse a spent
+ * one leaves running. */
+(function () {
+  var ctx = recorder();
+  var renderer = PV.createRenderer(ctx.canvas);
+  renderer.setScale(1);
+  var g = frightRound();
+
+  renderer.drawAura(g, STEP);
+  renderer.resetAura();
+
+  g.frightTimer = 0;
+  renderer.drawAura(g, STEP);
+  check('a round left mid-fright owes no closing pulse',
+    ctx.seen.gradients === 4, ctx.seen.gradients);
+})();
+
+(function () {
+  var ctx = recorder();
+  var renderer = PV.createRenderer(ctx.canvas);
+  renderer.setScale(1);
+  var g = frightRound();
+
+  // Spent on the second frame, which opens the yellow.
+  renderer.drawAura(g, STEP);
+  g.frightTimer = 0;
+  renderer.drawAura(g, STEP);
+  check('a spent fright is painting', ctx.seen.gradients === 8,
+    ctx.seen.gradients);
+
+  renderer.resetAura();
+  renderer.drawAura(g, STEP);
+  check('and the pulse does not survive the menu', ctx.seen.gradients === 8,
+    ctx.seen.gradients);
+})();
+
+console.log('');
 console.log(failures === 0 ? 'ALL AURA CHECKS OK' : failures + ' CHECK(S) FAILED');
 process.exit(failures === 0 ? 0 : 1);

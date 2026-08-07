@@ -158,9 +158,10 @@ the shape of all nine cells and the exact tuning each mode's Normal is
 balanced around, so a change to it has to be deliberate; the sixth covers what
 a pick leaves behind — picks stack rather than replace, each fades on its own
 clock, and what a round opens with; the seventh covers the board aura's
-schedule. None of that is visible to a layout check. The last two are bash
-because what they exercise is bash; `release-test.sh` drives `tools/release.sh`
-against a throwaway repo, so nothing it does reaches GitHub.
+schedule and its absence from the menu demo. None of that is visible to a
+layout check. The last two are bash because what they exercise is bash;
+`release-test.sh` drives `tools/release.sh` against a throwaway repo, so
+nothing it does reaches GitHub.
 
     node test/maze-test.js
     node test/opening-test.js
