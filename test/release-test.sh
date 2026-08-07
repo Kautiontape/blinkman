@@ -255,15 +255,15 @@ fi
 require_order() {
   perl -0777 -ne '
     s/^\s*\/\/.*$//mg;
-    if (/\[([^\]]*)\]\s*\.forEach\(function\s*\(f\)\s*\{/) {
-      my @mods = $1 =~ /([a-z0-9-]+)\.js/g;
+    if (/\[([^\]]*)\]\s*\.forEach\(function\s*\(\w+\)\s*\{/) {
+      my @mods = $1 =~ /'\''([a-z0-9-]+)\.js'\''/g;
       print join("\n", @mods), "\n";
     }
   ' "$1"
 }
 
-html_order="$(grep -oE '<script src="js/[a-z]+\.js"' "$root/index.html" |
-  sed -E 's#<script src="js/([a-z]+)\.js"#\1#')"
+html_order="$(grep -oE '<script[^>]*\bsrc="js/[a-z]+\.js"' "$root/index.html" |
+  grep -oE 'js/[a-z]+\.js' | sed -E 's#js/([a-z]+)\.js#\1#')"
 
 # $1 suite name (matches test/$1-test.js).
 check_require_order() {
