@@ -39,6 +39,8 @@ jobs:
           node test/torch-test.js
           node test/attract-test.js
           node test/modes-test.js
+          node test/flash-test.js
+          node test/aura-test.js
           node test/banner-layout-test.js
 
       # itch.io's own CDN. The URL ends in LATEST, so there is nothing to pin

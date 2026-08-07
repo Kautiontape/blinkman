@@ -8,7 +8,9 @@
  */
 global.window = {};
 var path = require('path');
-['strings.js', 'maze.js', 'entities.js', 'vision.js', 'game.js'].forEach(function (f) {
+// Mirrors index.html's relative script order, so a module-scope capture from
+// game.js would go red here exactly as it would silently break in the browser.
+['strings.js', 'maze.js', 'vision.js', 'entities.js', 'game.js'].forEach(function (f) {
   require(path.join(__dirname, '..', 'js', f));
 });
 var PV = global.window.PV;
@@ -41,14 +43,22 @@ function newGame(difficulty) {
   return g;
 }
 
+/* The same, moved out of 'ready'. Nothing else does it: a round waits on the
+ * player for as long as it takes. */
+function playing(difficulty) {
+  var g = newGame(difficulty);
+  g.steer(PV.DIRS.left);
+  return g;
+}
+
 console.log('');
 console.log('stateTime baseline');
 
 (function () {
   var g = newGame();
-  for (var i = 0; i < 60 * 5 && g.state === 'ready'; i++) g.update(STEP);
-  check('zero on the frame ready expires',
-    g.state === 'playing' && g.stateTime === 0, g.state + '/' + g.stateTime);
+  for (var i = 0; i < 60 * 10; i++) g.update(STEP);
+  check('ready waits for the player, however long it takes',
+    g.state === 'ready', g.state);
 
   var h = newGame();
   h.update(STEP);
@@ -82,7 +92,7 @@ function releaseTimes(g) {
 
 (function () {
   // All four wait inside, so the round opens on a countable house.
-  var start = newGame();
+  var start = playing();
   var housed = start.ghosts.filter(function (g) { return g.state === 'house'; });
   check('all four start in the house', housed.length === 4,
     start.ghosts.map(function (g) { return g.name + ':' + g.state; }).join(' '));
@@ -95,7 +105,7 @@ function releaseTimes(g) {
 
   // The mid-level respawn case: the dot counts are long since met, so only the
   // earliest floors are holding the exits apart.
-  var g = newGame();
+  var g = playing();
   g.dotsEaten = 999;
   var fast = releaseTimes(g);
   check('blinky floor at 0s', near(fast.blinky, 0, 0.05), fast.blinky);
@@ -118,8 +128,7 @@ console.log('respawn through the house');
 /* Every ghost passes through the house after being eaten, Blinky included, so
  * every ghost needs a release rule — not just the three that start there. */
 (function () {
-  var g = newGame();
-  for (var i = 0; i < 60 * 5 && g.state === 'ready'; i++) g.update(STEP);
+  var g = playing();
 
   var blinky = g.ghosts[0];
   blinky.state = 'entering';
@@ -143,6 +152,7 @@ console.log('respawn through the house');
 console.log('');
 console.log('ghost-house reveal');
 
+/* The floor itself, before render.js scales it by how lit the board is. */
 (function () {
   var maze = PV.createMaze(1);
   var HOUSE = PV.center(maze.spawn.pinky.row), DOOR = PV.center(maze.spawn.door.row);

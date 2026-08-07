@@ -17,7 +17,9 @@ global.localStorage = {
   setItem: function (k, v) { writes.push(k + '=' + v); }
 };
 
-['maze.js', 'entities.js', 'vision.js', 'game.js', 'attract.js'].forEach(function (f) {
+// Mirrors index.html's relative script order, so a module-scope capture from
+// game.js would go red here exactly as it would silently break in the browser.
+['maze.js', 'vision.js', 'entities.js', 'game.js', 'attract.js'].forEach(function (f) {
   require(path.join(__dirname, '..', 'js', f));
 });
 var PV = global.window.PV;

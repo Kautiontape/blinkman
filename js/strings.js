@@ -74,60 +74,34 @@ window.PV = window.PV || {};
     levels: { easy: 'Easy', normal: 'Normal', hard: 'Hard' },
 
     /* One bold run per menu line, and it is always the phrase saying how much
-     * you can see. `blurb` is the plain version the READY overlay uses. */
+     * you can see. */
     modes: {
       stare: {
         name: 'Stare',
         menu: 'The layer you pick <b>stays lit</b>',
         levels: {
-          easy: {
-            blurb: 'You and your last two picks',
-            menu: 'You and your last <b>two picks</b> &middot; 1s cooldown'
-          },
-          normal: {
-            blurb: 'You and your last pick',
-            menu: 'You and your <b>last pick</b> &middot; 1s cooldown'
-          },
-          hard: {
-            blurb: 'One of four, and you can go dark',
-            menu: '<b>One of four</b>, and you can go dark &middot; 3s cooldown'
-          }
+          easy:   { menu: 'You and your last <b>two picks</b> &middot; 1s cooldown' },
+          normal: { menu: 'You and your <b>last pick</b> &middot; 1s cooldown' },
+          hard:   { menu: '<b>One of four</b>, and you can go dark &middot; 3s cooldown' }
         }
       },
       torch: {
         name: 'Torch',
-        menu: 'A circle and a cone, and a <b>ping that sweeps</b>',
+        // Hard has no cone, so the shared line names only what every level has.
+        menu: 'A circle that travels with you, and a <b>ping that sweeps</b>',
         levels: {
-          easy: {
-            blurb: 'A wide cone, and it reaches',
-            menu: 'A <b>wide</b> cone, and it reaches &middot; 1s cooldown'
-          },
-          normal: {
-            blurb: 'A pool of light, and a ping that sweeps',
-            menu: 'A <b>6-tile</b> cone, and a ping &middot; 1s cooldown'
-          },
-          hard: {
-            blurb: 'A narrow cone, quick to fade',
-            menu: 'A <b>narrow</b> cone, quick to fade &middot; 2s cooldown'
-          }
+          easy:   { menu: 'A wide cone, and a ping that <b>follows the ghosts</b> &middot; 1s cooldown' },
+          normal: { menu: 'A <b>6-tile</b> cone, and a ping &middot; 1s cooldown' },
+          hard:   { menu: '<b>No cone.</b> Only the light you stand in &middot; 2s cooldown' }
         }
       },
       flash: {
         name: 'Flash',
         menu: 'Dark. <b>Flash one layer</b>, then it fades',
         levels: {
-          easy: {
-            blurb: 'You stay lit, and a flash lingers',
-            menu: '<b>You stay lit.</b> A flash fades over 3.5s &middot; 1s cooldown'
-          },
-          normal: {
-            blurb: 'Flash one layer and remember it',
-            menu: 'Dark. A flash <b>fades over 2s</b> &middot; 1s cooldown'
-          },
-          hard: {
-            blurb: 'Flash one layer, and it is gone',
-            menu: 'Dark. A flash <b>fades over 1s</b> &middot; 2s cooldown'
-          }
+          easy:   { menu: '<b>You stay lit.</b> A flash fades over 3.5s &middot; 1s cooldown' },
+          normal: { menu: 'Dark. A flash <b>fades over 2s</b> &middot; 1s cooldown' },
+          hard:   { menu: 'Dark. A flash <b>fades over 1s</b> &middot; 2s cooldown' }
         }
       }
     },
@@ -167,7 +141,7 @@ window.PV = window.PV || {};
 
     overlay: {
       ready: 'READY',
-      readyHint: 'Maze %MAZE%  ·  move to begin',
+      readyHint: 'move to begin',
       paused: 'PAUSED',
       pausedHint: 'P to resume  ·  Esc for menu',
       levelClear: 'LEVEL %N% CLEAR',

@@ -58,6 +58,8 @@ run_suite test/opening-test.js
 run_suite test/torch-test.js
 run_suite test/attract-test.js
 run_suite test/modes-test.js
+run_suite test/flash-test.js
+run_suite test/aura-test.js
 run_suite test/banner-layout-test.js
 printf '  tests ....................... ok\n'
 

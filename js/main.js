@@ -138,6 +138,9 @@
     // The shake decays on wall-clock time and the demo draws every frame, so a
     // death shaken into the last round would otherwise carry into this one.
     renderer.shake = 0;
+    // Same for the aura: a round left mid-fright still owes the pulse that
+    // closes one, and the next round would open on it.
+    renderer.resetAura();
     // Under reduced motion the board stays the black rectangle it was.
     attract = PV.wantsCalm() ? null : PV.createAttract();
   }
@@ -161,7 +164,7 @@
     if (!game) return;
 
     var key = paused + '|' + game.state + '|' + game.level + '|' +
-      game.score + '|' + game.best + '|' + game.maze.recipe;
+      game.score + '|' + game.best;
     if (key === overlayKey) return;
     overlayKey = key;
 
@@ -173,9 +176,8 @@
       hint = T.pausedHint;
     } else if (game.state === 'ready') {
       title = T.ready;
-      body = PV.modeName(game.difficulty) + ' · ' + PV.levelName(game.difficulty) +
-        '  ·  ' + PV.levelBlurb(game.difficulty);
-      hint = PV.t(T.readyHint, { MAZE: game.maze.recipe });
+      body = PV.modeName(game.difficulty) + ' · ' + PV.levelName(game.difficulty);
+      hint = T.readyHint;
     } else if (game.state === 'levelclear') {
       title = PV.t(T.levelClear, { N: game.level });
       body = PV.t(T.levelClearBody, { SCORE: game.score });
@@ -350,6 +352,9 @@
     // Real dt even while paused: the shake decays on wall-clock time, not on
     // game time.
     renderer.draw(game, dt);
+    // With the HUD and the hint rather than with the board: all three report
+    // the round being played, and the demo behind the menu gets none of them.
+    renderer.drawAura(game, dt);
     hud.update(game);
     hint.update(dt, game, paused);
     syncOverlay();

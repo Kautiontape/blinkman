@@ -163,10 +163,10 @@ window.PV = window.PV || {};
     // of beeps on a quadratic ease, so the gaps between them shrink gently at
     // first and then collapse into a frantic flurry right before the closing
     // chirp — a rhythmic cue for when render.js's white/blue flash goes unseen.
-    // `span` is however many seconds of fright are actually left (usually 2,
-    // but high levels start ghosts already inside the warning window).
+    // `span` is however many seconds of fright are actually left; a caller
+    // with nothing to report falls back to the full ending window.
     frightEnding: function (span) {
-      span = span > 0 ? span : 2;
+      span = span > 0 ? span : PV.FRIGHT_ENDING;
       var N = 8;
       for (var i = 0; i <= N; i++) {
         var u = i / N;

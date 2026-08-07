@@ -51,13 +51,13 @@ press does; the difficulty decides how much it gives you.
 | | What a press does |
 |---|---|
 | Stare | Lights one layer, and it stays lit until you pick another. |
-| Torch | A lit circle and a forward cone travel with you, both stopping at walls. A press pings one layer outward from where you stood, through walls. |
+| Torch | A lit circle travels with you, and on Easy and Normal a forward cone too, both stopping at walls. A press pings one layer outward from where you stood, through walls. |
 | Flash | The board is black. A press flashes one layer, which then fades. |
 
 | | Easy | Normal | Hard |
 |---|---|---|---|
 | Stare | Your last two picks, 1s | Your last pick, 1s | One of four and you can go dark, 3s |
-| Torch | A wide cone that reaches, 1s | A 6-tile cone, 1s | A narrow cone, quick to fade, 2s |
+| Torch | A wide cone, and pings that follow, 1s | A 6-tile cone, 1s | No cone, just the light you stand in, 2s |
 | Flash | You stay lit, a 3.5s fade, 1s | A 2s fade, 1s | A 1s fade, 2s |
 
 Your own layer is free in every cell except Stare Hard, Flash Normal and Flash
@@ -67,18 +67,24 @@ Death is the one exception to all of this. Get caught and the ghosts light up
 for 0.6s before the death animation, with a red ring on whichever one got you,
 so a death always has a visible cause.
 
+A power pellet lights the board's edge white, breathing while it lasts and
+blinking faster as it runs out, then closing on one yellow pulse. A life lost
+turns the same edge red.
+
 The menu runs a demo behind it: a Stare Normal round on autopilot, with the lit
 layer rotating every four seconds. It asks for a level with a full-size board,
 so the menu keeps one shape. `prefers-reduced-motion` turns it off.
 
 A round opens the same way in every mode. The dots blink three times and then
 obey the layer, and all four ghosts start in the house and file out one at a
-time over the first several seconds. A ghost inside the house is visible
-whatever the layer says, fading out as it crosses the door, so you can count
-what is still waiting. Torch opts out of that: it brings its own light, so the
-house stays dark and who is still in it is something you walk up to or ping
-for. Pac-Man starts Blinky outside the house; keeping all four in makes the
-count readable, which matters more here than the pedigree.
+time over the first several seconds. A ghost inside the house shows through a
+dark ghosts layer as far as the board around it is lit, fading out as it
+crosses the door, so you can count what is still waiting for as long as the
+board is up and lose them as it goes dark. Torch lights no layer of its own, so
+there the house is something you walk up to or ping for. Pac-Man starts Blinky
+outside the house; keeping all four in makes the count readable, which matters
+more here than the pedigree. The round holds on READY until you move, with the
+maze up dimly in every mode — the one chance to study it.
 
 Five seconds into a round, a player who hasn't pressed a number key gets a line
 low on the board naming the ones that mode answers to — `Press 1/2/3 to scan`
@@ -166,6 +172,7 @@ is what lets `file://` work.
     js/game.js      rounds, scoring, collisions, ghost release
     js/attract.js   the autopilot demo behind the menu
     js/render.js    canvas drawing
+    js/aura.js      board-edge glow for fright, its end, life lost
     js/hud.js       score, badge, cooldown ring, the layer nudge
     js/menu.js      the mode and difficulty picker on the title screen
     js/audio.js     synthesised sound, no audio files
@@ -173,10 +180,11 @@ is what lets `file://` work.
 
 `maze.js` has to load before `entities.js`, `render.js` and `game.js`, which
 read `PV.TILE` at load time. `attract.js` reads `PV.DIRS`, so it comes after
-`entities.js` too. `main.js` has to load last.
-Everything else in the script order is slack.
+`entities.js` too. `aura.js` reads `PV.wantsCalm`, so it comes after
+`render.js`, which defines it. `main.js` has to load last. Everything else in
+the script order is slack.
 
-Nine test suites, seven node and two bash, none of them needing anything
+Eleven test suites, nine node and two bash, none of them needing anything
 installed. The first proves every shipped maze is playable; the second reads
 the ladder as a ladder, so a piece authored into the wrong tier can't flatten
 the curve while passing on its own. The third covers the ghost release ladder,
@@ -187,11 +195,15 @@ itself reaches; the fifth covers the menu demo, whose autopilot has to steer
 only into open tiles, eat at a reasonable rate, and reach every layer as it
 rotates; the sixth pins the shape of all nine cells and the exact tuning each
 mode's Normal is balanced around, so a change to it has to be deliberate; the
-seventh guards the arithmetic behind `docs/banner.png`, where a mistake renders
-as a subtly wrong image rather than an error. None of that is visible to a
-layout check. The last two are bash because what they exercise is bash;
-`release-test.sh` drives `tools/release.sh` against a throwaway repo, so nothing
-it does reaches GitHub.
+seventh covers what a pick leaves behind — picks stack rather than replace, each
+fades on its own clock, what a round opens with, and how much of the house the
+lit board leaves showing; the eighth covers the board aura's schedule, the mitre
+that keeps its four bands from doubling up in the corners, and its absence from
+the menu demo; the ninth guards the arithmetic behind `docs/banner.png`, where a
+mistake renders as a subtly wrong image rather than an error. None of that is
+visible to a layout check. The last two are bash because what they exercise is
+bash; `release-test.sh` drives `tools/release.sh` against a throwaway repo, so
+nothing it does reaches GitHub.
 
     node test/maze-test.js
     node test/progression-test.js
@@ -199,6 +211,8 @@ it does reaches GitHub.
     node test/torch-test.js
     node test/attract-test.js
     node test/modes-test.js
+    node test/flash-test.js
+    node test/aura-test.js
     node test/banner-layout-test.js
     bash test/release-test.sh
     bash test/itch-deploy-test.sh

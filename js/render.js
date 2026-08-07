@@ -124,6 +124,8 @@ window.PV = window.PV || {};
      * stood when it measured them. Null until the first Torch frame. */
     var torchMemory = { facing: null, reach: null, x: 0, y: 0 };
 
+    var aura = PV.createAura();
+
     var renderer = {
       shake: 0,
 
@@ -156,7 +158,7 @@ window.PV = window.PV || {};
           // The swung heading, not his own: the beam lags a turn by a frame
           // or two, and what it lights has to agree with where it points.
           torch.dir = torchSwing(torchMemory, game.pacman.dir, torch.x, torch.y, game.maze, dt);
-          reach = torchSpill(torchMemory, torch, game.maze, dt);
+          reach = PV.torchEase(torchMemory, torch, game.maze, dt);
         }
 
         ctx.save();
@@ -181,12 +183,28 @@ window.PV = window.PV || {};
         // Only drawWalls needs `scale` — see its shadowBlur.
         if (alpha.walls > 0)  drawWalls(ctx, game.maze, alpha.walls, scale);
         if (alpha.dots > 0)   drawPellets(ctx, game.maze, alpha.dots, game.time);
-        drawGhosts(ctx, game, alpha.ghosts, torch);
+        // The whole layer set, not just alpha.ghosts: the house reveal reads
+        // the board layers too.
+        drawGhosts(ctx, game, alpha, torch);
         if (alpha.pacman > 0) drawPacman(ctx, game, alpha.pacman);
 
         drawFloatingScores(ctx, game);
         ctx.restore();
-      }
+      },
+
+      /* Asked for separately from the board, which the demo behind the menu is
+       * drawn with too: the aura reports the round the player is in. Its own
+       * transform, outside draw()'s shake — a band pinned to the board's edge
+       * must not slide off it. */
+      drawAura: function (game, dt) {
+        aura.update(game, dt);
+        ctx.save();
+        ctx.setTransform(scale, 0, 0, scale, 0, 0);
+        aura.draw(ctx, game.maze);
+        ctx.restore();
+      },
+
+      resetAura: function () { aura.reset(); }
     };
 
     return renderer;
@@ -244,15 +262,17 @@ window.PV = window.PV || {};
   /* The ping. Each element's distance from the frozen origin decides both how
    * bright it is and whether the ring has reached it at all. */
   function drawPulse(ctx, game) {
-    var p = game.vision.pulse();
-    if (!p) return;
+    var pulses = game.vision.pulses();
+    if (!pulses.length) return;
 
     ctx.save();
-    // Under the layer, so it never sits over a contact.
-    drawPulseFront(ctx, game.maze, p);
-    if (p.layer === 'walls') drawPulseWalls(ctx, game.maze, p, game.rules);
-    else if (p.layer === 'dots') drawPulseDots(ctx, game.maze, p, game.rules);
-    else if (p.layer === 'ghosts') drawPulseBlips(ctx, p, game.rules);
+    pulses.forEach(function (p) {
+      // Under the layer, so it never sits over a contact.
+      drawPulseFront(ctx, game.maze, p);
+      if (p.layer === 'walls') drawPulseWalls(ctx, game.maze, p, game.rules);
+      else if (p.layer === 'dots') drawPulseDots(ctx, game.maze, p, game.rules);
+      else if (p.layer === 'ghosts') drawPulseBlips(ctx, p, game.rules);
+    });
     ctx.restore();
   }
 
@@ -313,22 +333,30 @@ window.PV = window.PV || {};
     }
   }
 
+  /* How bright a contact of ping `p` draws, and whether it reads as the ring's
+   * leading edge. Both come off `b.dist` — where the ring found it — rather
+   * than off the distance it sits at now, so a contact that has followed its
+   * ghost keeps fading on the schedule it was found on instead of relighting
+   * when the ring catches up with its new position. */
+  PV.blipDraw = function (b, p, rules) {
+    return {
+      alpha: PV.pulseAlpha(b.dist, p.age, rules),
+      edge: justReached(b.dist, p.age)
+    };
+  };
+
   /* A contact is the ghost's own outline, so there is no doubt what the ring
-   * found. The wobble is frozen with the position — a sampled contact should
-   * not keep animating. blips is sparse, indexed by ghost, and forEach skips
-   * the holes. */
+   * found. blips is sparse, indexed by ghost, and forEach skips the holes. */
   function drawPulseBlips(ctx, p, rules) {
     p.blips.forEach(function (b) {
-      var d = Math.hypot(b.x - p.x, b.y - p.y);
-      var a = PV.pulseAlpha(d, p.age, rules);
-      if (a <= 0.001) return;
-      var edge = justReached(d, p.age);
+      var d = PV.blipDraw(b, p, rules);
+      if (d.alpha <= 0.001) return;
 
       ctx.save();
-      ctx.globalAlpha = a;
+      ctx.globalAlpha = d.alpha;
       ctx.translate(b.x, b.y);
-      ctx.strokeStyle = edge ? SCAN_EDGE : SCAN;
-      ctx.lineWidth = edge ? 2.5 : 1.5;
+      ctx.strokeStyle = d.edge ? SCAN_EDGE : SCAN;
+      ctx.lineWidth = d.edge ? 2.5 : 1.5;
       ctx.lineJoin = 'round';
       ghostBodyPath(ctx, TILE * 0.46, b.wobble);
       ctx.stroke();
@@ -363,8 +391,11 @@ window.PV = window.PV || {};
 
   /* How far the light reaches at this absolute angle: the cone's length
    * within the cone, the disc's radius everywhere else. Their union is the
-   * lit shape before any wall gets in the way. */
+   * lit shape before any wall gets in the way. A torch with no cone is the
+   * disc alone — without the first line an exactly-forward ray matches
+   * `coneHalf: 0` and reports a reach of zero, notching the lit shape. */
   function torchReach(ang, torch) {
+    if (torch.coneLen <= 0) return torch.radius;
     var off = ang - Math.atan2(torch.dir.y, torch.dir.x);
     while (off > Math.PI) off -= Math.PI * 2;
     while (off < -Math.PI) off += Math.PI * 2;
@@ -420,21 +451,40 @@ window.PV = window.PV || {};
     return { x: Math.cos(mem.facing), y: Math.sin(mem.facing) };
   }
 
+  /* The furthest the light can go in any direction: the cone where there is
+   * one, the disc otherwise. Capping at the cone alone collapses a coneless
+   * torch to nothing. */
+  function torchFar(torch) {
+    return Math.max(torch.coneLen, torch.radius);
+  }
+
   /* Each ray's length, eased from where it was last frame. Easing is what
    * keeps a corridor from arriving all at once the instant he clears a
-   * corner — the light runs down it instead. The clamp to the wall is not
-   * optional: without it a lagging ray would sit inside a wall he has just
-   * walked up to, and light would show through it. A jump too big to be a
-   * step (the tunnel) skips the easing rather than sweeping the board. */
-  function torchSpill(mem, torch, maze, dt) {
+   * corner — the light runs down it instead.
+   *
+   * Two lengths per ray, and the difference between them is the whole of it.
+   * `want` is how far the lit shape asks to reach at this angle; `wall` is how
+   * far the walls actually allow, and is never the shorter of the two. A ray
+   * still running out sits past `want` and below `wall` — that is the corridor
+   * arriving — so `wall`, not `want`, is what it is held to. Holding it to
+   * `want` would snap every trailing ray home in a frame; dropping the clamp
+   * altogether would leave a lagging ray inside a wall he has just walked up
+   * to, showing light through it.
+   *
+   * `cut` skips the easing where there is nothing to ease: a mem carrying no
+   * rays yet, so the first frame is the bare shape, and a jump too big to be a
+   * step (the tunnel), which would otherwise sweep the light across the
+   * board. */
+  PV.torchEase = function (mem, torch, maze, dt) {
     var reach = mem.reach;
     var cut = reach === null || Math.hypot(torch.x - mem.x, torch.y - mem.y) > TORCH_JUMP;
     if (reach === null) reach = mem.reach = new Array(TORCH_RAYS);
 
+    var far = torchFar(torch);
     var step = TORCH_SPILL * dt;
     for (var i = 0; i < TORCH_RAYS; i++) {
       var ang = i / TORCH_RAYS * Math.PI * 2;
-      var wall = torchRay(torch.x, torch.y, ang, torch.coneLen, maze);
+      var wall = torchRay(torch.x, torch.y, ang, far, maze);
       var want = Math.min(torchReach(ang, torch), wall);
       reach[i] = Math.min(cut ? want : approach(reach[i], want, step), wall);
     }
@@ -442,7 +492,7 @@ window.PV = window.PV || {};
     mem.x = torch.x;
     mem.y = torch.y;
     return reach;
-  }
+  };
 
   /* The lit region as one polygon. Used as a clip, so the board inside draws
    * exactly as it would anywhere else and the darkness is the absence of it
@@ -510,16 +560,26 @@ window.PV = window.PV || {};
     return PV.canSee(torch.x, torch.y, g.x, g.y, maze) ? a : 0;
   }
 
+  /* How solid a ghost draws: the brightest of the ghosts layer, whatever the
+   * torch is putting on it, and the house reveal scaled by how lit the board
+   * around it is — so who is still waiting shows while the board is up and
+   * goes out with it, rather than glowing through a board the player has let
+   * go dark. The board is the dots and walls: a lit ghosts layer draws them in
+   * full anyway, and `pacman` is only him. `torch` is null outside torch mode,
+   * which lights no layer of its own once a round is under way, leaving the
+   * beam the whole of the decision there. */
+  PV.ghostDrawAlpha = function (g, alpha, torch, maze) {
+    var ambient = Math.max(alpha.dots, alpha.walls);
+    return Math.max(alpha.ghosts, PV.ghostReveal(g, maze) * ambient,
+      torch ? torchGhostAlpha(g, maze, torch) : 0);
+  };
+
   function drawGhosts(ctx, game, alpha, torch) {
     var dying = game.state === 'dying';
     var rad = TILE * 0.46;
 
     game.ghosts.forEach(function (g) {
-      // A ghost in the house shows through even with the layer dark — except
-      // in Torch, which brings its own light and so opts out: what is waiting
-      // in the house is something you walk up to or ping for.
-      var housed = torch ? 0 : PV.ghostReveal(g, game.maze);
-      var a = Math.max(alpha, housed, torch ? torchGhostAlpha(g, game.maze, torch) : 0);
+      var a = PV.ghostDrawAlpha(g, alpha, torch, game.maze);
       if (a <= 0.001) return;
 
       var eyesOnly = g.state === 'eaten' || g.state === 'entering';
@@ -527,8 +587,8 @@ window.PV = window.PV || {};
       var body = g.color;
 
       if (g.frightened && !eyesOnly) {
-        // flash white over the last two seconds of the power pellet
-        var ending = game.frightTimer < 2 && Math.floor(game.frightTimer * 6) % 2 === 0;
+        // flash white over the closing stretch of the power pellet
+        var ending = game.frightTimer < PV.FRIGHT_ENDING && Math.floor(game.frightTimer * 6) % 2 === 0;
         body = ending ? '#ffffff' : '#2b4bff';
       }
 
