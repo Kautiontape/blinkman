@@ -52,6 +52,9 @@ run_suite test/maze-test.js
 run_suite test/opening-test.js
 run_suite test/torch-test.js
 run_suite test/attract-test.js
+run_suite test/modes-test.js
+run_suite test/flash-test.js
+run_suite test/aura-test.js
 printf '  tests ....................... ok\n'
 
 sed -i "s/^\( *PV\.VERSION = '\)[^']*\(';\)\$/\1$version\2/" "$strings"

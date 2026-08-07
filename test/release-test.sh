@@ -27,7 +27,7 @@ setup() {
   mkdir -p "$work/repo/tools" "$work/repo/js" "$work/repo/test"
   cp "$root/tools/release.sh" "$work/repo/tools/release.sh"
   printf "  PV.VERSION = '1.3.0';\n" > "$work/repo/js/strings.js"
-  for suite in maze opening torch attract; do
+  for suite in maze opening torch attract modes flash aura; do
     printf 'process.exit(%s);\n' "$1" > "$work/repo/test/$suite-test.js"
   done
   git -C "$work/repo" add -A

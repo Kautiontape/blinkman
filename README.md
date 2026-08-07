@@ -134,6 +134,7 @@ is what lets `file://` work.
     js/game.js      rounds, scoring, collisions, ghost release
     js/attract.js   the autopilot demo behind the menu
     js/render.js    canvas drawing
+    js/aura.js      board-edge glow: fright running, fright ending, life lost
     js/hud.js       score, badge, cooldown ring, the layer nudge
     js/menu.js      the mode and difficulty picker on the title screen
     js/audio.js     synthesised sound, no audio files
@@ -142,10 +143,11 @@ is what lets `file://` work.
 `maze.js` has to load before `vision.js`, `entities.js`, `render.js` and
 `game.js`, which read `PV.TILE`, the board size and the spawn table at load
 time. `attract.js` reads `PV.DIRS` and the grid size, so it comes after
-`entities.js` too. `main.js` has to load last. Everything else in the script
-order is slack.
+`entities.js` too. `aura.js` reads `PV.wantsCalm`, so it comes after
+`render.js`, which defines it. `main.js` has to load last. Everything else in
+the script order is slack.
 
-Seven test suites, five node and two bash, none of them needing anything
+Nine test suites, seven node and two bash, none of them needing anything
 installed. The second covers the ghost release ladder, the dots blink and the
 wording of the layer nudge; the third covers Torch — its
 ping's fade curve and frozen origin, the ghost blips it leaves behind, and the
@@ -153,16 +155,20 @@ line-of-sight and circle/cone math behind what the light itself reaches; the
 fourth covers the menu demo, whose autopilot has to steer only into open tiles,
 eat at a reasonable rate, and reach every layer as it rotates; the fifth pins
 the shape of all nine cells and the exact tuning each mode's Normal is
-balanced around, so a change to it has to be deliberate. None of that is
-visible to a layout check. The last two are bash because what they exercise is
-bash; `release-test.sh` drives `tools/release.sh` against a throwaway repo, so
-nothing it does reaches GitHub.
+balanced around, so a change to it has to be deliberate; the sixth covers what
+a pick leaves behind — picks stack rather than replace, each fades on its own
+clock, and what a round opens with; the seventh covers the board aura's
+schedule. None of that is visible to a layout check. The last two are bash
+because what they exercise is bash; `release-test.sh` drives `tools/release.sh`
+against a throwaway repo, so nothing it does reaches GitHub.
 
     node test/maze-test.js
     node test/opening-test.js
     node test/torch-test.js
     node test/attract-test.js
     node test/modes-test.js
+    node test/flash-test.js
+    node test/aura-test.js
     bash test/release-test.sh
     bash test/itch-deploy-test.sh
 
