@@ -232,5 +232,40 @@ console.log('line of sight');
 })();
 
 console.log('');
+console.log('cone + circle shape');
+
+(function () {
+  var P = { radius: 46, coneLen: 120, coneHalf: Math.PI / 4, soft: 12 };
+  var right = PV.DIRS.right;
+
+  check('your own position is always fully lit',
+    PV.torchAlpha(0, 0, right, P) === 1);
+
+  check('far away in every sense is dark',
+    PV.torchAlpha(200, 200, right, P) === 0);
+
+  check('close behind you is lit by the circle',
+    PV.torchAlpha(-20, 0, right, P) === 1);
+
+  check('straight ahead beyond the circle is lit by the cone',
+    PV.torchAlpha(80, 0, right, P) === 1);
+
+  var off = PV.torchAlpha(40, 69.28, right, P);   // 60 deg off-axis, within coneLen
+  check('outside the cone angle stays dark even in range', off === 0, off);
+
+  var circleEdge = PV.torchAlpha(-40, 0, right, P);   // dist 40, between 34 and 46
+  check('the circle rim fades rather than snapping off',
+    near(circleEdge, (46 - 40) / 12, 0.001), circleEdge);
+
+  var coneTip = PV.torchAlpha(115, 0, right, P);      // dist 115, between 108 and 120
+  check('the cone tip fades the same way',
+    near(coneTip, (120 - 115) / 12, 0.001), coneTip);
+
+  var coneSide = PV.torchAlpha(46.5, 37.9, right, P); // ~39 deg off-axis, dist 60
+  check('the cone side edge is a fade, not a hard line',
+    coneSide > 0 && coneSide < 1, coneSide);
+})();
+
+console.log('');
 console.log(failures === 0 ? 'ALL TORCH CHECKS OK' : failures + ' CHECK(S) FAILED');
 process.exit(failures === 0 ? 0 : 1);

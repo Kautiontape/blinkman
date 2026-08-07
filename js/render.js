@@ -16,8 +16,15 @@ window.PV = window.PV || {};
   var EDGE_TIME = 0.1;         // how long an element counts as just-reached
   var FRONT_ALPHA = 0.70;      // the wavefront: present, never competing
 
-  var TORCH_R = 46;            // 2.3 tiles
-  var TORCH_SOFT = 12;         // px over which a ghost fades in at the rim
+  var TORCH_R = 46;                    // 2.3 tiles
+  var TORCH_SOFT = 12;                 // px over which an edge fades in
+  var TORCH_CONE_HALF = Math.PI / 4;   // 45 deg either side of facing — 90 deg FOV
+  var TORCH_CONE_LEN = 120;            // 6 tiles
+
+  PV.TORCH_R = TORCH_R;
+  PV.TORCH_SOFT = TORCH_SOFT;
+  PV.TORCH_CONE_HALF = TORCH_CONE_HALF;
+  PV.TORCH_CONE_LEN = TORCH_CONE_LEN;
 
   var calmQuery = window.matchMedia &&
     window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -81,6 +88,37 @@ window.PV = window.PV || {};
       if (maze.isWall(c, r)) return false;
     }
     return true;
+  };
+
+  /**
+   * How lit a point at offset (dx, dy) from Blinkman is, before occlusion —
+   * the union of the fixed circle and the forward cone, each with a soft
+   * TORCH_SOFT-px edge. `dir` is one of PV.DIRS (a unit vector); `params` is
+   * {radius, coneLen, coneHalf, soft}. Independent of occlusion on purpose:
+   * callers AND this with PV.canSee once they know what they're looking at.
+   */
+  PV.torchAlpha = function (dx, dy, dir, params) {
+    var dist = Math.hypot(dx, dy);
+    var soft = params.soft;
+
+    var circleA = 0;
+    if (dist <= params.radius) {
+      circleA = dist <= params.radius - soft ? 1 : (params.radius - dist) / soft;
+    }
+
+    var coneA = 0;
+    if (dist > 0 && dist <= params.coneLen) {
+      var cosTheta = Math.max(-1, Math.min(1, (dx * dir.x + dy * dir.y) / dist));
+      var theta = Math.acos(cosTheta);
+      if (theta <= params.coneHalf) {
+        var radialEdge = params.coneLen - dist;
+        var sideEdge = (params.coneHalf - theta) * dist;   // arc length, in px
+        var edge = Math.min(radialEdge, sideEdge);
+        coneA = edge >= soft ? 1 : edge / soft;
+      }
+    }
+
+    return Math.max(circleA, coneA);
   };
 
   PV.createRenderer = function (canvas) {
