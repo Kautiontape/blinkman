@@ -369,7 +369,7 @@ window.PV = window.PV || {};
 
         // tunnel wrap means the raw dx can be a whole board wide
         var dx = Math.abs(p.x - g.x);
-        dx = Math.min(dx, PV.WIDTH - dx);
+        dx = Math.min(dx, game.maze.width - dx);
         var dy = Math.abs(p.y - g.y);
         if (Math.hypot(dx, dy) > TILE * 0.7) continue;
 

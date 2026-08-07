@@ -315,8 +315,8 @@ console.log('the ping spans its own board');
 /* Two boards, sized whole rather than derived, so the spans below are pinned
  * geometry and not the same arithmetic run twice. Each carries only what a ping
  * reads off a board: its size, and the spawn the free one fires from. A ping
- * measured against a module constant sweeps the widest board correctly either
- * way — the second size is what tells the two apart. */
+ * sized to the widest board there is sweeps that one correctly either way —
+ * the second size is what tells the two apart. */
 var FULL = { cols: 28, rows: 31, width: 560, height: 620,
              spawn: { pacman: { col: 13, row: 23 } } };
 var SMALL = { cols: 20, rows: 23, width: 400, height: 460,
@@ -328,8 +328,10 @@ var SMALL = { cols: 20, rows: 23, width: 400, height: 460,
   check('a smaller board spans less',
     near(PV.pulseSpan(SMALL), Math.hypot(400, 460), 1e-9), PV.pulseSpan(SMALL));
 
-  // The stand-ins are the shape a real maze reports, whatever size it is built at.
-  var real = PV.createMaze();
+  /* The stand-ins are the shape a real maze reports, whatever size it is built
+   * at. Level 1 for the small board: a ping sized to the widest board there is
+   * would pass on a full one and fail here. */
+  var real = PV.createMaze(1);
   check('a real maze spans its own tiles',
     near(PV.pulseSpan(real),
       Math.hypot(real.cols * PV.TILE, real.rows * PV.TILE), 1e-9), PV.pulseSpan(real));

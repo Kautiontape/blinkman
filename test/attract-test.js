@@ -230,8 +230,8 @@ console.log('recovery from game over');
 console.log('');
 console.log('a board that is not 28x31');
 
-/* Every board PV.createMaze hands out is the full one, so the sizes the
- * autopilot derives from its maze are only exercised against a stand-in.
+/* A board no template produces, so the sizes the autopilot derives from its
+ * maze cannot be right by coincidence of matching a shipped one.
  *
  * The shape is a lattice: a wall pillar on every even row and column, a sealed
  * house astride the tunnel row, and a pellet on the rest. The house, the

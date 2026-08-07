@@ -254,13 +254,12 @@ function boardExpect(label, got, want) {
   console.log('  BOARD  ' + label + ': got ' + show(got) + ', want ' + show(want));
 }
 
-/* A hand-built board no template produces: a smaller one, with its house and
- * its shelf on different rows. maze.js hands out one size, so an actor that
- * ignored the maze and used a fixed table would still land on the right tiles
- * on every real board — this is what tells the two apart. It carries the
- * handful of fields entities.js reads, plus the tunnel row this block walks
- * across. Every tile reports open, so an actor walked over it goes wherever it
- * is steered. */
+/* A hand-built board no template produces: its house, its shelf and its tunnel
+ * sit on rows no shipped board uses, so an actor that ignored the maze and read
+ * a fixed table would land wrong here while still passing on every real board.
+ * It carries the handful of fields entities.js reads, plus the tunnel row this
+ * block walks across. Every tile reports open, so an actor walked over it goes
+ * wherever it is steered. */
 function standInMaze() {
   var board = { cols: 20, rows: 23 };
   return {
@@ -281,7 +280,8 @@ function standInMaze() {
   };
 }
 
-[PV.createMaze(7), standInMaze()].forEach(function (maze) {
+// Level 5 for the full 28x31 board, so the pair below runs at two sizes.
+[PV.createMaze(5), standInMaze()].forEach(function (maze) {
   var on = maze.cols + 'x' + maze.rows + ' ';
 
   var pac = PV.createPacman(maze);

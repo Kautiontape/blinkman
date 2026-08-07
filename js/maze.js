@@ -2,15 +2,17 @@
  *
  * Mazes are assembled, not hard-coded: a fixed skeleton (border, tunnel row,
  * ghost house, perimeter and spine corridors) plus one hand-authored piece for
- * the top half and one for the bottom. Only the left 14 columns are authored;
- * each row is mirrored to 28, like the original.
+ * the top half and one for the bottom. Only the left half of each row is
+ * authored and mirrored to full width, like the original.
+ *
+ * The level picks the board out of PV.BOARDS, so a maze carries its own size:
+ * cols, rows, width, height, tunnelRow, spawn, scatter and house.
  */
 window.PV = window.PV || {};
 (function (PV) {
   'use strict';
 
-  var COLS = 28, ROWS = 31, TILE = 20;
-  var TUNNEL_ROW = 14;
+  var TILE = 20;
 
   // Layout legend:  # wall   . pellet   o power pellet   - house door   ' ' floor
 
@@ -695,15 +697,6 @@ window.PV = window.PV || {};
   var GHOST_NAMES = ['blinky', 'pinky', 'inky', 'clyde'];
 
   PV.TILE = TILE;
-
-  /* The full board's shape, for callers that read it from the module rather
-   * than from the maze they were handed. */
-  PV.COLS = COLS;
-  PV.ROWS = ROWS;
-  PV.TUNNEL_ROW = TUNNEL_ROW;
-  PV.SPAWN = BOARDS.full.spawn;
-  PV.WIDTH = COLS * TILE;
-  PV.HEIGHT = ROWS * TILE;
   PV.TOP_PIECES = TOP_PIECES;
   PV.BOTTOM_PIECES = BOTTOM_PIECES;
 
