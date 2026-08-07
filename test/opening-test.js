@@ -208,8 +208,8 @@ console.log('dots intro blink');
 console.log('');
 console.log('layer nudge');
 
-/* Pinned per mode, because both halves are derived: the digits come from the
- * mode's pool, so a mode that never spends a pick on your own layer must not
+/* Pinned per cell, because both halves are derived: the digits come from the
+ * cell's pool, so a cell that never spends a pick on your own layer must not
  * offer a 4, and the verb comes from its style. */
 (function () {
   var EXPECTED = {
@@ -229,7 +229,7 @@ console.log('layer nudge');
     check(id, PV.modeHint(id) === EXPECTED[id], PV.modeHint(id));
   });
 
-  check('every mode is covered',
+  check('every cell is covered',
     Object.keys(EXPECTED).length === Object.keys(PV.DIFFICULTIES).length,
     Object.keys(PV.DIFFICULTIES).join(' '));
 })();

@@ -156,7 +156,7 @@
       hint = T.pausedHint;
     } else if (game.state === 'ready') {
       title = T.ready;
-      body = PV.modeName(game.difficulty) + '  ·  ' + PV.modeBlurb(game.difficulty);
+      body = PV.modeName(game.difficulty) + '  ·  ' + PV.levelBlurb(game.difficulty);
       hint = PV.t(T.readyHint, { MAZE: game.maze.recipe });
     } else if (game.state === 'levelclear') {
       title = PV.t(T.levelClear, { N: game.level });

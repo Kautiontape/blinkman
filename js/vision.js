@@ -66,8 +66,10 @@ window.PV = window.PV || {};
    *                   in board space, so the layer alphas stay dark.
    * freeSelf        — your own layer is always drawn and costs no pick.
    *
-   * `base` is what a mode's three levels share; a level merges over it. */
-  PV.MODES = {
+   * `base` is what a mode's three levels share; a level merges over it.
+   * Nesting is authoring convenience only — PV.DIFFICULTIES below is the flat
+   * table every consumer reads, so this stays a local. */
+  var MODES = {
     stare: {
       base: {
         style: 'persist', pool: ['dots', 'ghosts', 'walls'],
@@ -90,6 +92,8 @@ window.PV = window.PV || {};
           hold: 0.35, fade: 1.8, cooldown: 1.0, ghostSpeed: 0.78
         },
         normal: {
+          // 46px = 2.3 tiles radius, 120px = 6-tile cone, coneHalf 45 deg
+          // either side of facing (90 deg FOV) — easy and hard scale from this.
           torchRadius: 46, coneLen: 120, coneHalf: Math.PI / 4,
           hold: 0.25, fade: 1.1, cooldown: 1.0, ghostSpeed: 0.90
         },
@@ -111,32 +115,37 @@ window.PV = window.PV || {};
     }
   };
 
+  // Authored insertion order; a fourth mode would need no separate list.
+  var MODE_IDS = Object.keys(MODES);
   var LEVELS = ['easy', 'normal', 'hard'];
+  PV.MODE_IDS = MODE_IDS;
   PV.LEVELS = LEVELS;
-  PV.MODE_IDS = ['stare', 'torch', 'flash'];
 
   /* One flat table keyed 'mode-level'. createGame, the best-score key and the
-   * menu all address a cell by that id, so the nesting above stays authoring
-   * convenience and never reaches a consumer. */
+   * menu all address a cell by that id. */
   PV.DIFFICULTIES = {};
-  PV.MODE_IDS.forEach(function (mode) {
+  MODE_IDS.forEach(function (mode) {
     LEVELS.forEach(function (level) {
       var rules = { id: mode + '-' + level, mode: mode, level: level };
-      [PV.MODES[mode].base, PV.MODES[mode].levels[level]].forEach(function (part) {
+      [MODES[mode].base, MODES[mode].levels[level]].forEach(function (part) {
         Object.keys(part).forEach(function (k) { rules[k] = part[k]; });
       });
       PV.DIFFICULTIES[rules.id] = rules;
     });
   });
 
-  /** Display name for a cell's mode, its level, and the level's one-liner. */
+  /** Display name for a cell's mode. */
   PV.modeName = function (id) {
     return PV.TEXT.modes[PV.DIFFICULTIES[id].mode].name.toUpperCase();
   };
+
+  /** Display name for a cell's level. */
   PV.levelName = function (id) {
     return PV.TEXT.levels[PV.DIFFICULTIES[id].level].toUpperCase();
   };
-  PV.modeBlurb = function (id) {
+
+  /** The level's one-liner, shown on the READY overlay. */
+  PV.levelBlurb = function (id) {
     var r = PV.DIFFICULTIES[id];
     return PV.TEXT.modes[r.mode].levels[r.level].blurb;
   };

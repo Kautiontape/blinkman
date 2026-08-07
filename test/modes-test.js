@@ -1,8 +1,7 @@
 /* Mode and difficulty table test — run with:  node test/modes-test.js
  *
- * The guarantee this whole grid rests on is that every mode's Normal is what
- * that mode shipped as before it had a ladder, so the carried cells are pinned
- * literally here rather than compared against the table under test.
+ * Each mode's Normal is the tuning that mode is balanced around, pinned
+ * literally here so a change to the table has to be deliberate.
  */
 global.window = {};
 var path = require('path');
@@ -30,12 +29,28 @@ check('nine cells', Object.keys(PV.DIFFICULTIES).length === 9,
   Object.keys(PV.DIFFICULTIES).length);
 
 IDS.forEach(function (id) {
+  check(id + ' exists', !!PV.DIFFICULTIES[id]);
+});
+
+console.log('');
+console.log('every cell is complete');
+
+/* A field silently missing from one cell is worse than a wrong value: nothing
+ * short of a full field list catches it, since a NaN or undefined still lets
+ * a round build and play. */
+var REQUIRED = ['style', 'pool', 'keep', 'freeSelf', 'cooldown', 'ghostSpeed', 'initial'];
+IDS.forEach(function (id) {
   var r = PV.DIFFICULTIES[id];
-  check(id + ' exists', !!r);
-  if (!r) return;
-  check(id + ' knows its own id', r.id === id, r.id);
-  check(id + ' splits into mode and level',
-    id === r.mode + '-' + r.level, r.mode + ' / ' + r.level);
+  var missing = REQUIRED.filter(function (k) { return r[k] === undefined; });
+  check(id + ' is complete', missing.length === 0, missing.join(','));
+  check(id + ' has usable numbers', r.cooldown >= 0 && r.ghostSpeed > 0,
+    r.cooldown + ' / ' + r.ghostSpeed);
+});
+
+PV.MODE_IDS.forEach(function (mode) {
+  var speeds = PV.LEVELS.map(function (lv) { return PV.DIFFICULTIES[mode + '-' + lv].ghostSpeed; });
+  check(mode + ' ghosts speed up down the ladder',
+    speeds[0] < speeds[1] && speeds[1] < speeds[2], speeds.join(' '));
 });
 
 console.log('');
@@ -51,26 +66,27 @@ IDS.forEach(function (id) {
 console.log('');
 console.log('carried across unchanged');
 
-/* Pinned literally: these five are what shipped before the grid existed. */
+/* Each mode's Normal, plus Stare's Easy and Hard — the tuning pinned
+ * literally so a change to the table has to be deliberate. */
 var CARRIED = {
   'stare-easy': {
-    pool: 'dots,ghosts,walls', keep: 2, freeSelf: true,
+    style: 'persist', pool: 'dots,ghosts,walls', keep: 2, freeSelf: true,
     cooldown: 1, ghostSpeed: 0.80, initial: 'walls,dots'
   },
   'stare-normal': {
-    pool: 'dots,ghosts,walls', keep: 1, freeSelf: true,
+    style: 'persist', pool: 'dots,ghosts,walls', keep: 1, freeSelf: true,
     cooldown: 1, ghostSpeed: 0.92, initial: 'walls'
   },
   'stare-hard': {
-    pool: 'dots,ghosts,walls,pacman', keep: 1, freeSelf: false,
+    style: 'persist', pool: 'dots,ghosts,walls,pacman', keep: 1, freeSelf: false,
     cooldown: 3, ghostSpeed: 1.00, initial: 'walls'
   },
   'torch-normal': {
-    pool: 'dots,ghosts,walls', keep: 1, freeSelf: true,
+    style: 'torch', pool: 'dots,ghosts,walls', keep: 1, freeSelf: true,
     cooldown: 1, ghostSpeed: 0.90, initial: 'walls', hold: 0.25, fade: 1.1
   },
   'flash-normal': {
-    pool: 'dots,ghosts,walls,pacman', keep: 1, freeSelf: false,
+    style: 'blink', pool: 'dots,ghosts,walls,pacman', keep: 1, freeSelf: false,
     cooldown: 1, ghostSpeed: 0.86, initial: 'walls', hold: 0.4, fade: 2.0
   }
 };
@@ -89,9 +105,20 @@ console.log('');
 console.log('the copy covers the grid');
 
 IDS.forEach(function (id) {
+  var r = PV.DIFFICULTIES[id];
   check(id + ' names its mode', /^[A-Z]+$/.test(PV.modeName(id)), PV.modeName(id));
   check(id + ' names its level', /^[A-Z]+$/.test(PV.levelName(id)), PV.levelName(id));
-  check(id + ' has a blurb', (PV.modeBlurb(id) || '').length > 0, PV.modeBlurb(id));
+  check(id + ' has a blurb', (PV.levelBlurb(id) || '').length > 0, PV.levelBlurb(id));
+
+  var copy = PV.TEXT.modes[r.mode].levels[r.level];
+  check(id + ' has a menu line', !!copy && (copy.menu || '').length > 0, copy && copy.menu);
+  check(id + ' menu has one bold run', (copy.menu.match(/<b>/g) || []).length === 1, copy.menu);
+});
+
+PV.MODE_IDS.forEach(function (mode) {
+  var copy = PV.TEXT.modes[mode];
+  check(mode + ' has a menu line', !!copy && (copy.menu || '').length > 0, copy && copy.menu);
+  check(mode + ' menu has one bold run', (copy.menu.match(/<b>/g) || []).length === 1, copy.menu);
 });
 
 console.log('');
