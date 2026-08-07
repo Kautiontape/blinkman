@@ -38,7 +38,7 @@ console.log('every cell is complete');
 /* A field silently missing from one cell is worse than a wrong value: nothing
  * short of a full field list catches it, since a NaN or undefined still lets
  * a round build and play. */
-var REQUIRED = ['style', 'pool', 'keep', 'freeSelf', 'cooldown', 'ghostSpeed', 'initial'];
+var REQUIRED = ['mode', 'pool', 'keep', 'freeSelf', 'cooldown', 'ghostSpeed', 'initial'];
 IDS.forEach(function (id) {
   var r = PV.DIFFICULTIES[id];
   var missing = REQUIRED.filter(function (k) { return r[k] === undefined; });
@@ -70,23 +70,23 @@ console.log('carried across unchanged');
  * literally so a change to the table has to be deliberate. */
 var CARRIED = {
   'stare-easy': {
-    style: 'persist', pool: 'dots,ghosts,walls', keep: 2, freeSelf: true,
+    mode: 'stare', pool: 'dots,ghosts,walls', keep: 2, freeSelf: true,
     cooldown: 1, ghostSpeed: 0.80, initial: 'walls,dots'
   },
   'stare-normal': {
-    style: 'persist', pool: 'dots,ghosts,walls', keep: 1, freeSelf: true,
+    mode: 'stare', pool: 'dots,ghosts,walls', keep: 1, freeSelf: true,
     cooldown: 1, ghostSpeed: 0.92, initial: 'walls'
   },
   'stare-hard': {
-    style: 'persist', pool: 'dots,ghosts,walls,pacman', keep: 1, freeSelf: false,
+    mode: 'stare', pool: 'dots,ghosts,walls,pacman', keep: 1, freeSelf: false,
     cooldown: 3, ghostSpeed: 1.00, initial: 'walls'
   },
   'torch-normal': {
-    style: 'torch', pool: 'dots,ghosts,walls', keep: 1, freeSelf: true,
+    mode: 'torch', pool: 'dots,ghosts,walls', keep: 1, freeSelf: true,
     cooldown: 1, ghostSpeed: 0.90, initial: 'walls', hold: 0.25, fade: 1.1
   },
   'flash-normal': {
-    style: 'blink', pool: 'dots,ghosts,walls,pacman', keep: 1, freeSelf: false,
+    mode: 'flash', pool: 'dots,ghosts,walls,pacman', keep: 1, freeSelf: false,
     cooldown: 1, ghostSpeed: 0.86, initial: 'walls', hold: 0.4, fade: 2.0
   }
 };

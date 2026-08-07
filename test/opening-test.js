@@ -210,7 +210,7 @@ console.log('layer nudge');
 
 /* Pinned per cell, because both halves are derived: the digits come from the
  * cell's pool, so a cell that never spends a pick on your own layer must not
- * offer a 4, and the verb comes from its style. */
+ * offer a 4, and the verb comes from its mode. */
 (function () {
   var EXPECTED = {
     'stare-easy': 'Press 1/2/3 to change layer',

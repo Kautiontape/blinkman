@@ -59,12 +59,12 @@ window.PV = window.PV || {};
 
   /* Behaviour only — every word the player reads lives in strings.js.
    *
-   * style 'persist' — your last `keep` picks stay lit until you pick again.
-   * style 'blink'   — a pick flashes at full alpha, holds, then fades out.
-   * style 'torch'   — a lit circle and a forward cone travel with you, and a
-   *                   pick pings outward from you; render.js paints all three
-   *                   in board space, so the layer alphas stay dark.
-   * freeSelf        — your own layer is always drawn and costs no pick.
+   * mode 'stare' — your last `keep` picks stay lit until you pick again.
+   * mode 'flash' — a pick flashes at full alpha, holds, then fades out.
+   * mode 'torch' — a lit circle and a forward cone travel with you, and a
+   *                pick pings outward from you; render.js paints all three
+   *                in board space, so the layer alphas stay dark.
+   * freeSelf     — your own layer is always drawn and costs no pick.
    *
    * `base` is what a mode's three levels share; a level merges over it.
    * Nesting is authoring convenience only — PV.DIFFICULTIES below is the flat
@@ -72,7 +72,7 @@ window.PV = window.PV || {};
   var MODES = {
     stare: {
       base: {
-        style: 'persist', pool: ['dots', 'ghosts', 'walls'],
+        pool: ['dots', 'ghosts', 'walls'],
         freeSelf: true, initial: ['walls']
       },
       levels: {
@@ -83,7 +83,7 @@ window.PV = window.PV || {};
     },
     torch: {
       base: {
-        style: 'torch', pool: ['dots', 'ghosts', 'walls'],
+        pool: ['dots', 'ghosts', 'walls'],
         freeSelf: true, keep: 1, initial: ['walls']
       },
       levels: {
@@ -104,7 +104,7 @@ window.PV = window.PV || {};
       }
     },
     flash: {
-      base: { style: 'blink', pool: LAYERS, freeSelf: false, keep: 1, initial: ['walls'] },
+      base: { pool: LAYERS, freeSelf: false, keep: 1, initial: ['walls'] },
       levels: {
         // Easy draws you always, so a flash is only ever spent on the board.
         easy:   { pool: ['dots', 'ghosts', 'walls'], freeSelf: true,
@@ -159,7 +159,7 @@ window.PV = window.PV || {};
     var keys = LAYERS.filter(function (l) { return rules.pool.indexOf(l) !== -1; })
       .map(function (l) { return PV.LAYER_KEYS[l].split(' / ')[0]; })
       .join('/');
-    return PV.t(PV.TEXT.hint.press, { KEYS: keys, VERB: PV.TEXT.hint[rules.style] });
+    return PV.t(PV.TEXT.hint.press, { KEYS: keys, VERB: PV.TEXT.hint[rules.mode] });
   };
 
   PV.createVision = function (rules) {
@@ -189,7 +189,7 @@ window.PV = window.PV || {};
 
       /** The layer the HUD badge shows. */
       current: function () {
-        if (rules.style === 'persist') return stack[0] || null;
+        if (rules.mode === 'stare') return stack[0] || null;
         return flash ? flash.layer : null;
       },
 
@@ -203,7 +203,7 @@ window.PV = window.PV || {};
        * ghost the ring has reached; render.js draws from it.
        * @returns {?{layer: string, age: number, x: number, y: number, blips: Array}}
        */
-      pulse: function () { return rules.style === 'torch' ? flash : null; },
+      pulse: function () { return rules.mode === 'torch' ? flash : null; },
 
       /**
        * Player pressed a vision key.
@@ -214,7 +214,7 @@ window.PV = window.PV || {};
         if (!v.selectable(layer)) { denied = DENIED_FLASH; return 'unavailable'; }
         if (cooldown > 0) { denied = DENIED_FLASH; return 'cooldown'; }
 
-        if (rules.style === 'persist') {
+        if (rules.mode === 'stare') {
           var i = stack.indexOf(layer);
           // Re-picking the layer already on top changes nothing, so it costs no
           // cooldown. Promoting an older one from the stack still does.
@@ -236,14 +236,14 @@ window.PV = window.PV || {};
         var a = v.alpha;
         LAYERS.forEach(function (l) { a[l] = 0; });
 
-        if (rules.style === 'torch') {
+        if (rules.mode === 'torch') {
           // No layer alpha: the ping and the torch are spatial and are drawn
           // in board space by render.js.
           if (flash) {
             flash.age += dt;
             if (flash.age > pulseLife(rules)) flash = null;
           }
-        } else if (rules.style === 'blink') {
+        } else if (rules.mode === 'flash') {
           if (flash) {
             flash.age += dt;
             var fade = (flash.age - rules.hold) / rules.fade;
@@ -273,7 +273,7 @@ window.PV = window.PV || {};
         stack = (rules.initial || []).slice(0, rules.keep);
         // Blink and Torch start pitch black, so the round opens on one free
         // flash, fired from the spawn.
-        flash = rules.style !== 'persist' && rules.initial
+        flash = rules.mode !== 'stare' && rules.initial
           ? newFlash(rules.initial[0], null)
           : null;
         cooldown = 0;

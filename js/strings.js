@@ -139,13 +139,13 @@ window.PV = window.PV || {};
 
     /* The nudge on the board for a player who hasn't used the number keys.
      * PV.modeHint fills %KEYS% with the digits the mode answers to and %VERB%
-     * with the entry named after its style — a pick does something different
+     * with the entry named after its mode — a pick does something different
      * in each. */
     hint: {
       press: 'Press %KEYS% %VERB%',
-      persist: 'to change layer',
+      stare: 'to change layer',
       torch: 'to scan',
-      blink: 'to flash'
+      flash: 'to flash'
     },
 
     hud: {

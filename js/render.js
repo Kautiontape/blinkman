@@ -149,7 +149,7 @@ window.PV = window.PV || {};
         var alpha = game.visibleAlpha();
         // Non-null only in Torch, where it doubles as the mode test.
         var torch = null, reach = null;
-        if (game.rules.style === 'torch') {
+        if (game.rules.mode === 'torch') {
           var r = torchRadius(game.time);
           torch = {
             x: game.pacman.x, y: game.pacman.y,

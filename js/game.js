@@ -154,7 +154,7 @@ window.PV = window.PV || {};
       var res = game.vision.select(layer, game.pacman);
       if (res === 'ok') {
         // Torch is a flash on a delay, so it takes the flash sound too.
-        game.onEvent(rules.style === 'persist' ? 'visionSwitch' : 'blink');
+        game.onEvent(rules.mode === 'stare' ? 'visionSwitch' : 'blink');
       } else if (res !== 'same' && res !== 'ignored') {
         // 'cooldown' and 'unavailable' are refusals and get the denied sound;
         // 'same' is silent — you already have that layer.
