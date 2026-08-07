@@ -87,21 +87,32 @@ console.log('picks stack');
 console.log('');
 console.log('each pick keeps its own clock');
 
+/* Two different layers, so each pick has an observable of its own — one layer
+ * alpha is the max over every live pick, and a shared layer would let the
+ * newer pick stand in for the older one. */
 (function () {
   var g = settled();
   var RULES = PV.DIFFICULTIES['flash-normal'];
+  var LIFE = RULES.hold + RULES.fade;
+
   g.selectVision('walls');
   for (var i = 0; i < 66; i++) g.update(STEP);   // 1.1s, past the cooldown
-  g.selectVision('walls');                        // the same layer again
+  g.selectVision('dots');
+  g.update(STEP);
+  check('both are lit while the older still has time to run',
+    g.vision.alpha.walls > 0 && g.vision.alpha.dots > 0,
+    g.vision.alpha.walls + ' / ' + g.vision.alpha.dots);
 
-  // Step until the first would have expired on its own.
-  var n = Math.ceil((RULES.hold + RULES.fade) / STEP) - 66;
-  for (var j = 0; j < n + 2; j++) g.update(STEP);
+  // Past where the older expires on its own, and well short of the newer's
+  // own expiry — it started the 67 frames stepped above later.
+  var n = Math.ceil(LIFE / STEP) + 2 - 67;
+  for (var j = 0; j < n; j++) g.update(STEP);
   check('the older pick expires while the newer one still burns',
-    g.vision.alpha.walls > 0, g.vision.alpha.walls);
+    g.vision.alpha.walls === 0 && g.vision.alpha.dots > 0,
+    g.vision.alpha.walls + ' / ' + g.vision.alpha.dots);
 
-  for (var k = 0; k < 80; k++) g.update(STEP);
-  check('the newer pick expires too', g.vision.alpha.walls === 0, g.vision.alpha.walls);
+  for (var k = 0; k < Math.ceil(LIFE / STEP); k++) g.update(STEP);
+  check('the newer pick expires too', g.vision.alpha.dots === 0, g.vision.alpha.dots);
 })();
 
 console.log('');
