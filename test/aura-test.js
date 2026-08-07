@@ -7,7 +7,10 @@
  */
 global.window = {};
 var path = require('path');
-['maze.js', 'entities.js', 'vision.js', 'game.js', 'render.js', 'aura.js']
+// Mirrors index.html's relative script order, so aura.js loads before game.js
+// here too — a module-scope capture of something game.js exports would go
+// red in this suite exactly as it would silently break in the browser.
+['maze.js', 'vision.js', 'entities.js', 'render.js', 'aura.js', 'game.js']
   .forEach(function (f) { require(path.join(__dirname, '..', 'js', f)); });
 var PV = global.window.PV;
 
