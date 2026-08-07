@@ -21,7 +21,7 @@ window.PV = window.PV || {};
 
     /* Reused across frames so the searches allocate nothing. The `seen` arrays
      * hold a generation number rather than a flag, which saves clearing them. */
-    var cols = 0, rows = 0, cells = 0;
+    var cols = 0, rows = 0;
     var dangerSeen, dangerDist, routeSeen, routeFirst, queue;
     var dangerGen = 0;
     var routeGen = 0;
@@ -31,13 +31,16 @@ window.PV = window.PV || {};
     // of its own.
     function sizeTo(maze) {
       if (maze.cols === cols && maze.rows === rows) return;
-      cols = maze.cols; rows = maze.rows; cells = cols * rows;
+      cols = maze.cols; rows = maze.rows;
+      var cells = cols * rows;
       dangerSeen = new Int32Array(cells);
       dangerDist = new Int16Array(cells);
       routeSeen = new Int32Array(cells);
       routeFirst = new Int8Array(cells);
       queue = new Int32Array(cells);
     }
+
+    sizeTo(game.maze);
 
     function idx(col, row) { return row * cols + col; }
 

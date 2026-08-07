@@ -356,8 +356,10 @@ function allocsDuring(fn) {
 
   /* A restart is where a demo board is replaced. Each shape below differs from
    * the one before in one span only, so buffers cut for either are the wrong
-   * size for the board that follows. */
-  onStandIn([[20, 23], [24, 23], [24, 27]], function () {
+   * size for the board that follows — and the last is the one before it turned
+   * on its side, which holds the same number of tiles in rows of another
+   * length. */
+  onStandIn([[20, 23], [24, 23], [24, 27], [27, 24]], function () {
     var a = PV.createAttract();
     a.update(STEP);
 
@@ -376,8 +378,12 @@ function allocsDuring(fn) {
     check('a taller board gets buffers of its own',
       taller === '648,648,648,648,648', taller);
 
-    check('the demo is steering on the third board',
-      a.game.maze.cols === 24 && a.game.maze.rows === 27,
+    var turned = afterRestart();
+    check('so does a board of the same tile count in another shape',
+      turned === '648,648,648,648,648', turned);
+
+    check('the demo is steering on the last board',
+      a.game.maze.cols === 27 && a.game.maze.rows === 24,
       a.game.maze.cols + 'x' + a.game.maze.rows);
 
     var again = allocsDuring(function () { a.update(STEP); });
@@ -419,6 +425,25 @@ onStandIn([[20, 23]], function () {
   check('20x23: never walks into a wall either', blocked === 0, blocked);
 });
 
+/* Strips the board down to a single pellet, so the direction the demo hands
+ * over names the route to one known tile. */
+function onlyPellet(maze, col, row) {
+  for (var r = 0; r < maze.rows; r++) {
+    for (var c = 0; c < maze.cols; c++) maze.pellets[r][c] = 0;
+  }
+  maze.pellets[row][col] = 1;
+}
+
+/* Blinky, loose and unfrightened on a tile. That is the only state the danger
+ * fill seeds from; the other three stay in the house, which it skips. */
+function looseGhost(game, col, row) {
+  var g = game.ghosts[0];
+  g.state = 'out';
+  g.frightened = false;
+  g.x = PV.center(col);
+  g.y = PV.center(row);
+}
+
 /* Pac-Man on a tunnel mouth with the board's only pellet at `pellet`, facing
  * the way the search should not send him — the fallback that picks any open
  * direction answers with the mouth's other side, so only the search can
@@ -426,10 +451,7 @@ onStandIn([[20, 23]], function () {
 function mouthStep(startCol, facing, pellet) {
   var a = PV.createAttract();
   var m = a.game.maze;
-  for (var r = 0; r < m.rows; r++) {
-    for (var c = 0; c < m.cols; c++) m.pellets[r][c] = 0;
-  }
-  m.pellets[pellet.row][pellet.col] = 1;
+  onlyPellet(m, pellet.col, pellet.row);
 
   a.game.pacman.x = PV.center(startCol);
   a.game.pacman.y = PV.center(m.tunnelRow);
@@ -438,8 +460,8 @@ function mouthStep(startCol, facing, pellet) {
   return a.game.pacman.want.name;
 }
 
-/* The tunnel check again, from both mouths of a board 20 wide: a wrap that
- * used the module's 28 lands eight columns past the far edge, on a tile this
+/* The tunnel check again, from both mouths of a board 20 wide: a wrap using
+ * the module's 28 would land eight columns past the far edge, on a tile this
  * board does not have. The pellet is two steps through the mouth and sixteen
  * the long way round. */
 onStandIn([[20, 23]], function () {
@@ -466,15 +488,76 @@ onStandIn([[24, 27]], function () {
 onStandIn([[20, 23]], function () {
   var a = PV.createAttract();
   a.game.invuln = Infinity;
-  var m = a.game.maze;
-  for (var r = 0; r < m.rows; r++) {
-    for (var c = 0; c < m.cols; c++) m.pellets[r][c] = 0;
-  }
-  m.pellets[1][1] = 1;
+  onlyPellet(a.game.maze, 1, 1);
 
   for (var i = 0; i < 60 * 15 && a.game.dotsEaten === 0; i++) a.update(STEP);
   check('20x23: walks to the only pellet on the board', a.game.dotsEaten === 1,
     a.game.dotsEaten + ' after ' + (i / 60).toFixed(1) + 's');
+});
+
+/* The danger fill, which nothing above reads. The ghost stands two columns off
+ * the corridor Pac-Man is in, near enough that the buffer reaches across it
+ * and seals (17, 17) — four tiles below him and three above the board's only
+ * pellet. Sealing that tile takes the two steps out of the ghost's own, so a
+ * fill that spread from anywhere but the ghost leaves the way down open.
+ *
+ * Rounding it means the long way about: six columns west, the eight rows of
+ * column 11, then back east along row 21 and up onto the pellet. The border
+ * seals the other side and columns 13 to 16 are inside the buffer at row 17,
+ * so that detour is the only one there is. */
+onStandIn([[20, 23]], function () {
+  var a = PV.createAttract();
+  onlyPellet(a.game.maze, 17, 20);
+  looseGhost(a.game, 15, 17);
+
+  a.game.pacman.x = PV.center(17);
+  a.game.pacman.y = PV.center(13);
+  a.game.pacman.dir = PV.DIRS.left;
+  a.update(STEP);
+
+  check('20x23: routes around a loose ghost', a.game.pacman.want.name === 'left',
+    a.game.pacman.want.name);
+});
+
+/* The fill crosses the tunnel, and lands where the wrap does. A ghost on the
+ * right mouth puts the left mouth one step away and the tile east of it two,
+ * which is the whole buffer — so the pellet below that tile is reached by
+ * going east, down two rows and back west, and the step west that would walk
+ * under the ghost's nose is the one direction ruled out. */
+onStandIn([[24, 27]], function () {
+  var a = PV.createAttract();
+  onlyPellet(a.game.maze, 1, 14);
+  looseGhost(a.game, 23, 13);
+
+  a.game.pacman.x = PV.center(2);
+  a.game.pacman.y = PV.center(13);
+  a.game.pacman.dir = PV.DIRS.left;
+  a.update(STEP);
+
+  check('24x27: the danger fill crosses the tunnel',
+    a.game.pacman.want.name === 'right', a.game.pacman.want.name);
+});
+
+/* The tunnel the other way about, and what avoidance is worth: two pellets,
+ * and the near one is the second tile east of a ghost standing on the left
+ * mouth — which is to say inside the buffer, one step west of Pac-Man. He
+ * passes it up for the one two steps east of him, so the step he takes is away
+ * from the tunnel. A wrap that fell a row short of the mouth would put the
+ * near pellet a step outside the buffer and he would take it. */
+onStandIn([[24, 27]], function () {
+  var a = PV.createAttract();
+  var m = a.game.maze;
+  onlyPellet(m, 22, 13);
+  m.pellets[13][19] = 1;
+  looseGhost(a.game, 0, 13);
+
+  a.game.pacman.x = PV.center(21);
+  a.game.pacman.y = PV.center(13);
+  a.game.pacman.dir = PV.DIRS.right;
+  a.update(STEP);
+
+  check('24x27: passes up a pellet inside the buffer',
+    a.game.pacman.want.name === 'left', a.game.pacman.want.name);
 });
 
 console.log('');
