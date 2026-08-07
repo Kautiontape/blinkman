@@ -144,26 +144,27 @@ console.log('');
 console.log('ghost-house reveal');
 
 (function () {
+  var maze = PV.createMaze(1);
   var HOUSE = PV.center(14), DOOR = PV.center(12);
   var MID = (DOOR + PV.center(11)) / 2, EXIT = PV.center(11);
 
   // Full below the door line, falling to zero across the doorway.
   ['house', 'leaving', 'entering'].forEach(function (st) {
     check(st + ' is lit in the house',
-      PV.ghostReveal({ state: st, y: HOUSE }) === 1);
+      PV.ghostReveal({ state: st, y: HOUSE }, maze) === 1);
     check(st + ' is lit at the door line',
-      PV.ghostReveal({ state: st, y: DOOR }) === 1);
+      PV.ghostReveal({ state: st, y: DOOR }, maze) === 1);
     check(st + ' is half lit mid-doorway',
-      near(PV.ghostReveal({ state: st, y: MID }), 0.5, 0.001));
+      near(PV.ghostReveal({ state: st, y: MID }, maze), 0.5, 0.001));
     check(st + ' is dark at the exit',
-      PV.ghostReveal({ state: st, y: EXIT }) === 0);
+      PV.ghostReveal({ state: st, y: EXIT }, maze) === 0);
   });
 
   /* The state guard is load-bearing: a ghost loose on the lower board sits well
    * below the door line, and the position term alone would clamp it to 1. */
   ['out', 'eaten'].forEach(function (st) {
     [HOUSE, DOOR, MID, EXIT, PV.center(23)].forEach(function (y) {
-      check(st + ' is dark at y=' + y, PV.ghostReveal({ state: st, y: y }) === 0);
+      check(st + ' is dark at y=' + y, PV.ghostReveal({ state: st, y: y }, maze) === 0);
     });
   });
 })();
@@ -235,5 +236,74 @@ console.log('layer nudge');
 })();
 
 console.log('');
-console.log(failures === 0 ? 'ALL OPENING CUES OK' : failures + ' CHECK(S) FAILED');
-process.exit(failures === 0 ? 0 : 1);
+console.log('board-relative actors');
+
+/* Actors take their positions from the maze they are placed in, not from a
+ * table read at load time. */
+var boardFailures = 0;
+function boardExpect(label, got, want) {
+  if (got === want) return;
+  boardFailures++;
+  console.log('  BOARD  ' + label + ': got ' + got + ', want ' + want);
+}
+
+/* A stand-in maze of a different size and layout. Every shipped board is the
+ * full 28x31 one, whose spawns and scatter corners are exactly what the module
+ * constants hold, so this is the only thing that separates an actor reading the
+ * maze it was placed in from one reading a table. It carries just the fields
+ * the actors touch. */
+function standInMaze() {
+  var board = { cols: 20, rows: 23 };
+  return {
+    cols: board.cols, rows: board.rows,
+    scatter: PV.scatterCorners(board),
+    spawn: {
+      pacman:  { col: 9, row: 17 },
+      door:    { col: 9, row: 9 },
+      outside: { col: 9, row: 8 },
+      blinky:  { col: 9, row: 10 },
+      pinky:   { col: 9, row: 11 },
+      inky:    { col: 7, row: 11 },
+      clyde:   { col: 11, row: 11 }
+    }
+  };
+}
+
+[PV.createMaze(7), standInMaze()].forEach(function (maze) {
+  var on = maze.cols + 'x' + maze.rows + ' ';
+
+  var pac = PV.createPacman(maze);
+  boardExpect(on + 'pacman x', pac.x, PV.center(maze.spawn.pacman.col));
+  boardExpect(on + 'pacman y', pac.y, PV.center(maze.spawn.pacman.row));
+
+  var ghosts = PV.createGhosts(maze);
+  boardExpect(on + 'blinky scatter col', ghosts[0].scatterTile.col, maze.cols - 3);
+  boardExpect(on + 'pinky scatter col', ghosts[1].scatterTile.col, 2);
+  boardExpect(on + 'inky scatter col', ghosts[2].scatterTile.col, maze.cols - 1);
+  boardExpect(on + 'inky scatter row', ghosts[2].scatterTile.row, maze.rows - 1);
+  boardExpect(on + 'clyde scatter row', ghosts[3].scatterTile.row, maze.rows - 1);
+
+  // Every scatter corner is on the board.
+  ghosts.forEach(function (g) {
+    var t = g.scatterTile;
+    var inside = t.col >= 0 && t.col < maze.cols && t.row >= 0 && t.row < maze.rows;
+    boardExpect(on + g.name + ' scatter on board', inside, true);
+  });
+
+  // A ghost still in the house reads as fully revealed; one on the exit tile does not.
+  var houseGhost = ghosts[1];
+  houseGhost.state = 'house';
+  houseGhost.y = PV.center(maze.spawn.pinky.row);
+  boardExpect(on + 'house ghost revealed', PV.ghostReveal(houseGhost, maze), 1);
+  houseGhost.state = 'leaving';
+  houseGhost.y = PV.center(maze.spawn.outside.row);
+  boardExpect(on + 'exited ghost hidden', PV.ghostReveal(houseGhost, maze), 0);
+});
+
+console.log('  ' + (boardFailures === 0 ? 'ok  ' : 'FAIL') + '  board-relative actors: ' +
+  (boardFailures === 0 ? 'PASS' : 'FAIL'));
+
+var total = failures + boardFailures;
+console.log('');
+console.log(total === 0 ? 'ALL OPENING CUES OK' : total + ' CHECK(S) FAILED');
+process.exit(total === 0 ? 0 : 1);

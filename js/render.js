@@ -518,7 +518,7 @@ window.PV = window.PV || {};
       // A ghost in the house shows through even with the layer dark — except
       // in Torch, which brings its own light and so opts out: what is waiting
       // in the house is something you walk up to or ping for.
-      var housed = torch ? 0 : PV.ghostReveal(g);
+      var housed = torch ? 0 : PV.ghostReveal(g, game.maze);
       var a = Math.max(alpha, housed, torch ? torchGhostAlpha(g, game.maze, torch) : 0);
       if (a <= 0.001) return;
 

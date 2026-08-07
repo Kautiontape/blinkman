@@ -78,12 +78,14 @@ window.PV = window.PV || {};
     var persist = !opts || opts.persist !== false;
     var deathSounded = false;
 
+    var maze = PV.createMaze();
+
     var game = {
       difficulty: difficultyId,
       rules: rules,
-      maze: PV.createMaze(),
-      pacman: PV.createPacman(),
-      ghosts: PV.createGhosts(),
+      maze: maze,
+      pacman: PV.createPacman(maze),
+      ghosts: PV.createGhosts(maze),
       vision: PV.createVision(rules),
 
       state: 'ready',      // ready | playing | dying | levelclear | gameover
@@ -109,6 +111,15 @@ window.PV = window.PV || {};
       onEvent: function () {}
     };
 
+    /* Each actor holds the maze it was built against and reads its spawn, its
+     * scatter corner and the tunnel width from it, so a new board means new
+     * actors. Every caller reads game.pacman and game.ghosts per frame. */
+    function newBoard() {
+      game.maze = PV.createMaze();
+      game.pacman = PV.createPacman(game.maze);
+      game.ghosts = PV.createGhosts(game.maze);
+    }
+
     function resetActors() {
       game.pacman.reset();
       game.ghosts.forEach(function (g) {
@@ -133,13 +144,13 @@ window.PV = window.PV || {};
 
     game.nextLevel = function () {
       game.level++;
-      game.maze = PV.createMaze();
+      newBoard();
       game.dotsEaten = 0;
       game.startRound();
     };
 
     game.restart = function () {
-      game.maze = PV.createMaze();
+      newBoard();
       game.score = 0;
       game.level = 1;
       game.lives = 3;
@@ -305,7 +316,7 @@ window.PV = window.PV || {};
       var mode = game.frightTimer > 0 ? 'chase' : WAVES[game.waveIndex].mode;
       var blinky = game.ghosts[0];
       game.ghosts.forEach(function (g) {
-        var target = PV.ghostTarget(g, mode, game.pacman, blinky);
+        var target = PV.ghostTarget(g, mode, game.pacman, blinky, game.maze);
         PV.updateGhost(g, dt, game.maze, target);
       });
     }

@@ -47,10 +47,10 @@ window.PV = window.PV || {};
     e.y = PV.center(Math.round((e.y - TILE / 2) / TILE));
   }
 
-  function wrapTunnel(e) {
+  function wrapTunnel(e, maze) {
     var col = Math.floor(e.x / TILE);
-    if (col < 0) e.x += PV.WIDTH;
-    else if (col >= PV.COLS) e.x -= PV.WIDTH;
+    if (col < 0) e.x += maze.width;
+    else if (col >= maze.cols) e.x -= maze.width;
   }
 
   /* Walk an entity along the grid; returns true if it hit a wall. Turns happen
@@ -90,14 +90,14 @@ window.PV = window.PV || {};
       remaining -= step;
 
       if (step >= toCenter - EPS) snap(e);   // landed on a centre — realign
-      wrapTunnel(e);
+      wrapTunnel(e, maze);
     }
     return blocked;
   }
 
   PV.advance = advance;
 
-  PV.createPacman = function () {
+  PV.createPacman = function (maze) {
     var pac = {
       x: 0, y: 0,
       dir: DIRS.left,
@@ -108,8 +108,8 @@ window.PV = window.PV || {};
       bumpedWant: null,       // the direction the last bump was reported for
 
       reset: function () {
-        this.x = PV.center(PV.SPAWN.pacman.col);
-        this.y = PV.center(PV.SPAWN.pacman.row);
+        this.x = PV.center(maze.spawn.pacman.col);
+        this.y = PV.center(maze.spawn.pacman.row);
         this.dir = DIRS.left;
         this.want = DIRS.left;
         this.mouth = 0;
@@ -152,21 +152,16 @@ window.PV = window.PV || {};
    * already well past both. Blinky's is all zeroes: it leads the file-out and
    * goes the moment play starts. */
   var GHOST_DEFS = [
-    { name: 'blinky', color: '#ff3c3c', spawn: 'blinky', scatter: { col: 25, row: 0 },
+    { name: 'blinky', color: '#ff3c3c', spawn: 'blinky',
       release: { dots: 0, earliest: 0, latest: 0 } },
-    { name: 'pinky',  color: '#ff9ede', spawn: 'pinky',  scatter: { col: 2,  row: 0 },
+    { name: 'pinky',  color: '#ff9ede', spawn: 'pinky',
       release: { dots: 0,  earliest: 2, latest: 2 } },
-    { name: 'inky',   color: '#42e8ff', spawn: 'inky',   scatter: { col: 27, row: 30 },
+    { name: 'inky',   color: '#42e8ff', spawn: 'inky',
       release: { dots: 20, earliest: 5, latest: 9 } },
-    { name: 'clyde',  color: '#ffab42', spawn: 'clyde',  scatter: { col: 0,  row: 30 },
+    { name: 'clyde',  color: '#ffab42', spawn: 'clyde',
       release: { dots: 60, earliest: 8, latest: 14 } }
   ];
   PV.GHOST_DEFS = GHOST_DEFS;
-
-  var EXIT_X = PV.center(PV.SPAWN.outside.col);
-  var EXIT_Y = PV.center(PV.SPAWN.outside.row);
-  var DOOR_Y = PV.center(PV.SPAWN.door.row);
-  var HOUSE_Y = PV.center(PV.SPAWN.pinky.row);
 
   // The states in which a ghost is inside the house or crossing its door.
   var IN_HOUSE = { house: 1, leaving: 1, entering: 1 };
@@ -177,19 +172,22 @@ window.PV = window.PV || {};
    * and re-entering is what brings it back. Position alone drives it — no timer
    * to keep in step. The state list is load-bearing: a ghost loose on the lower
    * board is below the door line too, and would otherwise read as fully lit. */
-  PV.ghostReveal = function (g) {
+  PV.ghostReveal = function (g, maze) {
     if (!IN_HOUSE[g.state]) return 0;
-    var t = (g.y - EXIT_Y) / (DOOR_Y - EXIT_Y);
+    var exitY = PV.center(maze.spawn.outside.row);
+    var doorY = PV.center(maze.spawn.door.row);
+    var t = (g.y - exitY) / (doorY - exitY);
     return t < 0 ? 0 : t > 1 ? 1 : t;
   };
 
-  PV.createGhosts = function () {
+  PV.createGhosts = function (maze) {
+    var scatter = maze.scatter;
     return GHOST_DEFS.map(function (def) {
-      var spawn = PV.SPAWN[def.spawn];
+      var spawn = maze.spawn[def.spawn];
       var g = {
         name: def.name,
         color: def.color,
-        scatterTile: def.scatter,
+        scatterTile: scatter[def.name],
         release: def.release,       // when this one may leave the house
 
         x: 0, y: 0,
@@ -231,6 +229,11 @@ window.PV = window.PV || {};
   };
 
   PV.updateGhost = function (g, dt, maze, target) {
+    var outside = maze.spawn.outside;
+    var exitX = PV.center(outside.col);
+    var exitY = PV.center(outside.row);
+    var houseY = PV.center(maze.spawn.pinky.row);
+
     g.wobble += dt * 6;
 
     // The house states are scripted and ignore the maze.
@@ -239,16 +242,16 @@ window.PV = window.PV || {};
       return;
     }
     if (g.state === 'leaving') {
-      if (!approach(g, EXIT_X, g.y, 6 * TILE * dt)) return;     // slide under the door
-      if (!approach(g, EXIT_X, EXIT_Y, 6 * TILE * dt)) return;  // then rise out
+      if (!approach(g, exitX, g.y, 6 * TILE * dt)) return;     // slide under the door
+      if (!approach(g, exitX, exitY, 6 * TILE * dt)) return;   // then rise out
       g.state = 'out';
       g.dir = DIRS.left;
       return;
     }
     if (g.state === 'entering') {
-      if (!approach(g, EXIT_X, HOUSE_Y, 11 * TILE * dt)) return;
+      if (!approach(g, exitX, houseY, 11 * TILE * dt)) return;
       g.state = 'house';
-      g.homeY = HOUSE_Y;        // everyone revives from the middle slot
+      g.homeY = houseY;         // everyone revives from the middle slot
       g.frightened = false;
       g.releaseTimer = 1.0;
       return;
@@ -284,7 +287,7 @@ window.PV = window.PV || {};
     // eyes back above the door: dive in
     if (g.state === 'eaten') {
       var t = g.tile();
-      if (t.col === PV.SPAWN.outside.col && t.row === PV.SPAWN.outside.row) {
+      if (t.col === outside.col && t.row === outside.row) {
         g.state = 'entering';
       }
     }
@@ -301,8 +304,8 @@ window.PV = window.PV || {};
   }
 
   /** The classic targeting personalities, so the four don't pile onto one tile. */
-  PV.ghostTarget = function (g, mode, pac, blinky) {
-    if (g.state === 'eaten') return PV.SPAWN.outside;
+  PV.ghostTarget = function (g, mode, pac, blinky, maze) {
+    if (g.state === 'eaten') return maze.spawn.outside;
     if (mode === 'scatter') return g.scatterTile;
 
     var pt = pac.tile();
