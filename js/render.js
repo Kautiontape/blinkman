@@ -39,13 +39,19 @@ window.PV = window.PV || {};
    * corner, however fine the interval; walking tile-by-tile can't skip one.
    * A segment that passes exactly through a lattice corner checks both
    * corner-adjacent tiles before stepping diagonally, so a grazing corner
-   * can't slip past unresolved. Origin and destination tiles are never
-   * tested — a caller checking visibility of a wall tile's own face passes
-   * that wall's *open* neighbour as the destination, not the wall tile
-   * itself; testing the endpoints would make a target inside or beside a
-   * wall spuriously block itself.
+   * can't slip past unresolved. The tie test itself uses an epsilon: after
+   * enough accumulated additions, two crossings meant to land at the same
+   * spot drift a float apart, and a strict === would silently fall back to
+   * a single-axis step that walks past the one tile actually holding the
+   * corner. Origin and destination tiles are never tested — a caller
+   * checking visibility of a wall tile's own face passes that wall's *open*
+   * neighbour as the destination, not the wall tile itself; testing the
+   * endpoints would make a target inside or beside a wall spuriously block
+   * itself.
    */
   PV.canSee = function (x0, y0, x1, y1, maze) {
+    var TIE_EPS = 1e-9;   // in the segment's own 0..1 span — see comment above
+
     var c = Math.floor(x0 / TILE), r = Math.floor(y0 / TILE);
     var c1 = Math.floor(x1 / TILE), r1 = Math.floor(y1 / TILE);
     var dx = x1 - x0, dy = y1 - y0;
@@ -61,9 +67,9 @@ window.PV = window.PV || {};
     var tDeltaR = stepR === 0 ? Infinity : Math.abs(TILE / dy);
 
     while (c !== c1 || r !== r1) {
-      if (tMaxC < tMaxR) {
+      if (tMaxC < tMaxR - TIE_EPS) {
         c += stepC; tMaxC += tDeltaC;
-      } else if (tMaxR < tMaxC) {
+      } else if (tMaxR < tMaxC - TIE_EPS) {
         r += stepR; tMaxR += tDeltaR;
       } else {
         // Exactly through a corner — either neighbour blocks the view.

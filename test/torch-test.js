@@ -207,6 +207,28 @@ console.log('line of sight');
   // than sampling points along it, is what catches this.
   check('a line grazing just a corner of the wall still counts as blocked',
     !PV.canSee(42.324, 10.044, 37.576, 69.856, maze));
+
+  // The two corner-adjacent checks the tie branch makes, pinned down with a
+  // wall on only one side at a time. (0,0)-(9,9) is an exact 45deg line, so
+  // tMaxC and tMaxR tie at every crossing with no float drift — this isolates
+  // the branch's own logic from the drift case below.
+  var aboveMaze = fakeMaze(['5,4']);
+  check('a corner tie checks the row-neighbour side',
+    !PV.canSee(PV.center(0), PV.center(0), PV.center(9), PV.center(9), aboveMaze));
+
+  var leftMaze = fakeMaze(['4,5']);
+  check('a corner tie checks the column-neighbour side',
+    !PV.canSee(PV.center(0), PV.center(0), PV.center(9), PV.center(9), leftMaze));
+
+  // A non-45deg ray through several tile crossings does drift tMaxC and
+  // tMaxR apart by a float epsilon, unlike the exact-diagonal case above —
+  // this is what a strict === tie test misses. (0,0) to (100,300) crosses
+  // the corner shared by (1,5)/(2,5)/(1,6)/(2,6) with tMaxC and tMaxR one
+  // float apart by the time it gets there; a wall at (2,5) is only caught
+  // if the tie logic still recognizes the near-tie.
+  var driftMaze = fakeMaze(['2,5']);
+  check('a corner tie several crossings out still catches a wall despite float drift',
+    !PV.canSee(0, 0, 100, 300, driftMaze));
 })();
 
 console.log('');
