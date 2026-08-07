@@ -191,8 +191,8 @@ console.log('a life lost');
   a.update(g, STEP);
   check('still full at the end of the reveal', a.level === 1, a.level);
 
-  // The frame the fade opens carries on from that full rather than jumping:
-  // the wobble is phased off the fade, so it starts at its own peak.
+  // The fade opens from that same full: its wobble is phased off the fade, so
+  // it starts at its own peak.
   g.stateTime = PV.DEATH_REVEAL + 0.01;
   a.update(g, STEP);
   check('and picks up from it rather than popping', a.level > 0.9, a.level);

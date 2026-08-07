@@ -44,9 +44,9 @@ window.PV = window.PV || {};
   }
 
   /* Full through the reveal beat so the collision reads, then fading with the
-   * death animation. The wobble is phased off the fade's own clock rather than
-   * the round's, so cos(0) is 1 on the frame the fade opens and the level
-   * carries on from the full it was held at instead of jumping. */
+   * death animation. The wobble is phased off the fade's own clock, so cos(0)
+   * is 1 on the frame the fade opens and the level continues from the full it
+   * was held at. */
   function deathLevel(stateTime) {
     var t = (stateTime - PV.DEATH_REVEAL) / PV.DEATH_ANIM;
     if (t <= 0) return 1;
