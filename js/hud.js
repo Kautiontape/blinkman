@@ -129,7 +129,7 @@ window.PV = window.PV || {};
 
       rebuild: function (game) {
         buildChips(game.vision, true);
-        el.badgeMode.textContent = PV.modeName(game.difficulty);
+        el.badgeMode.textContent = PV.modeName(game.difficulty) + ' · ' + PV.levelName(game.difficulty);
         lastIcon = null;
         lastLives = -1;
         lastStats = '';

@@ -20,6 +20,7 @@
   var renderer = PV.createRenderer(canvas);
   var hud = PV.createHud();
   var hint = PV.createHint();
+  var menu = PV.createMenu(document.getElementById('modes'), startGame);
 
   var game = null;
   var attract = null;      // the demo behind the menu; null while a round is live
@@ -111,6 +112,7 @@
     paused = false;
     overlayKey = '';
     splashEl.textContent = PV.pickSplash();   // a fresh one each time you land here
+    menu.reset();
     PV.Sfx.stopAmbient();
     overlay.hidden = false;
     panelMenu.hidden = false;
@@ -156,7 +158,8 @@
       hint = T.pausedHint;
     } else if (game.state === 'ready') {
       title = T.ready;
-      body = PV.modeName(game.difficulty) + '  ·  ' + PV.levelBlurb(game.difficulty);
+      body = PV.modeName(game.difficulty) + ' · ' + PV.levelName(game.difficulty) +
+        '  ·  ' + PV.levelBlurb(game.difficulty);
       hint = PV.t(T.readyHint, { MAZE: game.maze.recipe });
     } else if (game.state === 'levelclear') {
       title = PV.t(T.levelClear, { N: game.level });
@@ -194,10 +197,6 @@
     Digit4: 'pacman', Numpad4: 'pacman', KeyL: 'pacman'
   };
 
-  var MENU_KEYS = {
-    Digit1: 'easy', Digit2: 'normal', Digit3: 'hard', Digit4: 'torch', Digit5: 'blink'
-  };
-
   var SCROLL_KEYS = {
     ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1, Space: 1
   };
@@ -221,7 +220,7 @@
     if (e.code === 'KeyM') { toggleMute(); return; }
 
     if (!game) {
-      if (MENU_KEYS[e.code]) { startGame(MENU_KEYS[e.code]); e.preventDefault(); }
+      if (menu.handleKey(e)) e.preventDefault();
       return;
     }
 
@@ -249,11 +248,6 @@
       e.preventDefault();
     }
   }, { passive: false });
-
-  document.getElementById('diffs').addEventListener('click', function (e) {
-    var btn = e.target.closest('.diff');
-    if (btn) startGame(btn.dataset.diff);
-  });
 
   /* A layer chip is the mouse equivalent of that layer's key, refusals and all:
    * the guards here are the ones the vision keys pass on their way down. The
