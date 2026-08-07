@@ -48,12 +48,13 @@ window.PV = window.PV || {};
    * is 1 on the frame the fade opens and the level continues from the full it
    * was held at. */
   function deathLevel(stateTime) {
-    var t = (stateTime - PV.DEATH_REVEAL) / PV.DEATH_ANIM;
+    var reveal = PV.DEATH_REVEAL, anim = PV.DEATH_ANIM;
+    var t = (stateTime - reveal) / anim;
     if (t <= 0) return 1;
     if (t >= 1) return 0;
     var fade = 1 - t;
     return PV.wantsCalm() ? fade
-      : fade * (0.78 + 0.22 * Math.cos((stateTime - PV.DEATH_REVEAL) * 18));
+      : fade * (0.78 + 0.22 * Math.cos((stateTime - reveal) * 18));
   }
 
   /**
