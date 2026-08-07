@@ -314,6 +314,48 @@ console.log('the torch ladder');
   }
   check('a wide cone reaches what a narrow one misses',
     lit(easy) > 0 && lit(hard) === 0, lit(easy) + ' / ' + lit(hard));
+
+  // Hard is a bare pool of light: no cone, so nothing reaches past the disc.
+  check('hard has no cone at all',
+    hard.coneLen === 0 && hard.coneHalf === 0,
+    hard.coneLen + ' / ' + hard.coneHalf);
+
+  var P = {
+    radius: hard.torchRadius, coneLen: hard.coneLen,
+    coneHalf: hard.coneHalf, soft: PV.TORCH_SOFT
+  };
+  check('hard lights every direction the same',
+    PV.torchAlpha(hard.torchRadius - 20, 0, PV.DIRS.right, P) ===
+    PV.torchAlpha(-(hard.torchRadius - 20), 0, PV.DIRS.right, P));
+  check('hard lights nothing past its own radius',
+    PV.torchAlpha(hard.torchRadius + 1, 0, PV.DIRS.right, P) === 0,
+    PV.torchAlpha(hard.torchRadius + 1, 0, PV.DIRS.right, P));
+})();
+
+console.log('');
+console.log('a coneless torch still reaches');
+
+/* render.js caps every ray at the cone's length and treats an on-axis ray as
+ * cone-lit. Both collapse a torch with no cone unless they fall back to the
+ * disc, and neither is visible to torchAlpha. */
+(function () {
+  var openMaze = { isWall: function () { return false; } };
+  var hard = PV.DIFFICULTIES['torch-hard'];
+  var torch = {
+    x: PV.center(14), y: PV.center(23),
+    radius: hard.torchRadius, coneLen: hard.coneLen, coneHalf: hard.coneHalf,
+    soft: PV.TORCH_SOFT, dir: PV.DIRS.right
+  };
+
+  var reach = PV.torchSpill(torch, openMaze);
+  var min = Infinity, max = 0;
+  for (var i = 0; i < reach.length; i++) {
+    if (reach[i] < min) min = reach[i];
+    if (reach[i] > max) max = reach[i];
+  }
+  check('every ray reaches the disc edge in open space',
+    near(min, hard.torchRadius, 0.001) && near(max, hard.torchRadius, 0.001),
+    min + ' .. ' + max);
 })();
 
 console.log('');

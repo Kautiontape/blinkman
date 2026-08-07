@@ -51,13 +51,13 @@ press does; the difficulty decides how much it gives you.
 | | What a press does |
 |---|---|
 | Stare | Lights one layer, and it stays lit until you pick another. |
-| Torch | A lit circle and a forward cone travel with you, both stopping at walls. A press pings one layer outward from where you stood, through walls. |
+| Torch | A lit circle travels with you, and on Easy and Normal a forward cone too, both stopping at walls. A press pings one layer outward from where you stood, through walls. |
 | Flash | The board is black. A press flashes one layer, which then fades. |
 
 | | Easy | Normal | Hard |
 |---|---|---|---|
 | Stare | Your last two picks, 1s | Your last pick, 1s | One of four and you can go dark, 3s |
-| Torch | A wide cone that reaches, 1s | A 6-tile cone, 1s | A narrow cone, quick to fade, 2s |
+| Torch | A wide cone that reaches, 1s | A 6-tile cone, 1s | No cone, just the light you stand in, 2s |
 | Flash | You stay lit, a 3.5s fade, 1s | A 2s fade, 1s | A 1s fade, 2s |
 
 Your own layer is free in every cell except Stare Hard, Flash Normal and Flash

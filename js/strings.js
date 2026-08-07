@@ -107,8 +107,8 @@ window.PV = window.PV || {};
             menu: 'A <b>6-tile</b> cone, and a ping &middot; 1s cooldown'
           },
           hard: {
-            blurb: 'A narrow cone, quick to fade',
-            menu: 'A <b>narrow</b> cone, quick to fade &middot; 2s cooldown'
+            blurb: 'No cone, just the light you stand in',
+            menu: '<b>No cone.</b> Only the light you stand in &middot; 2s cooldown'
           }
         }
       },

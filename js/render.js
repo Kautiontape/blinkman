@@ -158,7 +158,7 @@ window.PV = window.PV || {};
           // The swung heading, not his own: the beam lags a turn by a frame
           // or two, and what it lights has to agree with where it points.
           torch.dir = torchSwing(torchMemory, game.pacman.dir, torch.x, torch.y, dt);
-          reach = torchSpill(torchMemory, torch, game.maze, dt);
+          reach = torchEase(torchMemory, torch, game.maze, dt);
         }
 
         ctx.save();
@@ -375,8 +375,11 @@ window.PV = window.PV || {};
 
   /* How far the light reaches at this absolute angle: the cone's length
    * within the cone, the disc's radius everywhere else. Their union is the
-   * lit shape before any wall gets in the way. */
+   * lit shape before any wall gets in the way. A torch with no cone is the
+   * disc alone — without the first line an exactly-forward ray matches
+   * `coneHalf: 0` and reports a reach of zero, notching the lit shape. */
   function torchReach(ang, torch) {
+    if (torch.coneLen <= 0) return torch.radius;
     var off = ang - Math.atan2(torch.dir.y, torch.dir.x);
     while (off > Math.PI) off -= Math.PI * 2;
     while (off < -Math.PI) off += Math.PI * 2;
@@ -432,21 +435,42 @@ window.PV = window.PV || {};
     return { x: Math.cos(mem.facing), y: Math.sin(mem.facing) };
   }
 
+  /* The furthest the light can go in any direction: the cone where there is
+   * one, the disc otherwise. Capping at the cone alone collapses a coneless
+   * torch to nothing. */
+  function torchFar(torch) {
+    return Math.max(torch.coneLen, torch.radius);
+  }
+
+  /* Each ray's length against the walls, with no easing — the shape the light
+   * would take if it arrived all at once. */
+  PV.torchSpill = function (torch, maze) {
+    var far = torchFar(torch);
+    var want = new Array(TORCH_RAYS);
+    for (var i = 0; i < TORCH_RAYS; i++) {
+      var ang = i / TORCH_RAYS * Math.PI * 2;
+      var wall = torchRay(torch.x, torch.y, ang, far, maze);
+      want[i] = Math.min(torchReach(ang, torch), wall);
+    }
+    return want;
+  };
+
   /* Each ray's length, eased from where it was last frame. Easing is what
    * keeps a corridor from arriving all at once the instant he clears a
    * corner — the light runs down it instead. The clamp to the wall is not
    * optional: without it a lagging ray would sit inside a wall he has just
    * walked up to, and light would show through it. A jump too big to be a
    * step (the tunnel) skips the easing rather than sweeping the board. */
-  function torchSpill(mem, torch, maze, dt) {
+  function torchEase(mem, torch, maze, dt) {
     var reach = mem.reach;
     var cut = reach === null || Math.hypot(torch.x - mem.x, torch.y - mem.y) > TORCH_JUMP;
     if (reach === null) reach = mem.reach = new Array(TORCH_RAYS);
 
+    var far = torchFar(torch);
     var step = TORCH_SPILL * dt;
     for (var i = 0; i < TORCH_RAYS; i++) {
       var ang = i / TORCH_RAYS * Math.PI * 2;
-      var wall = torchRay(torch.x, torch.y, ang, torch.coneLen, maze);
+      var wall = torchRay(torch.x, torch.y, ang, far, maze);
       var want = Math.min(torchReach(ang, torch), wall);
       reach[i] = Math.min(cut ? want : approach(reach[i], want, step), wall);
     }

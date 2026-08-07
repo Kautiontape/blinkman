@@ -71,9 +71,10 @@ window.PV = window.PV || {};
    *
    * mode 'stare' — your last `keep` picks stay lit until you pick again.
    * mode 'flash' — a pick flashes at full alpha, holds, then fades out.
-   * mode 'torch' — a lit circle and a forward cone travel with you, and a
-   *                pick pings outward from you; render.js paints all three
-   *                in board space, so the layer alphas stay dark.
+   * mode 'torch' — a lit circle travels with you, with a forward cone on the
+   *                levels that have one, and a pick pings outward from you;
+   *                render.js paints them in board space, so the layer alphas
+   *                stay dark.
    * freeSelf     — your own layer is always drawn and costs no pick.
    *
    * `base` is what a mode's three levels share; a level merges over it.
@@ -108,7 +109,8 @@ window.PV = window.PV || {};
           hold: 0.25, fade: 1.1, cooldown: 1.0, ghostSpeed: 0.90
         },
         hard: {
-          torchRadius: 32, coneLen: 96, coneHalf: Math.PI / 6,
+          // No cone: a bare pool of light, near Normal's radius to pay for it.
+          torchRadius: 44, coneLen: 0, coneHalf: 0,
           hold: 0.15, fade: 0.7, cooldown: 2.0, ghostSpeed: 1.00
         }
       }
