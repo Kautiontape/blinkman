@@ -224,6 +224,50 @@ console.log('tracked blips');
 })();
 
 console.log('');
+console.log('two pings at once');
+
+/* Picks stack, so two ghosts pings run together. Each carries its own
+ * contacts: they fired from different places, so the same ghost sits a
+ * different distance from each and their fades run on separate clocks. */
+(function () {
+  var g = PV.createGame('torch-easy');
+  g.startRound();
+  g.maze.eatPellet = function () { return 0; };
+  g.invuln = Infinity;
+  g.steer(PV.DIRS.left);
+  for (var i = 0; i < 100; i++) g.update(STEP);
+
+  check('the first ghost ping opens', g.selectVision('ghosts') === 'ok');
+  var first = livePulse(g);
+  for (var f = 0; f < 60 && !first.blips[0]; f++) g.update(STEP);
+  check('the first ping has a contact', !!first.blips[0]);
+
+  // He is against a wall by now, so turn him up the corridor: the second ping
+  // has to fire from somewhere the first did not. 70 frames clears the 1s
+  // cooldown and leaves the first ping well inside its life.
+  g.steer(PV.DIRS.up);
+  for (var c = 0; c < 70; c++) g.update(STEP);
+  check('the second ghost ping opens', g.selectVision('ghosts') === 'ok');
+  var second = livePulse(g);
+  check('the two pings fired from different places',
+    Math.hypot(second.x - first.x, second.y - first.y) > 4,
+    Math.hypot(second.x - first.x, second.y - first.y).toFixed(1));
+
+  for (var s = 0; s < 60 && !second.blips[0]; s++) g.update(STEP);
+  check('the second ping has a contact too', !!second.blips[0]);
+
+  var live = g.vision.pulses();
+  check('both pings are still running',
+    live.indexOf(first) !== -1 && live.indexOf(second) !== -1, live.length);
+  check('each ping owns its own contacts', first.blips !== second.blips);
+  check('one ghost, two rings, two contacts',
+    first.blips[0] !== second.blips[0]);
+  check('the same ghost is a different distance from each ring',
+    Math.abs(first.blips[0].dist - second.blips[0].dist) > 1,
+    first.blips[0].dist + ' vs ' + second.blips[0].dist);
+})();
+
+console.log('');
 console.log('line of sight');
 
 (function () {
