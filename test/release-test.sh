@@ -27,7 +27,28 @@ setup() {
   mkdir -p "$work/repo/tools" "$work/repo/js" "$work/repo/test"
   cp "$root/tools/release.sh" "$work/repo/tools/release.sh"
   printf "  PV.VERSION = '1.3.0';\n" > "$work/repo/js/strings.js"
-  for suite in maze opening torch attract modes flash aura; do
+  # release.sh stamps the changelog and regenerates the Markdown, so the
+  # fixture needs both files and the real generator. Neither is stubbed: what
+  # is under test includes release.sh's two sed patterns finding their lines,
+  # and they are anchored to the layout the real file is written in.
+  #
+  # The notes are cut down to a fixed pair through PV.changelogSource, the same
+  # splice tools/changelog.html saves with. Copying the real array instead
+  # would tie every assertion below to whatever is pending at the time — and
+  # leave the whole suite failing the day a release empties it.
+  cp "$root/tools/changelog.js" "$work/repo/tools/changelog.js"
+  cp "$root/js/changelog.js" "$work/repo/js/changelog.js"
+  node -e '
+    var fs = require("fs"), file = process.argv[1];
+    global.window = {};
+    require(file);
+    fs.writeFileSync(file, global.window.PV.changelogSource(
+      fs.readFileSync(file, "utf8"),
+      [{ version: "Unreleased", date: "", notes: ["A thing changed."] },
+       { version: "1.3.0", date: "2026-08-06", notes: ["It began."] }]));
+  ' "$work/repo/js/changelog.js"
+  (cd "$work/repo" && node tools/changelog.js >/dev/null)
+  for suite in maze opening torch attract modes flash aura changelog; do
     printf 'process.exit(%s);\n' "$1" > "$work/repo/test/$suite-test.js"
   done
   git -C "$work/repo" add -A
@@ -59,6 +80,11 @@ $out"
 
 version_in() {
   sed -n "s/^ *PV\.VERSION = '\([^']*\)';\$/\1/p" "$work/repo/js/strings.js"
+}
+
+# The newest entry's heading, which is 'Unreleased' until a release stamps it.
+changelog_heading() {
+  sed -n "s/^ *version: '\([^']*\)',\$/\1/p" "$work/repo/js/changelog.js" | head -1
 }
 
 # $1 description, $2 expected version in the fixture's strings.js.
@@ -127,6 +153,11 @@ setup 0
 run n 1.4.0
 expect 'aborts when the prompt is declined' 1 'aborted'
 expect_version 'reverts the bump when the prompt is declined' '1.3.0'
+if [ "$(changelog_heading)" = 'Unreleased' ]; then
+  ok 'and reverts the changelog stamp with it'
+else
+  no 'and reverts the changelog stamp with it' "heading is $(changelog_heading)"
+fi
 teardown
 
 setup 0
@@ -176,6 +207,53 @@ if [ "$(git -C "$work/origin.git" rev-parse main)" = "$(git -C "$work/repo" rev-
   ok 'pushes the branch to origin'
 else
   no 'pushes the branch to origin' 'origin main is behind'
+fi
+teardown
+
+# The changelog ships in the build and on the store page, so cutting a version
+# has to move the Unreleased heading onto it. Nothing else would notice: the
+# release succeeds either way and the notes just come out under the wrong
+# heading, one release late, forever.
+setup 0
+run y 1.4.0
+if [ "$(changelog_heading)" = '1.4.0' ]; then
+  ok 'stamps the changelog heading with the version'
+else
+  no 'stamps the changelog heading with the version' "heading is $(changelog_heading)"
+fi
+if grep -q "^ *date: '$(date +%F)',\$" "$work/repo/js/changelog.js"; then
+  ok "and dates it today"
+else
+  no "and dates it today" "$(grep -n "date: '" "$work/repo/js/changelog.js")"
+fi
+if grep -q "^## 1.4.0 — $(date +%F)\$" "$work/repo/CHANGELOG.md"; then
+  ok 'and regenerates CHANGELOG.md from it'
+else
+  no 'and regenerates CHANGELOG.md from it' "$(head -12 "$work/repo/CHANGELOG.md")"
+fi
+teardown
+
+setup 0
+sed -i "s/'Unreleased'/'1.3.1'/" "$work/repo/js/changelog.js"
+git -C "$work/repo" commit -q -am 'nothing pending'
+run y 1.4.0
+expect 'refuses a release with nothing written about it' 1 'no Unreleased section'
+expect_version 'and leaves strings.js alone' '1.3.0'
+teardown
+
+# The stamp makes js/changelog.js newer than CHANGELOG.md whatever happened
+# before it, so a hand edit sitting in the Markdown can only be noticed ahead
+# of time. Past the stamp the regeneration would erase it without a word.
+setup 0
+printf -- '- A note written straight into the Markdown.\n' >> "$work/repo/CHANGELOG.md"
+git -C "$work/repo" commit -q -am 'hand-edited the changelog'
+run y 1.4.0
+expect 'refuses when the two changelog files disagree' 1 'reconcile the changelog'
+expect_version 'and leaves strings.js alone when they do' '1.3.0'
+if grep -q 'A note written straight into the Markdown.' "$work/repo/CHANGELOG.md"; then
+  ok 'and does not erase the hand-written note'
+else
+  no 'and does not erase the hand-written note' 'the note is gone'
 fi
 teardown
 
@@ -300,7 +378,7 @@ index.html:     $(printf '%s' "$html_order" | tr '\n' ' ')"
   fi
 }
 
-for suite in aura torch flash opening modes attract; do
+for suite in aura torch flash opening modes attract changelog; do
   check_require_order "$suite"
 done
 

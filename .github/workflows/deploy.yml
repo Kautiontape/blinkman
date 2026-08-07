@@ -35,6 +35,7 @@ jobs:
           node test/modes-test.js
           node test/flash-test.js
           node test/aura-test.js
+          node test/changelog-test.js
 
       # itch.io's own CDN. The URL ends in LATEST, so there is nothing to pin
       # and nothing to track, and the publish key stays out of third-party code.
