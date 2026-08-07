@@ -450,34 +450,23 @@ window.PV = window.PV || {};
     return Math.max(torch.coneLen, torch.radius);
   }
 
-  /* One ray at absolute angle `ang`: how far the walls let the light go, and
-   * how far the lit shape wants it to reach. `want` is never past `wall`, so a
-   * caller after the shape alone can take it on its own; one easing toward it
-   * needs `wall` too, as the limit a ray still catching up is held to. */
-  function torchCast(ang, torch, maze, far) {
-    var wall = torchRay(torch.x, torch.y, ang, far, maze);
-    return { wall: wall, want: Math.min(torchReach(ang, torch), wall) };
-  }
-
-  /* Each ray's length against the walls, with no easing — the shape the light
-   * would take if it arrived all at once. */
-  PV.torchShape = function (torch, maze) {
-    var far = torchFar(torch);
-    var want = new Array(TORCH_RAYS);
-    for (var i = 0; i < TORCH_RAYS; i++) {
-      want[i] = torchCast(i / TORCH_RAYS * Math.PI * 2, torch, maze, far).want;
-    }
-    return want;
-  };
-
   /* Each ray's length, eased from where it was last frame. Easing is what
    * keeps a corridor from arriving all at once the instant he clears a
-   * corner — the light runs down it instead. The clamp to the wall is not
-   * optional: without it a lagging ray would sit inside a wall he has just
-   * walked up to, and light would show through it. A jump too big to be a
-   * step (the tunnel) skips the easing rather than sweeping the board. A ray
-   * mid-run legitimately sits past `want` — that is the corridor arriving — so
-   * the wall, not `want`, is what it is held to. */
+   * corner — the light runs down it instead.
+   *
+   * Two lengths per ray, and the difference between them is the whole of it.
+   * `want` is how far the lit shape asks to reach at this angle; `wall` is how
+   * far the walls actually allow, and is never the shorter of the two. A ray
+   * still running out sits past `want` and below `wall` — that is the corridor
+   * arriving — so `wall`, not `want`, is what it is held to. Holding it to
+   * `want` would snap every trailing ray home in a frame; dropping the clamp
+   * altogether would leave a lagging ray inside a wall he has just walked up
+   * to, showing light through it.
+   *
+   * `cut` skips the easing where there is nothing to ease: a mem carrying no
+   * rays yet, so the first frame is the bare shape, and a jump too big to be a
+   * step (the tunnel), which would otherwise sweep the light across the
+   * board. */
   PV.torchEase = function (mem, torch, maze, dt) {
     var reach = mem.reach;
     var cut = reach === null || Math.hypot(torch.x - mem.x, torch.y - mem.y) > TORCH_JUMP;
@@ -486,8 +475,10 @@ window.PV = window.PV || {};
     var far = torchFar(torch);
     var step = TORCH_SPILL * dt;
     for (var i = 0; i < TORCH_RAYS; i++) {
-      var ray = torchCast(i / TORCH_RAYS * Math.PI * 2, torch, maze, far);
-      reach[i] = Math.min(cut ? ray.want : approach(reach[i], ray.want, step), ray.wall);
+      var ang = i / TORCH_RAYS * Math.PI * 2;
+      var wall = torchRay(torch.x, torch.y, ang, far, maze);
+      var want = Math.min(torchReach(ang, torch), wall);
+      reach[i] = Math.min(cut ? want : approach(reach[i], want, step), wall);
     }
 
     mem.x = torch.x;

@@ -444,33 +444,44 @@ function torchOf(id) {
 console.log('');
 console.log('a coneless torch still reaches');
 
-/* render.js caps every ray at the cone's length and treats an on-axis ray as
- * cone-lit. Both collapse a torch with no cone unless they fall back to the
- * disc, and neither is visible to torchAlpha. */
+/* Hard has no cone at all, which is the case the ray code can silently lose:
+ * torchEase caps every ray at the furthest the light can go, and reads an
+ * on-axis ray as cone-lit. Either one collapses a coneless torch to nothing
+ * unless it falls back to the disc, and neither is visible to torchAlpha.
+ *
+ * A mem carrying no rays yet has nothing to ease from, so this frame is the
+ * bare geometry with the easing standing aside — which is why the fixture
+ * below asserts the mem really is empty before measuring anything. The second
+ * frame is here so the reading cannot be a first-frame artifact: the disc is
+ * where the easing settles, not just where it starts. */
 (function () {
   var hard = PV.DIFFICULTIES['torch-hard'];
-  var s = span(PV.torchShape(torchOf('torch-hard'), OPEN_MAZE));
+  var torch = torchOf('torch-hard');
+  var mem = { facing: null, reach: null, x: 0, y: 0 };
+  check('the fixture has no rays to ease from', mem.reach === null, mem.reach);
+
+  var first = span(PV.torchEase(mem, torch, OPEN_MAZE, STEP));
   check('every ray reaches the disc edge in open space',
-    near(s.min, hard.torchRadius, 0.001) && near(s.max, hard.torchRadius, 0.001),
-    s.text);
+    near(first.min, hard.torchRadius, 0.001) &&
+    near(first.max, hard.torchRadius, 0.001), first.text);
+
+  var again = span(PV.torchEase(mem, torch, OPEN_MAZE, STEP));
+  check('and a settled frame reads the same disc',
+    near(again.min, hard.torchRadius, 0.001) &&
+    near(again.max, hard.torchRadius, 0.001), again.text);
 })();
 
 console.log('');
 console.log('the lit edge eases');
 
-/* The per-frame half of the same geometry. It carries the last frame's ray
- * lengths forward so a corridor runs down rather than arriving whole, which is
- * exactly what PV.torchShape does not do — the two cannot be collapsed into
- * one another. */
+/* Ray lengths are carried between frames, so a corridor runs down rather than
+ * arriving whole the instant he clears the corner. */
 (function () {
   var hard = PV.DIFFICULTIES['torch-hard'];
   var torch = torchOf('torch-hard');
   var mem = { facing: null, reach: null, x: 0, y: 0 };
 
-  var first = span(PV.torchEase(mem, torch, OPEN_MAZE, STEP));
-  check('the first frame cuts to the shape rather than easing up from nothing',
-    near(first.min, hard.torchRadius, 0.001) &&
-    near(first.max, hard.torchRadius, 0.001), first.text);
+  PV.torchEase(mem, torch, OPEN_MAZE, STEP);   // settles every ray on the disc
   check('it remembers where it measured from',
     mem.x === torch.x && mem.y === torch.y, mem.x + ',' + mem.y);
 
