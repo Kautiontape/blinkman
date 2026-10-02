@@ -1,0 +1,14 @@
+name: ci
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Renovate only touches workflow files here (the game has no dependencies),
+# so lint them; the test suites run at release time in deploy.yml.
+jobs:
+  actionlint:
+    uses: Kautiontape/ci/.github/workflows/actionlint.yml@main
